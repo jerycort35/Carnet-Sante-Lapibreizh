@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,8 +37,13 @@ class LapibreizhApp extends StatelessWidget {
 class Store {
   static const key='lapibreizh_rabbits_v1';
   static Future<List<Map<String,dynamic>>> load() async {
-    final p=await SharedPreferences.getInstance(); final s=p.getString(key); if(s==null)return [];
-    return (jsonDecode(s) as List).map((e)=>Map<String,dynamic>.from(e)).toList();
+    final p=await SharedPreferences.getInstance();
+    final s=p.getString(key);
+    if(s==null)return [];
+    final list=(jsonDecode(s) as List).map((e)=>Map<String,dynamic>.from(e)).toList();
+    final changed=await PrivateFiles.migrateAll(list);
+    if(changed)await p.setString(key,jsonEncode(list));
+    return list;
   }
   static Future<void> save(List<Map<String,dynamic>> v) async { final p=await SharedPreferences.getInstance(); await p.setString(key,jsonEncode(v)); }
 }
@@ -43,40 +51,106 @@ class Store {
 
 class PrivateFiles {
   static Future<Directory> _root() async {
-    final base = await getApplicationDocumentsDirectory();
-    final dir = Directory('${base.path}/lapibreizh_files');
-    if (!await dir.exists()) await dir.create(recursive: true);
-    final noMedia = File('${dir.path}/.nomedia');
-    if (!await noMedia.exists()) await noMedia.writeAsString('');
+    final base=await getApplicationSupportDirectory();
+    final dir=Directory('${base.path}/lapibreizh_files');
+    if(!await dir.exists())await dir.create(recursive:true);
+    final noMedia=File('${dir.path}/.nomedia');
+    if(!await noMedia.exists())await noMedia.writeAsString('');
     return dir;
   }
 
-  static Future<String> importFile(String sourcePath, String category) async {
-    if (sourcePath.isEmpty) return '';
-    final source = File(sourcePath);
-    if (!await source.exists()) return '';
-    final root = await _root();
-    final dir = Directory('${root.path}/$category');
-    if (!await dir.exists()) await dir.create(recursive: true);
-    final dot = sourcePath.lastIndexOf('.');
-    final ext = dot >= 0 ? sourcePath.substring(dot) : '';
-    final target = File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}$ext');
+  static Future<Directory> _legacyRoot() async {
+    final base=await getApplicationDocumentsDirectory();
+    return Directory('${base.path}/lapibreizh_files');
+  }
+
+  static bool _inside(String path,String root)=>path==root||path.startsWith('$root${Platform.pathSeparator}');
+
+  static String extensionOf(String path){
+    final name=path.split(RegExp(r'[/\\]')).last;
+    final dot=name.lastIndexOf('.');
+    return dot>=0?name.substring(dot).toLowerCase():'';
+  }
+
+  static bool isImage(String path){
+    final e=extensionOf(path);
+    return ['.jpg','.jpeg','.png','.webp','.gif','.bmp'].contains(e);
+  }
+
+  static Future<String> importFile(String sourcePath,String category) async {
+    if(sourcePath.isEmpty)return '';
+    final source=File(sourcePath);
+    if(!await source.exists())return '';
+    final root=await _root();
+    final dir=Directory('${root.path}/$category');
+    if(!await dir.exists())await dir.create(recursive:true);
+    final ext=extensionOf(sourcePath);
+    final target=File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}$ext');
     await source.copy(target.path);
     return target.path;
   }
 
-  static Future<void> deleteFile(String? path) async {
-    if (path == null || path.isEmpty) return;
-    try {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
-    } catch (_) {}
+  static Future<String> saveBytes(Uint8List bytes,String category,{String extension='.jpg'}) async {
+    final root=await _root();
+    final dir=Directory('${root.path}/$category');
+    if(!await dir.exists())await dir.create(recursive:true);
+    final ext=extension.startsWith('.')?extension:'.$extension';
+    final target=File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}$ext');
+    await target.writeAsBytes(bytes,flush:true);
+    return target.path;
   }
 
-  static Future<String> replaceFile(String oldPath, String sourcePath, String category) async {
-    final newPath = await importFile(sourcePath, category);
-    if (newPath.isNotEmpty) await deleteFile(oldPath);
-    return newPath;
+  static Future<void> deleteFile(String? path) async {
+    if(path==null||path.isEmpty)return;
+    try{
+      final root=await _root();
+      final legacy=await _legacyRoot();
+      if(!_inside(path,root.path)&&!_inside(path,legacy.path))return;
+      final file=File(path);
+      if(await file.exists())await file.delete();
+    }catch(_){}
+  }
+
+  static Future<String> _migratePath(String path,String category) async {
+    if(path.isEmpty)return '';
+    final file=File(path);
+    if(!await file.exists())return path;
+    final root=await _root();
+    if(_inside(path,root.path))return path;
+    final legacy=await _legacyRoot();
+    final copied=await importFile(path,category);
+    if(copied.isEmpty)return path;
+    if(_inside(path,legacy.path)){
+      try{await file.delete();}catch(_){}
+    }
+    return copied;
+  }
+
+  static Future<bool> migrateAll(List<Map<String,dynamic>> rabbits) async {
+    var changed=false;
+    for(final r in rabbits){
+      for(final entry in {'photo':'rabbit_photos','healthBook':'documents','passport':'documents'}.entries){
+        final old=(r[entry.key]??'') as String;
+        final moved=await _migratePath(old,entry.value);
+        if(moved!=old){r[entry.key]=moved;changed=true;}
+      }
+      for(final key in ['vaccines','dewormings']){
+        final items=(r[key] as List?)??[];
+        for(final item in items){
+          final old=(item['photo']??'') as String;
+          final moved=await _migratePath(old,'treatments');
+          if(moved!=old){item['photo']=moved;changed=true;}
+        }
+      }
+    }
+    try{
+      final legacy=await _legacyRoot();
+      if(await legacy.exists()){
+        final remains=await legacy.list(recursive:true).toList();
+        if(remains.whereType<File>().isEmpty)await legacy.delete(recursive:true);
+      }
+    }catch(_){}
+    return changed;
   }
 }
 
@@ -104,7 +178,7 @@ class _HomePageState extends State<HomePage>{
         const SizedBox(height:18),
       ]))),
       if(rabbits.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(22),child:Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(children:[const Icon(Icons.pets,size:46,color:brown),const SizedBox(height:12),const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),const SizedBox(height:16),FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin'))]))))),
-      SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(itemCount:rabbits.length,itemBuilder:(c,i){final r=rabbits[i];return Padding(padding:const EdgeInsets.only(bottom:12),child:Card(child:ListTile(contentPadding:const EdgeInsets.all(12),leading:Hero(tag:'rabbit$i',child:CircleAvatar(radius:34,backgroundColor:gold,backgroundImage:fileImage(r['photo']),child:(r['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):null)),title:Text((r['name']??'').isEmpty?'Lapin sans nom':r['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),subtitle:Text('${r['breed']?.isEmpty==false?r['breed']:'Race à renseigner'}${r['birth']?.isEmpty==false?'  •  ${r['birth']}':''}'),trailing:const Icon(Icons.chevron_right,color:brown),onTap:()async{await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:i)));await refresh();})));})),
+      SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(itemCount:rabbits.length,itemBuilder:(c,i){final r=rabbits[i];return Padding(padding:const EdgeInsets.only(bottom:12),child:Card(child:ListTile(contentPadding:const EdgeInsets.all(12),leading:Hero(tag:'rabbit$i',child:Container(width:68,height:68,decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),clipBehavior:Clip.antiAlias,child:(r['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(r['photo']),fit:BoxFit.cover))),title:Text((r['name']??'').isEmpty?'Lapin sans nom':r['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),subtitle:Text('${r['breed']?.isEmpty==false?r['breed']:'Race à renseigner'}${r['birth']?.isEmpty==false?'  •  ${r['birth']}':''}'),trailing:const Icon(Icons.chevron_right,color:brown),onTap:()async{await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:i)));await refresh();})));})),
     ]))),
     floatingActionButton:rabbits.isEmpty?null:FloatingActionButton.extended(onPressed:addRabbit,backgroundColor:ink,foregroundColor:gold,icon:const Icon(Icons.add),label:const Text('Nouveau lapin')),
   );
@@ -119,7 +193,55 @@ class _RabbitPageState extends State<RabbitPage>{
   @override void initState(){super.initState();load();}
   Future<void> load()async{all=await Store.load();r=all[widget.index];if(mounted)setState((){});}
   Future<void> persist()async{all[widget.index]=r!;await Store.save(all);if(mounted)setState((){});}
-  Future<String> pickImage(String category)async{final x=await picker.pickImage(source:ImageSource.gallery,imageQuality:88);if(x==null)return '';return PrivateFiles.importFile(x.path,category);}
+  Future<String> pickSquareRabbitPhoto()async{
+    final x=await picker.pickImage(source:ImageSource.gallery,imageQuality:100);
+    if(x==null)return '';
+    final bytes=await File(x.path).readAsBytes();
+    if(!mounted)return '';
+    final cropped=await Navigator.push<Uint8List>(context,MaterialPageRoute(builder:(_)=>SquareCropPage(image:bytes)));
+    if(cropped==null)return '';
+    return PrivateFiles.saveBytes(cropped,'rabbit_photos',extension:'.jpg');
+  }
+
+  Future<void> replaceRabbitPhoto()async{
+    final saved=await pickSquareRabbitPhoto();
+    if(saved.isEmpty)return;
+    final old=(r!['photo']??'') as String;
+    r!['photo']=saved;
+    await persist();
+    await PrivateFiles.deleteFile(old);
+  }
+
+  Future<void> removeRabbitPhoto()async{
+    final old=(r!['photo']??'') as String;
+    if(old.isEmpty)return;
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer la photo ?'),
+      content:const Text('La copie enregistrée dans le carnet sera supprimée. La photo originale de votre bibliothèque ne sera jamais supprimée.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+    ))??false;
+    if(!ok)return;
+    r!['photo']='';
+    await persist();
+    await PrivateFiles.deleteFile(old);
+  }
+
+  Future<void> showRabbitPhoto()async{
+    final p=(r!['photo']??'') as String;
+    if(p.isEmpty){await replaceRabbitPhoto();return;}
+    if(!mounted)return;
+    await showDialog(context:context,builder:(dialogContext)=>Dialog.fullscreen(child:Scaffold(
+      backgroundColor:Colors.black,
+      appBar:AppBar(
+        backgroundColor:ink,foregroundColor:gold,title:const Text('Photo du lapin'),
+        actions:[
+          IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await replaceRabbitPhoto();},icon:const Icon(Icons.photo_camera_back_outlined)),
+          IconButton(tooltip:'Supprimer',onPressed:()async{Navigator.pop(dialogContext);await removeRabbitPhoto();},icon:const Icon(Icons.delete_outline)),
+        ],
+      ),
+      body:Center(child:InteractiveViewer(minScale:.5,maxScale:5,child:Image.file(File(p),fit:BoxFit.contain))),
+    )));
+  }
   Future<void> editIdentity()async{final data=Map<String,dynamic>.from(r!);await showDialog(context:context,builder:(ctx)=>EditIdentity(data:data,onSave:(v)async{r=v;await persist();Navigator.pop(ctx);}));}
   Future<void> addTreatment(String key,String title)async{final item={'date':'','product':'','photo':''};await showDialog(context:context,builder:(ctx)=>TreatmentDialog(title:title,item:item,onSave:(v)async{(r![key] as List).add(v);await persist();if(ctx.mounted)Navigator.pop(ctx);}));}
   Future<void> attach(String key)async{
@@ -131,6 +253,27 @@ class _RabbitPageState extends State<RabbitPage>{
       if(saved.isNotEmpty){r![key]=saved;await persist();await PrivateFiles.deleteFile(old);}
     }
   }
+  Future<void> viewDocument(String key,String label)async{
+    final p=(r![key]??'') as String;
+    if(p.isEmpty)return;
+    if(PrivateFiles.isImage(p)){
+      if(!mounted)return;
+      await showDialog(context:context,builder:(dialogContext)=>Dialog.fullscreen(child:Scaffold(
+        backgroundColor:Colors.black,
+        appBar:AppBar(
+          backgroundColor:ink,foregroundColor:gold,title:Text(label),
+          actions:[
+            IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await attach(key);},icon:const Icon(Icons.swap_horiz)),
+            IconButton(tooltip:'Supprimer',onPressed:()async{Navigator.pop(dialogContext);await removeDocument(key);},icon:const Icon(Icons.delete_outline)),
+          ],
+        ),
+        body:Center(child:InteractiveViewer(minScale:.5,maxScale:6,child:Image.file(File(p),fit:BoxFit.contain))),
+      )));
+    }else{
+      await OpenFilex.open(p);
+    }
+  }
+
   Future<void> removeDocument(String key)async{
     final p=(r![key]??'') as String;
     if(p.isEmpty)return;
@@ -153,7 +296,10 @@ class _RabbitPageState extends State<RabbitPage>{
     body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
       SliverAppBar(backgroundColor:ink.withValues(alpha:.94),foregroundColor:gold,pinned:true,title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),actions:[IconButton(onPressed:share,icon:const Icon(Icons.share)),PopupMenuButton<String>(onSelected:(v){if(v=='delete')deleteRabbit();},itemBuilder:(_)=>const [PopupMenuItem(value:'delete',child:Text('Supprimer la fiche'))])]),
       SliverPadding(padding:const EdgeInsets.fromLTRB(14,16,14,40),sliver:SliverList.list(children:[
-        Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[GestureDetector(onTap:()async{final p=await pickImage('rabbit_photos');if(p.isNotEmpty){final old=(rr['photo']??'') as String;rr['photo']=p;await persist();await PrivateFiles.deleteFile(old);}},child:Hero(tag:'rabbit${widget.index}',child:CircleAvatar(radius:62,backgroundColor:gold,backgroundImage:fileImage(rr['photo']),child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:42,color:ink):null))),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
+        Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[GestureDetector(onTap:showRabbitPhoto,child:Hero(tag:'rabbit${widget.index}',child:Container(width:180,height:180,decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(22),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:14,color:Colors.black26)]),clipBehavior:Clip.antiAlias,child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:48,color:ink):Image.file(File(rr['photo']),fit:BoxFit.cover)))),const SizedBox(height:8),Wrap(alignment:WrapAlignment.center,spacing:8,children:[
+          OutlinedButton.icon(onPressed:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
+          if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
+        ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
         section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed'])]),
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
@@ -168,12 +314,91 @@ class _RabbitPageState extends State<RabbitPage>{
   Widget treatmentSection(String title,String key,IconData icon){final list=r![key] as List;return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(title,icon),if(list.isEmpty)const Padding(padding:EdgeInsets.only(bottom:10),child:Text('Aucun enregistrement.',style:TextStyle(color:Colors.black54))),...list.asMap().entries.map((e)=>ListTile(contentPadding:EdgeInsets.zero,leading:CircleAvatar(backgroundColor:gold.withValues(alpha:.25),backgroundImage:fileImage(e.value['photo']),child:(e.value['photo']??'').isEmpty?Icon(icon,color:brown):null),title:Text(e.value['product']?.isEmpty==false?e.value['product']:'Produit non renseigné',style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text(e.value['date']??''),trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()async{final photo=(e.value['photo']??'') as String;list.removeAt(e.key);await persist();await PrivateFiles.deleteFile(photo);}))),OutlinedButton.icon(onPressed:()=>addTreatment(key,title.substring(0,title.length-1)),icon:const Icon(Icons.add),label:Text('Ajouter ${title.toLowerCase()}'))])));}
   Widget docButton(String label,String key){
     final p=(r![key]??'') as String;
-    if(p.isEmpty)return OutlinedButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.attach_file,color:brown),label:Text('Ajouter $label'));
-    return Row(children:[
-      Expanded(child:OutlinedButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.check_circle,color:Colors.green),label:Text('$label ajouté • remplacer'))),
-      PopupMenuButton<String>(onSelected:(v){if(v=='replace')attach(key);if(v=='delete')removeDocument(key);},itemBuilder:(_)=>const [PopupMenuItem(value:'replace',child:Text('Remplacer')),PopupMenuItem(value:'delete',child:Text('Supprimer'))])
-    ]);
+    if(p.isEmpty){
+      return OutlinedButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.attach_file,color:brown),label:Text('Ajouter $label'));
+    }
+    final image=PrivateFiles.isImage(p);
+    return Container(
+      padding:const EdgeInsets.all(10),
+      decoration:BoxDecoration(color:Colors.white.withValues(alpha:.70),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.65))),
+      child:Row(children:[
+        InkWell(
+          onTap:()=>viewDocument(key,label),
+          borderRadius:BorderRadius.circular(12),
+          child:Container(
+            width:92,height:118,
+            decoration:BoxDecoration(color:ivory,borderRadius:BorderRadius.circular(12),border:Border.all(color:gold)),
+            clipBehavior:Clip.antiAlias,
+            child:image?Image.file(File(p),fit:BoxFit.contain):const Icon(Icons.description,size:48,color:brown),
+          ),
+        ),
+        const SizedBox(width:12),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(label,style:const TextStyle(fontSize:17,fontWeight:FontWeight.bold,color:ink)),
+          const SizedBox(height:5),
+          Text(image?'Appuyez sur la miniature pour l’agrandir.':'Appuyez pour ouvrir le document.',style:const TextStyle(color:Colors.black54)),
+          const SizedBox(height:8),
+          Wrap(spacing:6,children:[
+            TextButton.icon(onPressed:()=>viewDocument(key,label),icon:const Icon(Icons.visibility),label:const Text('Voir')),
+            TextButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.swap_horiz),label:const Text('Remplacer')),
+            IconButton(tooltip:'Supprimer',onPressed:()=>removeDocument(key),icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
+          ]),
+        ])),
+      ]),
+    );
   }
+}
+
+
+class SquareCropPage extends StatefulWidget{
+  final Uint8List image;
+  const SquareCropPage({super.key,required this.image});
+  @override State<SquareCropPage> createState()=>_SquareCropPageState();
+}
+
+class _SquareCropPageState extends State<SquareCropPage>{
+  final controller=CropController();
+  bool cropping=false;
+
+  @override Widget build(BuildContext context)=>Scaffold(
+    backgroundColor:Colors.black,
+    appBar:AppBar(
+      backgroundColor:ink,foregroundColor:gold,title:const Text('Cadrer la photo'),
+      actions:[TextButton(
+        onPressed:cropping?null:(){setState(()=>cropping=true);controller.crop();},
+        child:const Text('VALIDER',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
+      )],
+    ),
+    body:Column(children:[
+      const Padding(
+        padding:EdgeInsets.all(12),
+        child:Text('Déplacez et zoomez la photo dans le carré.',style:TextStyle(color:Colors.white,fontSize:16)),
+      ),
+      Expanded(child:Crop(
+        image:widget.image,
+        controller:controller,
+        aspectRatio:1,
+        initialRectBuilder:InitialRectBuilder.withSizeAndRatio(size:.92,aspectRatio:1),
+        interactive:true,
+        fixCropRect:true,
+        baseColor:Colors.black,
+        maskColor:Colors.black54,
+        radius:0,
+        filterQuality:FilterQuality.high,
+        progressIndicator:const Center(child:CircularProgressIndicator()),
+        onCropped:(result){
+          if(result is CropSuccess){
+            Navigator.pop(context,result.croppedImage);
+          }else{
+            if(mounted){
+              setState(()=>cropping=false);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Impossible de recadrer cette image.')));
+            }
+          }
+        },
+      )),
+    ]),
+  );
 }
 
 class EditIdentity extends StatefulWidget{final Map<String,dynamic> data;final Future<void> Function(Map<String,dynamic>) onSave;const EditIdentity({super.key,required this.data,required this.onSave});@override State<EditIdentity> createState()=>_EditIdentityState();}
