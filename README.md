@@ -1,6 +1,7 @@
-# Carnet de Santé Lapibreizh
+# Carnet de Santé Lapibreizh — V1
 
-Base Flutter du carnet de santé digital pour lapins — Les Lapibreizh.
+Application Flutter Android multi-lapins.
 
-Le dépôt contient le code applicatif et un workflow GitHub Actions qui génère
-automatiquement les fichiers Android nécessaires puis compile un APK Release.
+Fonctions V1 : identité et filiation, photo, vaccins et vermifuges avec photo du produit, documents carnet/passeport, partage Android, stockage local.
+
+Build GitHub Actions : onglet Actions > Build APK.

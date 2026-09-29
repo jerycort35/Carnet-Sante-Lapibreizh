@@ -1,0 +1,1 @@
+<resources><style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar"><item name="android:windowBackground">#171512</item></style><style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar"><item name="android:windowLightStatusBar">false</item><item name="android:windowBackground">?android:colorBackground</item></style></resources>
