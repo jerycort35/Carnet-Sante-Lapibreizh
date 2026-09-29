@@ -1,0 +1,47 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Generate Android platform files
+        run: |
+          cp -r lib /tmp/lapibreizh-lib
+          cp pubspec.yaml /tmp/lapibreizh-pubspec.yaml
+          flutter create --platforms=android --org fr.leslapibreizh .
+          rm -rf lib
+          cp -r /tmp/lapibreizh-lib lib
+          cp /tmp/lapibreizh-pubspec.yaml pubspec.yaml
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lapibreizh-app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
