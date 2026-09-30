@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:image_picker/image_picker.dart';
@@ -252,6 +254,20 @@ class Store {
       if(r['id']==null||((r['id']??'') as String).isEmpty){r['id']='r_${DateTime.now().microsecondsSinceEpoch}_$ri';changed=true;}
       if(r['sterilized']==null){r['sterilized']='';changed=true;}
       if(r['identification']==null){r['identification']='';changed=true;}
+      if(r['tattoo']==null){r['tattoo']='';changed=true;}
+      if(r['engagementRecipientName']==null){r['engagementRecipientName']='';changed=true;}
+      if(r['engagementRecipientAddress']==null){r['engagementRecipientAddress']='';changed=true;}
+      if(r['engagementRecipientEmail']==null){r['engagementRecipientEmail']='';changed=true;}
+      if(r['engagementDeliveryDate']==null){r['engagementDeliveryDate']='';changed=true;}
+      if(r['engagementSignedDate']==null){r['engagementSignedDate']='';changed=true;}
+      if(r['engagementPlace']==null){r['engagementPlace']='';changed=true;}
+      if(r['engagementIssuerName']==null){r['engagementIssuerName']='';changed=true;}
+      if(r['engagementIssuerQualification']==null){r['engagementIssuerQualification']='';changed=true;}
+      if(r['engagementIssuerReference']==null){r['engagementIssuerReference']='';changed=true;}
+      if(r['engagementMentionImage']==null){r['engagementMentionImage']='';changed=true;}
+      if(r['engagementSignatureImage']==null){r['engagementSignatureImage']='';changed=true;}
+      if(r['engagementCertificatePdf']==null){r['engagementCertificatePdf']='';changed=true;}
+      if(r['engagementAccepted']==null){r['engagementAccepted']=false;changed=true;}
       if(r['adoptionStatus']==null){r['adoptionStatus']='À l’élevage';changed=true;}
       if(r['adopterName']==null){r['adopterName']='';changed=true;}
       if(r['adopterContact']==null){r['adopterContact']='';changed=true;}
@@ -480,6 +496,14 @@ class BackupService {
       final p=((rabbit[key]??'') as String);
       if(p.isNotEmpty)yield MapEntry(p,'documents');
     }
+    for(final entry in {
+      'engagementMentionImage':'documents',
+      'engagementSignatureImage':'documents',
+      'engagementCertificatePdf':'documents',
+    }.entries){
+      final p=((rabbit[entry.key]??'') as String);
+      if(p.isNotEmpty)yield MapEntry(p,entry.value);
+    }
     for(final key in ['vaccines','dewormings']){
       for(final raw in ((rabbit[key] as List?)??[])){
         final item=raw as Map<String,dynamic>;
@@ -564,6 +588,9 @@ class BackupService {
     for(final rabbit in rabbits){
       rabbit['photo']=await restorePath(((rabbit['photo']??'') as String),'rabbit_photos');
       for(final key in ['healthBook','passport']){
+        rabbit[key]=await restorePath(((rabbit[key]??'') as String),'documents');
+      }
+      for(final key in ['engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){
         rabbit[key]=await restorePath(((rabbit[key]??'') as String),'documents');
       }
       for(final key in ['vaccines','dewormings']){
@@ -679,7 +706,7 @@ class _HomePageState extends State<HomePage>{
     return rabbits.asMap().entries.where((entry){
       final r=entry.value;
       final haystack=[
-        r['name'],r['breed'],r['identification'],r['fatherName'],r['motherName']
+        r['name'],r['breed'],r['identification'],r['tattoo'],r['fatherName'],r['motherName']
       ].map((e)=>(e??'').toString().toLowerCase()).join(' ');
       if(q.isNotEmpty&&!haystack.contains(q))return false;
       if(sexFilter!='Tous'&&r['sex']!=sexFilter)return false;
@@ -983,7 +1010,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -1433,6 +1460,195 @@ class _RabbitPageState extends State<RabbitPage>{
     }));
   }
 
+
+  DateTime? engagementEarliestDeparture(){
+    final d=Notifications.parseDate(r!['engagementDeliveryDate'] as String?);
+    return d?.add(const Duration(days:7));
+  }
+
+  Future<File> _buildEngagementCertificatePdf(Map<String,dynamic> data)async{
+    final pdf=pw.Document(
+      title:'Certificat d’engagement et de connaissance - lapin',
+      author:'Les Lapibreizh',
+      creator:'Carnet Santé Lapibreizh',
+    );
+
+    pw.MemoryImage? mentionImage;
+    pw.MemoryImage? signatureImage;
+    final mentionPath=((data['engagementMentionImage']??'') as String);
+    final signaturePath=((data['engagementSignatureImage']??'') as String);
+    if(mentionPath.isNotEmpty&&File(mentionPath).existsSync()){
+      try{mentionImage=pw.MemoryImage(await File(mentionPath).readAsBytes());}catch(_){}
+    }
+    if(signaturePath.isNotEmpty&&File(signaturePath).existsSync()){
+      try{signatureImage=pw.MemoryImage(await File(signaturePath).readAsBytes());}catch(_){}
+    }
+
+    final delivered=Notifications.parseDate(data['engagementDeliveryDate'] as String?);
+    final earliest=delivered?.add(const Duration(days:7));
+    final rabbitName=((r!['name']??'') as String).trim();
+    final breed=((r!['breed']??'') as String).trim();
+
+    pw.Widget sectionTitle(String value)=>pw.Container(
+      margin:const pw.EdgeInsets.only(top:12,bottom:5),
+      padding:const pw.EdgeInsets.symmetric(horizontal:9,vertical:6),
+      decoration:pw.BoxDecoration(color:PdfColor.fromHex('#171512'),borderRadius:pw.BorderRadius.circular(6)),
+      child:pw.Text(value,style:pw.TextStyle(color:PdfColor.fromHex('#D4AF67'),fontWeight:pw.FontWeight.bold,fontSize:12)),
+    );
+
+    pw.Widget line(String label,dynamic value){
+      final s=(value??'').toString().trim();
+      return pw.Padding(
+        padding:const pw.EdgeInsets.symmetric(vertical:2),
+        child:pw.Row(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+          pw.SizedBox(width:135,child:pw.Text(label,style:pw.TextStyle(fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#463622')))),
+          pw.Expanded(child:pw.Text(s.isEmpty?'—':s)),
+        ]),
+      );
+    }
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat:PdfPageFormat.a4,
+      margin:const pw.EdgeInsets.all(28),
+      header:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+        pw.Text('LES LAPIBREIZH',style:pw.TextStyle(fontSize:9,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#463622'))),
+        pw.Text('Certificat d’engagement et de connaissance • Lapin',style:pw.TextStyle(fontSize:8,color:PdfColors.grey700)),
+      ]),
+      footer:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+        pw.Text('Document généré par Carnet Santé Lapibreizh',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+        pw.Text('${ctx.pageNumber} / ${ctx.pagesCount}',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+      ]),
+      build:(ctx)=>[
+        pw.Container(
+          padding:const pw.EdgeInsets.all(14),
+          decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromHex('#D4AF67'),width:1.5),borderRadius:pw.BorderRadius.circular(10)),
+          child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.stretch,children:[
+            pw.Text('CERTIFICAT D’ENGAGEMENT ET DE CONNAISSANCE',textAlign:pw.TextAlign.center,style:pw.TextStyle(fontSize:17,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#171512'))),
+            pw.SizedBox(height:4),
+            pw.Text('Acquisition d’un lapin de compagnie',textAlign:pw.TextAlign.center,style:pw.TextStyle(fontSize:12,color:PdfColor.fromHex('#463622'))),
+          ]),
+        ),
+
+        sectionTitle('Personne qui reçoit le certificat'),
+        line('Nom / prénom',data['engagementRecipientName']),
+        line('Adresse',data['engagementRecipientAddress']),
+        line('Contact / e-mail',data['engagementRecipientEmail']),
+
+        sectionTitle('Délivrance du certificat'),
+        line('Délivré par',data['engagementIssuerName']),
+        line('Qualité / habilitation',data['engagementIssuerQualification']),
+        line('Référence',data['engagementIssuerReference']),
+        line('Date de délivrance',data['engagementDeliveryDate']),
+        if(earliest!=null)line('Cession possible dès le',Notifications.formatDate(earliest)),
+
+        sectionTitle('Animal concerné'),
+        line('Nom du lapin',rabbitName),
+        line('Race',breed),
+        line('Identification',r!['identification']),
+        line('Tatouage',r!['tattoo']),
+
+        sectionTitle('Besoins physiologiques'),
+        pw.Bullet(text:'Accès permanent à une alimentation adaptée, avec du foin de qualité et de l’eau propre à volonté.'),
+        pw.Bullet(text:'Espace de vie suffisant, exercice quotidien, zones de repos et environnement sécurisé.'),
+        pw.Bullet(text:'Conditions de température, d’hygiène et d’hébergement compatibles avec les besoins du lapin.'),
+
+        sectionTitle('Besoins comportementaux'),
+        pw.Bullet(text:'Possibilité d’explorer, se cacher, ronger, creuser, se déplacer et adopter ses comportements naturels.'),
+        pw.Bullet(text:'Interactions sociales adaptées et manipulations respectueuses du tempérament et du bien-être de l’animal.'),
+        pw.Bullet(text:'Enrichissement régulier et prévention de l’ennui.'),
+
+        sectionTitle('Besoins médicaux'),
+        pw.Bullet(text:'Suivi régulier par un vétérinaire compétent en médecine du lapin et vaccination selon les recommandations vétérinaires.'),
+        pw.Bullet(text:'Surveillance quotidienne de l’appétit, du transit, du comportement, des dents, du poids et de l’état général.'),
+        pw.Bullet(text:'Consultation rapide en cas de baisse d’appétit, arrêt du transit, douleur, abattement ou autre signe inhabituel.'),
+
+        sectionTitle('Identification'),
+        pw.Text('Le futur détenteur doit connaître les règles d’identification applicables à sa situation et l’intérêt d’une identification permettant de relier l’animal à son détenteur.'),
+
+        sectionTitle('Implications financières et logistiques'),
+        pw.Text('La détention d’un lapin implique des dépenses et une organisation durables : alimentation, habitat et enrichissement, soins vétérinaires, vaccinations, garde pendant les absences, transport et éventuels soins d’urgence.'),
+
+        sectionTitle('Engagement de l’acquéreur'),
+        pw.Text('Mention à recopier de façon manuscrite :',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+        pw.SizedBox(height:4),
+        pw.Container(
+          padding:const pw.EdgeInsets.all(8),
+          decoration:pw.BoxDecoration(color:PdfColors.grey100,borderRadius:pw.BorderRadius.circular(6)),
+          child:pw.Text('Je m’engage expressément à respecter, durant toute sa vie, les besoins physiologiques, comportementaux et médicaux de mon lapin.'),
+        ),
+        if(mentionImage!=null)...[
+          pw.SizedBox(height:8),
+          pw.Text('Mention manuscrite du signataire :',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+          pw.Container(height:90,alignment:pw.Alignment.centerLeft,child:pw.Image(mentionImage!,fit:pw.BoxFit.contain)),
+        ],
+        pw.SizedBox(height:6),
+        line('Fait à',data['engagementPlace']),
+        line('Signé le',data['engagementSignedDate']),
+        if(signatureImage!=null)...[
+          pw.Text('Signature manuscrite numérique :',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+          pw.Container(height:75,alignment:pw.Alignment.centerLeft,child:pw.Image(signatureImage!,fit:pw.BoxFit.contain)),
+        ],
+        pw.SizedBox(height:10),
+        pw.Text(
+          'La cession ne peut intervenir moins de sept jours après la délivrance du certificat. '
+          'Ce document atteste des informations enregistrées et de la signature manuscrite numérique apposée dans l’application.',
+          style:pw.TextStyle(fontSize:9,color:PdfColors.grey700),
+        ),
+      ],
+    ));
+
+    final bytes=await pdf.save();
+    final dir=await getTemporaryDirectory();
+    final safeName=(rabbitName.isEmpty?'Lapin':rabbitName).replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');
+    final file=File('${dir.path}/Certificat-Engagement-$safeName.pdf');
+    await file.writeAsBytes(bytes,flush:true);
+    return file;
+  }
+
+  Future<void> editEngagementCertificate()async{
+    final data=Map<String,dynamic>.from(r!);
+    await showDialog(
+      context:context,
+      builder:(ctx)=>EngagementCertificateDialog(
+        data:data,
+        onSave:(v)async{
+          final oldMention=((r!['engagementMentionImage']??'') as String);
+          final oldSignature=((r!['engagementSignatureImage']??'') as String);
+          final oldPdf=((r!['engagementCertificatePdf']??'') as String);
+
+          r=v;
+          final generated=await _buildEngagementCertificatePdf(v);
+          final savedPdf=await PrivateFiles.importFile(generated.path,'documents');
+          r!['engagementCertificatePdf']=savedPdf;
+          await persist();
+
+          if(oldMention.isNotEmpty&&oldMention!=r!['engagementMentionImage'])await PrivateFiles.deleteFile(oldMention);
+          if(oldSignature.isNotEmpty&&oldSignature!=r!['engagementSignatureImage'])await PrivateFiles.deleteFile(oldSignature);
+          if(oldPdf.isNotEmpty&&oldPdf!=savedPdf)await PrivateFiles.deleteFile(oldPdf);
+
+          if(ctx.mounted)Navigator.pop(ctx);
+          if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Certificat d’engagement enregistré et archivé en PDF.')));
+        },
+      ),
+    );
+  }
+
+  Future<void> viewEngagementCertificate()async{
+    final p=((r!['engagementCertificatePdf']??'') as String);
+    if(p.isEmpty||!File(p).existsSync())return;
+    await OpenFilex.open(p);
+  }
+
+  Future<void> shareEngagementCertificate()async{
+    final p=((r!['engagementCertificatePdf']??'') as String);
+    if(p.isEmpty||!File(p).existsSync())return;
+    await Share.shareXFiles(
+      [XFile(p)],
+      subject:'Certificat d’engagement et de connaissance',
+      text:'Certificat d’engagement et de connaissance pour l’acquisition d’un lapin de compagnie.',
+    );
+  }
+
   Future<void> attach(String key)async{
     final res=await FilePicker.platform.pickFiles(type:FileType.any);
     final source=res?.files.single.path;
@@ -1557,6 +1773,7 @@ class _RabbitPageState extends State<RabbitPage>{
             _pdfLine('Naissance',rr['birth']),
             _pdfLine('Sevrage',rr['weaning']),
             _pdfLine('Identification',rr['identification']),
+            _pdfLine('Tatouage',rr['tattoo']),
 
             _pdfTitle('Filiation'),
             _pdfLine('Père',rr['fatherName']),
@@ -1650,6 +1867,9 @@ class _RabbitPageState extends State<RabbitPage>{
               _pdfLine('Carnet remis',(rr['healthBookGiven']??false)==true?'Oui':'Non'),
               _pdfLine('Certificat remis',(rr['healthCertificateGiven']??false)==true?'Oui':'Non'),
               _pdfLine('Consignes remises',(rr['adoptionInfoGiven']??false)==true?'Oui':'Non'),
+              _pdfLine('Certificat engagement',(rr['engagementAccepted']??false)==true?'Signé':'Non signé'),
+              _pdfLine('Délivré le',rr['engagementDeliveryDate']),
+              _pdfLine('Signé le',rr['engagementSignedDate']),
             ],
 
             if(appMode=='Éleveur'&&linkedBreedings.isNotEmpty)...[
@@ -1711,7 +1931,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final doomed=Map<String,dynamic>.from(r!);
     await Notifications.cancelRabbit(doomed);
     await ReproductionStore.removeRabbit((doomed['id']??'') as String);
-    for(final k in ['photo','healthBook','passport']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
+    for(final k in ['photo','healthBook','passport','engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
     all.removeAt(widget.index);await Store.save(all);if(mounted)Navigator.pop(context);
   }}
@@ -1724,7 +1944,7 @@ class _RabbitPageState extends State<RabbitPage>{
           if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
         ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
         modeBanner(),
-        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed']),info('Identification',rr['identification'])]),
+        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed']),info('Identification (facultatif)',rr['identification']),info('Tatouage (facultatif)',rr['tattoo'])]),
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
         dataAlertsSection(),
         healthJourneySection(),
@@ -1768,12 +1988,21 @@ class _RabbitPageState extends State<RabbitPage>{
     if(((r!['birth']??'') as String).trim().isEmpty)alerts.add('Date de naissance à renseigner');
     if(((r!['sex']??'') as String).trim().isEmpty)alerts.add('Sexe à renseigner');
     if(((r!['breed']??'') as String).trim().isEmpty)alerts.add('Race à renseigner');
-    if(((r!['identification']??'') as String).trim().isEmpty)alerts.add('Numéro d’identification à renseigner');
     if(((r!['vaccines'] as List?)??[]).isEmpty)alerts.add('Aucun vaccin enregistré dans le carnet');
     if(appMode=='Éleveur'){
       final status=((r!['adoptionStatus']??'À l’élevage') as String);
       if(status!='À l’élevage'&&((r!['adopterName']??'') as String).trim().isEmpty)alerts.add('Nom de l’adoptant à renseigner');
       if(status=='Adopté / parti'&&((r!['departureDate']??'') as String).trim().isEmpty)alerts.add('Date de départ à renseigner');
+      final engagementSigned=(r!['engagementAccepted']??false) as bool &&
+          ((r!['engagementDeliveryDate']??'') as String).trim().isNotEmpty &&
+          ((r!['engagementCertificatePdf']??'') as String).trim().isNotEmpty;
+      if(status!='À l’élevage'&&!engagementSigned)alerts.add('Certificat d’engagement et de connaissance à compléter');
+      final delivery=Notifications.parseDate(r!['engagementDeliveryDate'] as String?);
+      final departure=Notifications.parseDate(r!['departureDate'] as String?);
+      if(status=='Adopté / parti'&&delivery!=null&&departure!=null){
+        final earliest=delivery.add(const Duration(days:7));
+        if(departure.isBefore(earliest))alerts.add('Délai légal de 7 jours du certificat d’engagement à respecter');
+      }
     }
     return alerts;
   }
@@ -1807,45 +2036,119 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget adoptionSection(){
     final status=((r!['adoptionStatus']??'À l’élevage') as String);
-    final identification=((r!['identification']??'') as String).trim().isNotEmpty;
     final healthBookGiven=(r!['healthBookGiven']??false) as bool;
     final certificateGiven=(r!['healthCertificateGiven']??false) as bool;
     final infoGiven=(r!['adoptionInfoGiven']??false) as bool;
-    final done=[identification,healthBookGiven,certificateGiven,infoGiven].where((x)=>x).length;
+    final engagementOk=(r!['engagementAccepted']??false) as bool &&
+        ((r!['engagementDeliveryDate']??'') as String).trim().isNotEmpty &&
+        ((r!['engagementCertificatePdf']??'') as String).trim().isNotEmpty;
+    final done=[healthBookGiven,certificateGiven,engagementOk,infoGiven].where((x)=>x).length;
     final progress=done/4;
+    final earliest=engagementEarliestDeparture();
+    final departure=Notifications.parseDate(r!['departureDate'] as String?);
+    final delayOk=earliest==null||departure==null||!departure.isBefore(earliest);
     Color statusColor=status=='Adopté / parti'?const Color(0xFF2E7D32):status=='Réservé'?const Color(0xFF1565C0):brown;
 
-    Widget step(String label,bool ok)=>Padding(padding:const EdgeInsets.only(bottom:6),child:Row(children:[Icon(ok?Icons.check_circle:Icons.radio_button_unchecked,color:ok?const Color(0xFF2E7D32):Colors.black38,size:19),const SizedBox(width:8),Expanded(child:Text(label,style:TextStyle(fontSize:13,fontWeight:ok?FontWeight.w700:FontWeight.w500,color:ok?ink:Colors.black54)))]));
-
-    return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      header('Adoption & départ',Icons.volunteer_activism_outlined),
-      Row(children:[
-        Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),decoration:BoxDecoration(color:statusColor.withValues(alpha:.11),borderRadius:BorderRadius.circular(15),border:Border.all(color:statusColor.withValues(alpha:.60))),child:Text(status,style:TextStyle(fontWeight:FontWeight.w900,color:statusColor))),
-        const Spacer(),
-        Text('$done / 4 prêts',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+    Widget step(String label,bool ok)=>Padding(
+      padding:const EdgeInsets.only(bottom:6),
+      child:Row(children:[
+        Icon(ok?Icons.check_circle:Icons.radio_button_unchecked,color:ok?const Color(0xFF2E7D32):Colors.black38,size:19),
+        const SizedBox(width:8),
+        Expanded(child:Text(label,style:TextStyle(fontSize:13,fontWeight:ok?FontWeight.w700:FontWeight.w500,color:ok?ink:Colors.black54))),
       ]),
-      const SizedBox(height:11),
-      ClipRRect(borderRadius:BorderRadius.circular(20),child:LinearProgressIndicator(value:progress,minHeight:9,backgroundColor:Colors.black.withValues(alpha:.07),color:gold)),
-      const SizedBox(height:12),
-      if(((r!['adopterName']??'') as String).trim().isNotEmpty)info('Adoptant',r!['adopterName']),
-      if(((r!['adopterContact']??'') as String).trim().isNotEmpty)info('Contact',r!['adopterContact']),
-      if(((r!['departureDate']??'') as String).trim().isNotEmpty)info('Départ',r!['departureDate']),
-      const SizedBox(height:8),
-      Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(15)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-        const Text('Préparation du départ',style:TextStyle(fontWeight:FontWeight.w900,color:brown)),
+    );
+
+    return Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        header('Adoption & départ',Icons.volunteer_activism_outlined),
+        Row(children:[
+          Container(
+            padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+            decoration:BoxDecoration(color:statusColor.withValues(alpha:.11),borderRadius:BorderRadius.circular(15),border:Border.all(color:statusColor.withValues(alpha:.60))),
+            child:Text(status,style:TextStyle(fontWeight:FontWeight.w900,color:statusColor)),
+          ),
+          const Spacer(),
+          Text('$done / 4 prêts',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+        ]),
+        const SizedBox(height:11),
+        ClipRRect(borderRadius:BorderRadius.circular(20),child:LinearProgressIndicator(value:progress,minHeight:9,backgroundColor:Colors.black.withValues(alpha:.07),color:gold)),
+        const SizedBox(height:12),
+        if(((r!['adopterName']??'') as String).trim().isNotEmpty)info('Adoptant',r!['adopterName']),
+        if(((r!['adopterContact']??'') as String).trim().isNotEmpty)info('Contact',r!['adopterContact']),
+        if(((r!['departureDate']??'') as String).trim().isNotEmpty)info('Départ',r!['departureDate']),
+
         const SizedBox(height:8),
-        step('Identification renseignée',identification),
-        step('Carnet de santé remis',healthBookGiven),
-        step('Certificat de santé remis',certificateGiven),
-        step('Consignes / documents d’adoption remis',infoGiven),
-      ])),
-      if(((r!['adoptionNotes']??'') as String).trim().isNotEmpty)...[
+        Container(
+          padding:const EdgeInsets.all(12),
+          decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(15)),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            const Text('Préparation du départ',style:TextStyle(fontWeight:FontWeight.w900,color:brown)),
+            const SizedBox(height:8),
+            step('Carnet de santé remis',healthBookGiven),
+            step('Certificat de santé remis',certificateGiven),
+            step('Certificat d’engagement complété et signé',engagementOk),
+            step('Consignes / documents d’adoption remis',infoGiven),
+          ]),
+        ),
+
+        const SizedBox(height:12),
+        Container(
+          padding:const EdgeInsets.all(12),
+          decoration:BoxDecoration(
+            color:(engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)).withValues(alpha:.08),
+            borderRadius:BorderRadius.circular(16),
+            border:Border.all(color:(engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)).withValues(alpha:.45)),
+          ),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Row(children:[
+              Icon(engagementOk?Icons.verified_outlined:Icons.draw_outlined,color:engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)),
+              const SizedBox(width:8),
+              const Expanded(child:Text('Certificat d’engagement et de connaissance',style:TextStyle(fontWeight:FontWeight.w900,color:ink))),
+            ]),
+            const SizedBox(height:5),
+            if(engagementOk)...[
+              Text('Délivré le ${r!['engagementDeliveryDate']} • signé le ${r!['engagementSignedDate']}',style:const TextStyle(fontSize:12,color:Colors.black54)),
+              if(earliest!=null)Text('Cession possible à partir du ${Notifications.formatDate(earliest)}',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+              if(!delayOk)const Padding(
+                padding:EdgeInsets.only(top:6),
+                child:Text('Attention : la date de départ renseignée ne respecte pas encore le délai minimal de 7 jours.',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:Color(0xFFEF6C00))),
+              ),
+              const SizedBox(height:8),
+              Wrap(spacing:6,runSpacing:6,children:[
+                OutlinedButton.icon(onPressed:viewEngagementCertificate,icon:const Icon(Icons.picture_as_pdf),label:const Text('Voir le PDF')),
+                OutlinedButton.icon(onPressed:shareEngagementCertificate,icon:const Icon(Icons.share),label:const Text('Remettre une copie')),
+                TextButton.icon(onPressed:editEngagementCertificate,icon:const Icon(Icons.edit),label:const Text('Modifier')),
+              ]),
+            ]else...[
+              const Text('Formulaire digital, mention manuscrite et signature directement sur l’écran.',style:TextStyle(fontSize:12,color:Colors.black54)),
+              const SizedBox(height:8),
+              FilledButton.icon(onPressed:editEngagementCertificate,icon:const Icon(Icons.draw),label:const Text('Créer le certificat digital')),
+            ],
+          ]),
+        ),
+
+        if(((r!['identification']??'') as String).trim().isNotEmpty||((r!['tattoo']??'') as String).trim().isNotEmpty)...[
+          const SizedBox(height:10),
+          Container(
+            padding:const EdgeInsets.all(10),
+            decoration:BoxDecoration(color:Colors.white.withValues(alpha:.65),borderRadius:BorderRadius.circular(14)),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              const Text('Repères facultatifs',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:brown)),
+              if(((r!['identification']??'') as String).trim().isNotEmpty)Text('Identification : ${r!['identification']}',style:const TextStyle(fontSize:12)),
+              if(((r!['tattoo']??'') as String).trim().isNotEmpty)Text('Tatouage : ${r!['tattoo']}',style:const TextStyle(fontSize:12)),
+            ]),
+          ),
+        ],
+
+        if(((r!['adoptionNotes']??'') as String).trim().isNotEmpty)...[
+          const SizedBox(height:10),
+          Text(r!['adoptionNotes'],style:const TextStyle(fontSize:12,color:Colors.black54,fontStyle:FontStyle.italic)),
+        ],
         const SizedBox(height:10),
-        Text(r!['adoptionNotes'],style:const TextStyle(fontSize:12,color:Colors.black54,fontStyle:FontStyle.italic)),
-      ],
-      const SizedBox(height:10),
-      OutlinedButton.icon(onPressed:editAdoption,icon:const Icon(Icons.edit_note),label:const Text('Gérer l’adoption / le départ')),
-    ])));
+        OutlinedButton.icon(onPressed:editAdoption,icon:const Icon(Icons.edit_note),label:const Text('Gérer l’adoption / le départ')),
+      ]),
+    ));
   }
 
   DateTime? _reproDate(String? s)=>Notifications.parseDate(s);
@@ -2760,7 +3063,8 @@ class _EditIdentityState extends State<EditIdentity>{
         ChoiceChip(label:const Text('Non stérilisé(e)'),selected:d['sterilized']=='Non stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Non stérilisé(e)')),
       ]),
       field('Race','breed'),
-      field('Numéro d’identification','identification'),
+      field('Numéro d’identification (facultatif)','identification'),
+      field('Numéro de tatouage (facultatif)','tattoo'),
       dateField('Date de naissance','birth'),
       dateField('Date de sevrage','weaning'),
       const SizedBox(height:20),
@@ -2778,6 +3082,305 @@ class _EditIdentityState extends State<EditIdentity>{
     readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
     onTap:()async{final x=await showDatePicker(context:context,firstDate:DateTime(1990),lastDate:DateTime.now().add(const Duration(days:365)),initialDate:Notifications.parseDate(d[key])??DateTime.now());if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));},
   ));
+}
+
+
+class EngagementCertificateDialog extends StatefulWidget{
+  final Map<String,dynamic> data;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const EngagementCertificateDialog({super.key,required this.data,required this.onSave});
+  @override State<EngagementCertificateDialog> createState()=>_EngagementCertificateDialogState();
+}
+
+class _EngagementCertificateDialogState extends State<EngagementCertificateDialog>{
+  late Map<String,dynamic>d;
+  final mentionKey=GlobalKey<HandwritingPadState>();
+  final signatureKey=GlobalKey<HandwritingPadState>();
+
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.data);
+    d['engagementRecipientName']??=d['adopterName']??'';
+    d['engagementRecipientAddress']??='';
+    d['engagementRecipientEmail']??=d['adopterContact']??'';
+    d['engagementDeliveryDate']??='';
+    d['engagementSignedDate']??='';
+    d['engagementPlace']??='';
+    d['engagementIssuerName']??='';
+    d['engagementIssuerQualification']??='';
+    d['engagementIssuerReference']??='';
+    d['engagementMentionImage']??='';
+    d['engagementSignatureImage']??='';
+    d['engagementAccepted']??=false;
+  }
+
+  Future<void> pickDelivery()async{
+    final current=Notifications.parseDate(d['engagementDeliveryDate'] as String?)??DateTime.now();
+    final x=await showDatePicker(
+      context:context,
+      firstDate:DateTime(2022,10,1),
+      lastDate:DateTime.now(),
+      initialDate:current.isAfter(DateTime.now())?DateTime.now():current,
+    );
+    if(x!=null)setState(()=>d['engagementDeliveryDate']=Notifications.formatDate(x));
+  }
+
+  Future<void> save()async{
+    final required=[
+      d['engagementRecipientName'],
+      d['engagementDeliveryDate'],
+      d['engagementPlace'],
+      d['engagementIssuerName'],
+      d['engagementIssuerQualification'],
+    ].map((e)=>(e??'').toString().trim()).toList();
+    if(required.any((e)=>e.isEmpty)){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Complétez l’identité, la délivrance, le lieu et les informations du délivreur.')));
+      return;
+    }
+
+    final mentionState=mentionKey.currentState;
+    final signatureState=signatureKey.currentState;
+    final existingMention=((d['engagementMentionImage']??'') as String);
+    final existingSignature=((d['engagementSignatureImage']??'') as String);
+
+    if((mentionState==null||!mentionState.hasInk)&&existingMention.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('La mention d’engagement doit être recopiée à la main.')));
+      return;
+    }
+    if((signatureState==null||!signatureState.hasInk)&&existingSignature.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('La signature doit être apposée sur l’écran.')));
+      return;
+    }
+
+    var mentionPath=existingMention;
+    var signaturePath=existingSignature;
+
+    if(mentionState!=null&&mentionState.hasInk){
+      final bytes=await mentionState.exportPng();
+      if(bytes!=null)mentionPath=await PrivateFiles.saveBytes(bytes,'documents',extension:'.png');
+    }
+    if(signatureState!=null&&signatureState.hasInk){
+      final bytes=await signatureState.exportPng();
+      if(bytes!=null)signaturePath=await PrivateFiles.saveBytes(bytes,'documents',extension:'.png');
+    }
+
+    d['engagementMentionImage']=mentionPath;
+    d['engagementSignatureImage']=signaturePath;
+    d['engagementSignedDate']=Notifications.formatDate(DateTime.now());
+    d['engagementAccepted']=true;
+    await widget.onSave(d);
+  }
+
+  Widget section(String title,String body,IconData icon)=>Container(
+    margin:const EdgeInsets.only(bottom:10),
+    padding:const EdgeInsets.all(12),
+    decoration:BoxDecoration(color:Colors.white.withValues(alpha:.76),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.45))),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Row(children:[Icon(icon,color:brown,size:20),const SizedBox(width:7),Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w900,color:ink)))]),
+      const SizedBox(height:5),
+      Text(body,style:const TextStyle(fontSize:12,height:1.35,color:Colors.black87)),
+    ]),
+  );
+
+  @override Widget build(BuildContext context){
+    final delivery=Notifications.parseDate(d['engagementDeliveryDate'] as String?);
+    final earliest=delivery?.add(const Duration(days:7));
+    final existingMention=((d['engagementMentionImage']??'') as String);
+    final existingSignature=((d['engagementSignatureImage']??'') as String);
+
+    return Dialog.fullscreen(child:Scaffold(
+      appBar:AppBar(
+        title:const Text('Certificat d’engagement'),
+        actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
+      ),
+      body:ListView(padding:const EdgeInsets.all(16),children:[
+        Container(
+          padding:const EdgeInsets.all(14),
+          decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
+          child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text('CERTIFICAT DIGITAL',style:TextStyle(color:gold,fontWeight:FontWeight.w900,fontSize:12,letterSpacing:.8)),
+            SizedBox(height:4),
+            Text('Engagement et connaissance des besoins du lapin',style:TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:19)),
+            SizedBox(height:5),
+            Text('Le délai de réflexion est calculé à partir de la date de délivrance.',style:TextStyle(color:Colors.white70,fontSize:11)),
+          ]),
+        ),
+        const SizedBox(height:16),
+
+        const Text('Futur acquéreur',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:8),
+        TextFormField(initialValue:d['engagementRecipientName']??'',decoration:const InputDecoration(labelText:'Nom et prénom'),onChanged:(v)=>d['engagementRecipientName']=v),
+        const SizedBox(height:10),
+        TextFormField(initialValue:d['engagementRecipientAddress']??'',minLines:2,maxLines:3,decoration:const InputDecoration(labelText:'Adresse'),onChanged:(v)=>d['engagementRecipientAddress']=v),
+        const SizedBox(height:10),
+        TextFormField(initialValue:d['engagementRecipientEmail']??'',decoration:const InputDecoration(labelText:'Téléphone / e-mail'),onChanged:(v)=>d['engagementRecipientEmail']=v),
+
+        const SizedBox(height:18),
+        const Text('Personne qui délivre le certificat',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:8),
+        TextFormField(initialValue:d['engagementIssuerName']??'',decoration:const InputDecoration(labelText:'Nom et prénom du délivreur'),onChanged:(v)=>d['engagementIssuerName']=v),
+        const SizedBox(height:10),
+        TextFormField(initialValue:d['engagementIssuerQualification']??'',decoration:const InputDecoration(labelText:'Qualité / habilitation (ACACED, vétérinaire, équivalence…)'),onChanged:(v)=>d['engagementIssuerQualification']=v),
+        const SizedBox(height:10),
+        TextFormField(initialValue:d['engagementIssuerReference']??'',decoration:const InputDecoration(labelText:'Référence / numéro (facultatif)'),onChanged:(v)=>d['engagementIssuerReference']=v),
+        const SizedBox(height:10),
+        TextFormField(
+          readOnly:true,
+          controller:TextEditingController(text:d['engagementDeliveryDate']??''),
+          decoration:const InputDecoration(labelText:'Date de délivrance',suffixIcon:Icon(Icons.calendar_month)),
+          onTap:pickDelivery,
+        ),
+        if(earliest!=null)
+          Padding(
+            padding:const EdgeInsets.only(top:8),
+            child:Container(
+              padding:const EdgeInsets.all(10),
+              decoration:BoxDecoration(color:gold.withValues(alpha:.10),borderRadius:BorderRadius.circular(14)),
+              child:Text('Cession possible à partir du ${Notifications.formatDate(earliest)}.',style:const TextStyle(fontWeight:FontWeight.w900,color:brown)),
+            ),
+          ),
+
+        const SizedBox(height:18),
+        const Text('Informations essentielles',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:8),
+        section('Besoins physiologiques','Foin de qualité et eau propre à volonté, alimentation adaptée, espace suffisant, exercice quotidien, zones de repos, hygiène et température appropriées.',Icons.grass),
+        section('Besoins comportementaux','Le lapin doit pouvoir explorer, se cacher, ronger, creuser, se déplacer, bénéficier d’enrichissements et d’interactions sociales adaptées.',Icons.psychology_alt_outlined),
+        section('Besoins médicaux','Suivi vétérinaire adapté au lapin, vaccinations selon les recommandations, surveillance de l’appétit, du transit, des dents, du poids et de l’état général.',Icons.health_and_safety_outlined),
+        section('Identification','Le futur détenteur doit connaître les règles d’identification applicables à sa situation et l’intérêt de pouvoir relier l’animal à son détenteur.',Icons.badge_outlined),
+        section('Implications financières et logistiques','Alimentation, habitat, enrichissement, soins vétérinaires, urgences, garde pendant les absences et transport représentent un engagement durable.',Icons.account_balance_wallet_outlined),
+
+        const SizedBox(height:8),
+        const Text('Mention manuscrite obligatoire',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:6),
+        Container(
+          padding:const EdgeInsets.all(12),
+          decoration:BoxDecoration(color:gold.withValues(alpha:.10),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold)),
+          child:const Text(
+            'À recopier à la main : « Je m’engage expressément à respecter, durant toute sa vie, les besoins physiologiques, comportementaux et médicaux de mon lapin. »',
+            style:TextStyle(fontWeight:FontWeight.w700,color:brown,height:1.35),
+          ),
+        ),
+        const SizedBox(height:8),
+        if(existingMention.isNotEmpty)
+          Padding(
+            padding:const EdgeInsets.only(bottom:8),
+            child:Row(children:[
+              const Icon(Icons.check_circle,color:Color(0xFF2E7D32)),
+              const SizedBox(width:7),
+              const Expanded(child:Text('Une mention manuscrite est déjà enregistrée. Dessinez ci-dessous uniquement pour la remplacer.',style:TextStyle(fontSize:12,color:Colors.black54))),
+            ]),
+          ),
+        HandwritingPad(key:mentionKey,height:150,label:'Recopiez ici la mention avec le doigt ou un stylet'),
+
+        const SizedBox(height:18),
+        TextFormField(initialValue:d['engagementPlace']??'',decoration:const InputDecoration(labelText:'Fait à'),onChanged:(v)=>d['engagementPlace']=v),
+        const SizedBox(height:12),
+        const Text('Signature manuscrite numérique',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:5),
+        const Text('La signature est dessinée directement sur l’écran et intégrée au PDF archivé.',style:TextStyle(fontSize:11,color:Colors.black54)),
+        const SizedBox(height:8),
+        if(existingSignature.isNotEmpty)
+          Padding(
+            padding:const EdgeInsets.only(bottom:8),
+            child:Row(children:[
+              const Icon(Icons.check_circle,color:Color(0xFF2E7D32)),
+              const SizedBox(width:7),
+              const Expanded(child:Text('Une signature est déjà enregistrée. Dessinez ci-dessous uniquement pour la remplacer.',style:TextStyle(fontSize:12,color:Colors.black54))),
+            ]),
+          ),
+        HandwritingPad(key:signatureKey,height:130,label:'Signez ici'),
+
+        const SizedBox(height:18),
+        FilledButton.icon(onPressed:save,icon:const Icon(Icons.verified),label:const Text('Signer, générer et archiver le PDF')),
+        const SizedBox(height:8),
+        const Text(
+          'La cession du lapin ne doit pas intervenir moins de 7 jours après la délivrance du certificat.',
+          textAlign:TextAlign.center,
+          style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:brown),
+        ),
+        const SizedBox(height:24),
+      ]),
+    ));
+  }
+}
+
+class HandwritingPad extends StatefulWidget{
+  final double height;
+  final String label;
+  const HandwritingPad({super.key,required this.height,required this.label});
+  @override State<HandwritingPad> createState()=>HandwritingPadState();
+}
+
+class HandwritingPadState extends State<HandwritingPad>{
+  final boundaryKey=GlobalKey();
+  final strokes=<List<Offset>>[];
+
+  bool get hasInk=>strokes.any((s)=>s.length>1);
+
+  void start(DragStartDetails d)=>setState(()=>strokes.add([d.localPosition]));
+  void update(DragUpdateDetails d){
+    if(strokes.isEmpty)return;
+    setState(()=>strokes.last.add(d.localPosition));
+  }
+
+  void clear()=>setState(()=>strokes.clear());
+
+  Future<Uint8List?> exportPng()async{
+    final boundary=boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if(boundary==null)return null;
+    final image=await boundary.toImage(pixelRatio:2.5);
+    final data=await image.toByteData(format:ui.ImageByteFormat.png);
+    return data?.buffer.asUint8List();
+  }
+
+  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    Row(children:[
+      Expanded(child:Text(widget.label,style:const TextStyle(fontSize:11,color:Colors.black54))),
+      TextButton.icon(onPressed:clear,icon:const Icon(Icons.refresh,size:17),label:const Text('Effacer')),
+    ]),
+    GestureDetector(
+      onPanStart:start,
+      onPanUpdate:update,
+      child:RepaintBoundary(
+        key:boundaryKey,
+        child:Container(
+          height:widget.height,
+          decoration:BoxDecoration(
+            color:Colors.white,
+            borderRadius:BorderRadius.circular(14),
+            border:Border.all(color:gold,width:1.4),
+          ),
+          clipBehavior:Clip.antiAlias,
+          child:CustomPaint(
+            painter:HandwritingPainter(strokes),
+            child:const SizedBox.expand(),
+          ),
+        ),
+      ),
+    ),
+  ]);
+}
+
+class HandwritingPainter extends CustomPainter{
+  final List<List<Offset>> strokes;
+  const HandwritingPainter(this.strokes);
+
+  @override void paint(Canvas canvas,Size size){
+    final paint=Paint()
+      ..color=ink
+      ..strokeWidth=2.2
+      ..strokeCap=StrokeCap.round
+      ..strokeJoin=StrokeJoin.round
+      ..style=PaintingStyle.stroke;
+    for(final stroke in strokes){
+      if(stroke.length<2)continue;
+      final path=Path()..moveTo(stroke.first.dx,stroke.first.dy);
+      for(final p in stroke.skip(1))path.lineTo(p.dx,p.dy);
+      canvas.drawPath(path,paint);
+    }
+  }
+
+  @override bool shouldRepaint(covariant HandwritingPainter oldDelegate)=>true;
 }
 
 class AdoptionDialog extends StatefulWidget{
@@ -2828,11 +3431,15 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
       const SizedBox(height:20),
       const Text('Préparation du départ',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
       const SizedBox(height:5),
-      Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(16)),child:Row(children:[
-        Icon(((d['identification']??'') as String).trim().isNotEmpty?Icons.check_circle:Icons.info_outline,color:((d['identification']??'') as String).trim().isNotEmpty?const Color(0xFF2E7D32):const Color(0xFFEF6C00)),
-        const SizedBox(width:9),
-        Expanded(child:Text(((d['identification']??'') as String).trim().isNotEmpty?'Identification : ${d['identification']}':'Identification non renseignée — à compléter dans Identité & filiation.',style:const TextStyle(fontWeight:FontWeight.w700))),
-      ])),
+      Container(
+        padding:const EdgeInsets.all(12),
+        decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(16)),
+        child:const Row(children:[
+          Icon(Icons.info_outline,color:brown),
+          SizedBox(width:9),
+          Expanded(child:Text('Identification et tatouage sont facultatifs et ne bloquent pas la préparation du départ.',style:TextStyle(fontWeight:FontWeight.w700))),
+        ]),
+      ),
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Carnet de santé remis'),value:d['healthBookGiven'] as bool,onChanged:(v)=>setState(()=>d['healthBookGiven']=v??false)),
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Certificat de santé remis'),value:d['healthCertificateGiven'] as bool,onChanged:(v)=>setState(()=>d['healthCertificateGiven']=v??false)),
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Consignes / documents d’adoption remis'),value:d['adoptionInfoGiven'] as bool,onChanged:(v)=>setState(()=>d['adoptionInfoGiven']=v??false)),
