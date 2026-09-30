@@ -14,6 +14,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -22,14 +28,32 @@ jobs:
       - name: Create Android project files
         run: flutter create . --platforms=android
 
+      - name: Restore permanent signing key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.LAPIBREIZH_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.LAPIBREIZH_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64"
+          test -n "$KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/lapibreizh-release.jks"
+          test -s "$RUNNER_TEMP/lapibreizh-release.jks"
+          keytool -list \
+            -keystore "$RUNNER_TEMP/lapibreizh-release.jks" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias lapibreizh > /dev/null
+
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build signed RELEASE APK
+        env:
+          LAPIBREIZH_KEYSTORE_PATH: ${{ runner.temp }}/lapibreizh-release.jks
+          LAPIBREIZH_KEYSTORE_PASSWORD: ${{ secrets.LAPIBREIZH_KEYSTORE_PASSWORD }}
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload signed RELEASE APK
         uses: actions/upload-artifact@v4
         with:
-          name: Carnet-Sante-Lapibreizh-APK
+          name: Carnet-Sante-Lapibreizh-RELEASE-SIGNEE
           path: build/app/outputs/flutter-apk/app-release.apk
