@@ -3,16 +3,26 @@ plugins {
     id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
+
+def privateKeyFile = System.getenv("LAPIBREIZH_KEYSTORE_PATH")
+def privateKeyPassword = System.getenv("LAPIBREIZH_KEYSTORE_PASSWORD")
+def hasPrivateSigning = !privateKeyFile.isNullOrBlank() && !privateKeyPassword.isNullOrBlank()
+
 android {
     namespace = "fr.leslapibreizh.carnetsante"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
+
     compileOptions {
         coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
     defaultConfig {
         applicationId = "fr.leslapibreizh.carnetsante"
         minSdk = flutter.minSdkVersion
@@ -21,9 +31,31 @@ android {
         versionName = flutter.versionName
         multiDexEnabled true
     }
-    buildTypes { release { signingConfig = signingConfigs.debug } }
+
+    signingConfigs {
+        if (hasPrivateSigning) {
+            lapibreizh {
+                storeFile file(privateKeyFile)
+                storePassword privateKeyPassword
+                keyAlias "lapibreizh"
+                keyPassword privateKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasPrivateSigning) {
+                signingConfig signingConfigs.lapibreizh
+            }
+        }
+    }
 }
+
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
-flutter { source = "../.." }
+
+flutter {
+    source = "../.."
+}

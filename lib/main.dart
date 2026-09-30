@@ -245,7 +245,10 @@ class Store {
     if(s==null)return [];
     final list=(jsonDecode(s) as List).map((e)=>Map<String,dynamic>.from(e)).toList();
     var changed=await PrivateFiles.migrateAll(list);
-    for(final r in list){
+    for(var ri=0;ri<list.length;ri++){
+      final r=list[ri];
+      if(r['id']==null||((r['id']??'') as String).isEmpty){r['id']='r_${DateTime.now().microsecondsSinceEpoch}_$ri';changed=true;}
+      if(r['sterilized']==null){r['sterilized']='';changed=true;}
       if(r['appointments']==null){r['appointments']=[];changed=true;}
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((r[key] as List?)??[])){
@@ -261,6 +264,54 @@ class Store {
     return list;
   }
   static Future<void> save(List<Map<String,dynamic>> v) async { final p=await SharedPreferences.getInstance(); await p.setString(key,jsonEncode(v)); }
+}
+
+
+class ReproductionStore {
+  static const key='lapibreizh_reproduction_v1';
+
+  static Future<List<Map<String,dynamic>>> load() async {
+    final p=await SharedPreferences.getInstance();
+    final s=p.getString(key);
+    if(s==null)return [];
+    return (jsonDecode(s) as List).map((e)=>Map<String,dynamic>.from(e)).toList();
+  }
+
+  static Future<void> save(List<Map<String,dynamic>> v) async {
+    final p=await SharedPreferences.getInstance();
+    await p.setString(key,jsonEncode(v));
+  }
+
+  static Future<void> upsert(Map<String,dynamic> record) async {
+    final all=await load();
+    final id=(record['id']??'') as String;
+    final i=all.indexWhere((e)=>e['id']==id);
+    if(i>=0){all[i]=record;}else{all.add(record);}
+    await save(all);
+  }
+
+  static Future<void> remove(String id) async {
+    final all=await load();
+    all.removeWhere((e)=>e['id']==id);
+    await save(all);
+  }
+
+  static Future<void> removeRabbit(String rabbitId) async {
+    final all=await load();
+    all.removeWhere((e)=>e['maleId']==rabbitId||e['femaleId']==rabbitId);
+    await save(all);
+  }
+
+  static int n(dynamic value)=>value is int?value:int.tryParse('$value')??0;
+
+  static Map<String,int> totals(Map<String,dynamic> r)=>{
+    'liveBirth':n(r['liveMaleBirth'])+n(r['liveFemaleBirth']),
+    'deadBirth':n(r['deadMaleBirth'])+n(r['deadFemaleBirth']),
+    'born':n(r['liveMaleBirth'])+n(r['liveFemaleBirth'])+n(r['deadMaleBirth'])+n(r['deadFemaleBirth']),
+    'maleTotal':n(r['liveMaleBirth'])+n(r['deadMaleBirth']),
+    'femaleTotal':n(r['liveFemaleBirth'])+n(r['deadFemaleBirth']),
+    'weaned':n(r['liveMaleWeaning'])+n(r['liveFemaleWeaning']),
+  };
 }
 
 
@@ -400,13 +451,14 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'name':'','sex':'','breed':'','birth':'','weaning':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'healthBook':'','passport':''};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'healthBook':'','passport':''};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
-  List<Map<String,dynamic>> all=[]; Map<String,dynamic>? r; final picker=ImagePicker();
+  List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
   @override void initState(){super.initState();load();}
-  Future<void> load()async{all=await Store.load();r=all[widget.index];if(mounted)setState((){});}
+  Future<void> load()async{all=await Store.load();r=all[widget.index];breedings=await ReproductionStore.load();if(mounted)setState((){});}
+  Future<void> refreshBreedings()async{breedings=await ReproductionStore.load();if(mounted)setState((){});}
   Future<void> persist()async{all[widget.index]=r!;await Store.save(all);if(mounted)setState((){});}
   Future<String> pickSquareRabbitPhoto()async{
     final x=await picker.pickImage(source:ImageSource.gallery,imageQuality:100);
@@ -555,6 +607,53 @@ class _RabbitPageState extends State<RabbitPage>{
     await persist();
     await Notifications.cancelToken((appointment['notificationKey']??'') as String);
   }
+  String rabbitNameById(String id){
+    final match=all.where((x)=>x['id']==id);
+    if(match.isEmpty)return 'Lapin non trouvé';
+    final name=((match.first['name']??'') as String).trim();
+    return name.isEmpty?'Lapin sans nom':name;
+  }
+
+  Future<void> addBreeding()async{
+    final sex=(r!['sex']??'') as String;
+    if(sex!='Mâle'&&sex!='Femelle')return;
+    final partners=all.where((x)=>x['id']!=r!['id']&&x['sex']==(sex=='Mâle'?'Femelle':'Mâle')).toList();
+    if(partners.isEmpty){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Ajoutez d’abord ${sex=='Mâle'?'une femelle':'un mâle'} dans le carnet.')));
+      return;
+    }
+    final rec=<String,dynamic>{
+      'id':'b_${DateTime.now().microsecondsSinceEpoch}',
+      'maleId':sex=='Mâle'?r!['id']:'',
+      'femaleId':sex=='Femelle'?r!['id']:'',
+      'matingDate':'','birthDate':'','weaningDate':'',
+      'liveMaleBirth':0,'liveFemaleBirth':0,'deadMaleBirth':0,'deadFemaleBirth':0,
+      'liveMaleWeaning':0,'liveFemaleWeaning':0,
+    };
+    await showDialog(context:context,builder:(ctx)=>BreedingDialog(
+      currentRabbit:r!,allRabbits:all,record:rec,
+      onSave:(v)async{await ReproductionStore.upsert(v);await refreshBreedings();if(ctx.mounted)Navigator.pop(ctx);}
+    ));
+  }
+
+  Future<void> editBreeding(Map<String,dynamic> record)async{
+    await showDialog(context:context,builder:(ctx)=>BreedingDialog(
+      currentRabbit:r!,allRabbits:all,record:Map<String,dynamic>.from(record),
+      onSave:(v)async{await ReproductionStore.upsert(v);await refreshBreedings();if(ctx.mounted)Navigator.pop(ctx);}
+    ));
+  }
+
+  Future<void> deleteBreeding(Map<String,dynamic> record)async{
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer cette saillie ?'),
+      content:const Text('Elle disparaîtra automatiquement de la fiche du mâle et de la femelle.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+    ))??false;
+    if(!ok)return;
+    await ReproductionStore.remove((record['id']??'') as String);
+    await refreshBreedings();
+  }
+
   Future<void> attach(String key)async{
     final res=await FilePicker.platform.pickFiles(type:FileType.any);
     final source=res?.files.single.path;
@@ -600,6 +699,7 @@ class _RabbitPageState extends State<RabbitPage>{
   Future<void> deleteRabbit()async{final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer cette fiche ?'),content:const Text('Cette action retire la fiche du carnet.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;if(ok){
     final doomed=Map<String,dynamic>.from(r!);
     await Notifications.cancelRabbit(doomed);
+    await ReproductionStore.removeRabbit((doomed['id']??'') as String);
     for(final k in ['photo','healthBook','passport']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
     all.removeAt(widget.index);await Store.save(all);if(mounted)Navigator.pop(context);
@@ -612,8 +712,9 @@ class _RabbitPageState extends State<RabbitPage>{
           OutlinedButton.icon(onPressed:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
           if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
         ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
-        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed'])]),
+        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed'])]),
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
+        if(rr['sex']=='Mâle'||rr['sex']=='Femelle') reproductionSection(),
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
         appointmentSection(),
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header('Documents',Icons.folder_copy),docButton('Carnet de santé','healthBook'),const SizedBox(height:8),docButton('Passeport','passport')]))),
@@ -624,6 +725,43 @@ class _RabbitPageState extends State<RabbitPage>{
   Widget header(String t,IconData i)=>Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[Icon(i,color:brown),const SizedBox(width:8),Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:ink))]));
   Widget section(String t,IconData i,List<Widget> ch)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch])));
   Widget info(String a,dynamic b)=>Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:145,child:Text(a,style:const TextStyle(fontWeight:FontWeight.w600,color:brown))),Expanded(child:Text((b??'').toString().isEmpty?'—':b.toString()))]));
+  DateTime? _reproDate(String? s)=>Notifications.parseDate(s);
+
+  Widget reproductionSection(){
+    final id=(r!['id']??'') as String;
+    final records=breedings.where((b)=>b['maleId']==id||b['femaleId']==id).toList();
+    records.sort((a,b){
+      final ad=_reproDate(a['matingDate'] as String?)??DateTime(1900);
+      final bd=_reproDate(b['matingDate'] as String?)??DateTime(1900);
+      return bd.compareTo(ad);
+    });
+    final sex=(r!['sex']??'') as String;
+    return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      header(sex=='Mâle'?'Reproduction / Saillies':'Reproduction / Portées',Icons.favorite),
+      if(records.isEmpty)Padding(padding:const EdgeInsets.only(bottom:10),child:Text(sex=='Mâle'?'Aucune saillie enregistrée.':'Aucune portée enregistrée.',style:const TextStyle(color:Colors.black54))),
+      ...records.map((b){
+        final t=ReproductionStore.totals(b);
+        final partner=sex=='Mâle'?rabbitNameById((b['femaleId']??'') as String):rabbitNameById((b['maleId']??'') as String);
+        return Container(
+          margin:const EdgeInsets.only(bottom:10),
+          decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.65))),
+          child:ListTile(
+            onTap:()=>editBreeding(b),
+            title:Text('${b['matingDate']?.toString().isEmpty==false?b['matingDate']:'Date à compléter'} • $partner',style:const TextStyle(fontWeight:FontWeight.bold)),
+            subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              if(((b['birthDate']??'') as String).isNotEmpty)Text('Naissance : ${b['birthDate']}'),
+              Text('Nés : ${t['born']} • vivants : ${t['liveBirth']} • morts : ${t['deadBirth']}'),
+              Text('Mâles : ${t['maleTotal']} • femelles : ${t['femaleTotal']}'),
+              if(((b['weaningDate']??'') as String).isNotEmpty)Text('Sevrage : ${b['weaningDate']} • vivants : ${t['weaned']}'),
+            ]),
+            trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>deleteBreeding(b)),
+          ),
+        );
+      }),
+      OutlinedButton.icon(onPressed:addBreeding,icon:const Icon(Icons.add),label:Text(sex=='Mâle'?'Ajouter une saillie':'Ajouter une portée / saillie')),
+    ])));
+  }
+
   String reminderLabel(Map<String,dynamic> item){
     final months=(item['reminderMonths']??0) as int;
     if(months<=0)return '';
@@ -803,10 +941,151 @@ class _SquareCropPageState extends State<SquareCropPage>{
   );
 }
 
-class EditIdentity extends StatefulWidget{final Map<String,dynamic> data;final Future<void> Function(Map<String,dynamic>) onSave;const EditIdentity({super.key,required this.data,required this.onSave});@override State<EditIdentity> createState()=>_EditIdentityState();}
-class _EditIdentityState extends State<EditIdentity>{late Map<String,dynamic>d;@override void initState(){super.initState();d=Map.from(widget.data);} @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),body:ListView(padding:const EdgeInsets.all(16),children:[const Text('Le lapin',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),field('Nom','name'),field('Sexe','sex'),field('Race','breed'),dateField('Date de naissance','birth'),dateField('Date de sevrage','weaning'),const SizedBox(height:20),const Text('Père',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),field('Nom du père','fatherName'),field('Race du père','fatherBreed'),dateField('Date de naissance du père','fatherBirth'),const SizedBox(height:20),const Text('Mère',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),field('Nom de la mère','motherName'),field('Race de la mère','motherBreed'),dateField('Date de naissance de la mère','motherBirth')] )));
+class EditIdentity extends StatefulWidget{
+  final Map<String,dynamic> data;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const EditIdentity({super.key,required this.data,required this.onSave});
+  @override State<EditIdentity> createState()=>_EditIdentityState();
+}
+class _EditIdentityState extends State<EditIdentity>{
+  late Map<String,dynamic>d;
+  @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';}
+
+  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
+    appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
+    body:ListView(padding:const EdgeInsets.all(16),children:[
+      const Text('Le lapin',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
+      field('Nom','name'),
+      const SizedBox(height:14),
+      choiceTitle('Sexe'),
+      Wrap(spacing:10,runSpacing:8,children:[
+        ChoiceChip(label:const Text('Mâle'),selected:d['sex']=='Mâle',onSelected:(_)=>setState(()=>d['sex']='Mâle')),
+        ChoiceChip(label:const Text('Femelle'),selected:d['sex']=='Femelle',onSelected:(_)=>setState(()=>d['sex']='Femelle')),
+      ]),
+      const SizedBox(height:14),
+      choiceTitle('Stérilisation'),
+      Wrap(spacing:10,runSpacing:8,children:[
+        ChoiceChip(label:const Text('Stérilisé(e)'),selected:d['sterilized']=='Stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Stérilisé(e)')),
+        ChoiceChip(label:const Text('Non stérilisé(e)'),selected:d['sterilized']=='Non stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Non stérilisé(e)')),
+      ]),
+      field('Race','breed'),
+      dateField('Date de naissance','birth'),
+      dateField('Date de sevrage','weaning'),
+      const SizedBox(height:20),
+      const Text('Père',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
+      field('Nom du père','fatherName'),field('Race du père','fatherBreed'),dateField('Date de naissance du père','fatherBirth'),
+      const SizedBox(height:20),
+      const Text('Mère',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
+      field('Nom de la mère','motherName'),field('Race de la mère','motherBreed'),dateField('Date de naissance de la mère','motherBirth'),
+    ]),
+  ));
+
+  Widget choiceTitle(String label)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Text(label,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:brown)));
   Widget field(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(initialValue:d[key]??'',decoration:InputDecoration(labelText:label),onChanged:(v)=>d[key]=v));
-  Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),onTap:()async{final x=await showDatePicker(context:context,firstDate:DateTime(1990),lastDate:DateTime.now().add(const Duration(days:365)),initialDate:DateTime.now());if(x!=null)setState(()=>d[key]='${x.day.toString().padLeft(2,'0')}/${x.month.toString().padLeft(2,'0')}/${x.year}');}));
+  Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(
+    readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
+    onTap:()async{final x=await showDatePicker(context:context,firstDate:DateTime(1990),lastDate:DateTime.now().add(const Duration(days:365)),initialDate:Notifications.parseDate(d[key])??DateTime.now());if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));},
+  ));
+}
+
+class BreedingDialog extends StatefulWidget{
+  final Map<String,dynamic> currentRabbit;
+  final List<Map<String,dynamic>> allRabbits;
+  final Map<String,dynamic> record;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const BreedingDialog({super.key,required this.currentRabbit,required this.allRabbits,required this.record,required this.onSave});
+  @override State<BreedingDialog> createState()=>_BreedingDialogState();
+}
+
+class _BreedingDialogState extends State<BreedingDialog>{
+  late Map<String,dynamic>d;
+  late bool currentIsMale;
+
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.record);
+    currentIsMale=widget.currentRabbit['sex']=='Mâle';
+    for(final k in ['liveMaleBirth','liveFemaleBirth','deadMaleBirth','deadFemaleBirth','liveMaleWeaning','liveFemaleWeaning']){d[k]=ReproductionStore.n(d[k]);}
+  }
+
+  List<Map<String,dynamic>> get partners=>widget.allRabbits.where((x)=>x['id']!=widget.currentRabbit['id']&&x['sex']==(currentIsMale?'Femelle':'Mâle')).toList();
+
+  Future<void> pickDate(String key,String label)async{
+    final current=Notifications.parseDate(d[key] as String?);
+    final x=await showDatePicker(context:context,firstDate:DateTime(2000),lastDate:DateTime.now().add(const Duration(days:3650)),initialDate:current??DateTime.now());
+    if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));
+  }
+
+  Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(
+    readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
+    onTap:()=>pickDate(key,label),
+  ));
+
+  Widget countField(String label,String key)=>DropdownButtonFormField<int>(
+    value:ReproductionStore.n(d[key]),
+    decoration:InputDecoration(labelText:label),
+    items:List.generate(16,(i)=>DropdownMenuItem(value:i,child:Text('$i'))),
+    onChanged:(v)=>setState(()=>d[key]=v??0),
+  );
+
+  @override Widget build(BuildContext context){
+    final partnerKey=currentIsMale?'femaleId':'maleId';
+    final currentPartner=(d[partnerKey]??'') as String;
+    return Dialog.fullscreen(child:Scaffold(
+      appBar:AppBar(
+        title:Text(currentIsMale?'Saillie du mâle':'Saillie / portée de la femelle'),
+        actions:[TextButton(onPressed:(){
+          if(((d['matingDate']??'') as String).isEmpty||((d[partnerKey]??'') as String).isEmpty){
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date de saillie et le partenaire.')));
+            return;
+          }
+          if(currentIsMale){d['maleId']=widget.currentRabbit['id'];}else{d['femaleId']=widget.currentRabbit['id'];}
+          widget.onSave(d);
+        },child:const Text('ENREGISTRER'))],
+      ),
+      body:ListView(padding:const EdgeInsets.all(16),children:[
+        dateField('Date de la saillie','matingDate'),
+        const SizedBox(height:10),
+        DropdownButtonFormField<String>(
+          value:partners.any((p)=>p['id']==currentPartner)?currentPartner:null,
+          decoration:InputDecoration(labelText:currentIsMale?'Femelle saillie':'Mâle'),
+          items:partners.map((p)=>DropdownMenuItem<String>(value:p['id'] as String,child:Text(((p['name']??'') as String).isEmpty?'Lapin sans nom':p['name']))).toList(),
+          onChanged:(v)=>setState(()=>d[partnerKey]=v??''),
+        ),
+        dateField('Date de naissance des lapereaux','birthDate'),
+        const SizedBox(height:22),
+        const Text('À la naissance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+        const SizedBox(height:10),
+        countField('Mâles vivants','liveMaleBirth'),
+        const SizedBox(height:10),
+        countField('Femelles vivantes','liveFemaleBirth'),
+        const SizedBox(height:10),
+        countField('Mâles morts','deadMaleBirth'),
+        const SizedBox(height:10),
+        countField('Femelles mortes','deadFemaleBirth'),
+        const SizedBox(height:22),
+        const Text('Au sevrage',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+        dateField('Date de sevrage','weaningDate'),
+        const SizedBox(height:10),
+        countField('Mâles vivants au sevrage','liveMaleWeaning'),
+        const SizedBox(height:10),
+        countField('Femelles vivantes au sevrage','liveFemaleWeaning'),
+        const SizedBox(height:20),
+        Builder(builder:(_){
+          final t=ReproductionStore.totals(d);
+          return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Totaux calculés automatiquement',style:TextStyle(fontWeight:FontWeight.bold)),
+            const SizedBox(height:6),
+            Text('Total nés : ${t['born']}'),
+            Text('Vivants à la naissance : ${t['liveBirth']}'),
+            Text('Morts à la naissance : ${t['deadBirth']}'),
+            Text('Mâles : ${t['maleTotal']} • Femelles : ${t['femaleTotal']}'),
+            Text('Vivants au sevrage : ${t['weaned']}'),
+          ])));
+        }),
+      ]),
+    ));
+  }
 }
 
 class TreatmentDialog extends StatefulWidget{
