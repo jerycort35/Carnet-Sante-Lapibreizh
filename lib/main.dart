@@ -249,6 +249,15 @@ class Store {
       final r=list[ri];
       if(r['id']==null||((r['id']??'') as String).isEmpty){r['id']='r_${DateTime.now().microsecondsSinceEpoch}_$ri';changed=true;}
       if(r['sterilized']==null){r['sterilized']='';changed=true;}
+      if(r['identification']==null){r['identification']='';changed=true;}
+      if(r['adoptionStatus']==null){r['adoptionStatus']='À l’élevage';changed=true;}
+      if(r['adopterName']==null){r['adopterName']='';changed=true;}
+      if(r['adopterContact']==null){r['adopterContact']='';changed=true;}
+      if(r['departureDate']==null){r['departureDate']='';changed=true;}
+      if(r['adoptionNotes']==null){r['adoptionNotes']='';changed=true;}
+      if(r['healthBookGiven']==null){r['healthBookGiven']=false;changed=true;}
+      if(r['healthCertificateGiven']==null){r['healthCertificateGiven']=false;changed=true;}
+      if(r['adoptionInfoGiven']==null){r['adoptionInfoGiven']=false;changed=true;}
       if(r['appointments']==null){r['appointments']=[];changed=true;}
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((r[key] as List?)??[])){
@@ -266,6 +275,19 @@ class Store {
   static Future<void> save(List<Map<String,dynamic>> v) async { final p=await SharedPreferences.getInstance(); await p.setString(key,jsonEncode(v)); }
 }
 
+
+class AppModeStore {
+  static const key='lapibreizh_app_mode_v2';
+  static Future<String> load() async {
+    final p=await SharedPreferences.getInstance();
+    final value=p.getString(key);
+    return value=='Adoptant'?'Adoptant':'Éleveur';
+  }
+  static Future<void> save(String value) async {
+    final p=await SharedPreferences.getInstance();
+    await p.setString(key,value=='Adoptant'?'Adoptant':'Éleveur');
+  }
+}
 
 class ReproductionStore {
   static const key='lapibreizh_reproduction_v1';
@@ -455,9 +477,10 @@ class Scenic extends StatelessWidget {
 
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
 class _HomePageState extends State<HomePage>{
-  List<Map<String,dynamic>> rabbits=[]; bool loading=true;
+  List<Map<String,dynamic>> rabbits=[]; bool loading=true; String appMode='Éleveur';
   @override void initState(){super.initState();refresh();}
-  Future<void> refresh() async {rabbits=await Store.load(); await Notifications.refreshAll(rabbits); if(mounted)setState(()=>loading=false);}
+  Future<void> refresh() async {rabbits=await Store.load(); appMode=await AppModeStore.load(); await Notifications.refreshAll(rabbits); if(mounted)setState(()=>loading=false);}
+  Future<void> setAppMode(String mode) async {await AppModeStore.save(mode);if(mounted)setState(()=>appMode=mode);}
   Future<void> addRabbit() async { final r=emptyRabbit(); rabbits.add(r); await Store.save(rabbits); if(!mounted)return; await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:rabbits.length-1))); await refresh(); }
   @override Widget build(BuildContext context)=>Scaffold(
     body:Scenic(child:SafeArea(child:loading?const Center(child:CircularProgressIndicator()):CustomScrollView(slivers:[
@@ -465,6 +488,25 @@ class _HomePageState extends State<HomePage>{
         Container(width:150,height:150,decoration:BoxDecoration(borderRadius:BorderRadius.circular(30),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:18,color:Colors.black38)]),clipBehavior:Clip.antiAlias,child:Image.asset('assets/images/logo.png',fit:BoxFit.cover)),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),decoration:BoxDecoration(color:ink.withValues(alpha:.90),borderRadius:BorderRadius.circular(20),border:Border.all(color:gold)),child:const Column(children:[Text('CARNET DE SANTÉ',style:TextStyle(color:gold,fontWeight:FontWeight.w800,fontSize:22,letterSpacing:1.2)),Text('Les Lapibreizh',style:TextStyle(color:Colors.white,fontSize:16))])),
+        const SizedBox(height:12),
+        Container(
+          padding:const EdgeInsets.fromLTRB(14,10,14,10),
+          decoration:BoxDecoration(color:Colors.white.withValues(alpha:.91),borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
+          child:Column(children:[
+            Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:brown,size:20),
+              const SizedBox(width:7),
+              Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
+            ]),
+            const SizedBox(height:8),
+            Wrap(alignment:WrapAlignment.center,spacing:8,children:[
+              ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:(_)=>setAppMode('Éleveur')),
+              ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:(_)=>setAppMode('Adoptant')),
+            ]),
+            const SizedBox(height:4),
+            Text(appMode=='Éleveur'?'Reproduction, préparation au départ et suivi santé.':'Une vue simplifiée centrée sur la santé au quotidien.',textAlign:TextAlign.center,style:const TextStyle(fontSize:11,color:Colors.black54)),
+          ]),
+        ),
         const SizedBox(height:18),
       ]))),
       if(rabbits.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(22),child:Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(children:[const Icon(Icons.pets,size:46,color:brown),const SizedBox(height:12),const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),const SizedBox(height:16),FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin'))]))))),
@@ -475,14 +517,14 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'healthBook':'','passport':''};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
   List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
-  String healthFilter='Tout'; bool healthExpanded=false;
+  String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
   @override void initState(){super.initState();load();}
-  Future<void> load()async{all=await Store.load();r=all[widget.index];breedings=await ReproductionStore.load();if(mounted)setState((){});}
+  Future<void> load()async{all=await Store.load();r=all[widget.index];breedings=await ReproductionStore.load();appMode=await AppModeStore.load();if(mounted)setState((){});}
   Future<void> refreshBreedings()async{breedings=await ReproductionStore.load();if(mounted)setState((){});}
   Future<void> persist()async{all[widget.index]=r!;await Store.save(all);if(mounted)setState((){});}
   Future<String> pickSquareRabbitPhoto()async{
@@ -679,6 +721,15 @@ class _RabbitPageState extends State<RabbitPage>{
     await refreshBreedings();
   }
 
+  Future<void> editAdoption()async{
+    final data=Map<String,dynamic>.from(r!);
+    await showDialog(context:context,builder:(ctx)=>AdoptionDialog(data:data,onSave:(v)async{
+      r=v;
+      await persist();
+      if(ctx.mounted)Navigator.pop(ctx);
+    }));
+  }
+
   Future<void> attach(String key)async{
     final res=await FilePicker.platform.pickFiles(type:FileType.any);
     final source=res?.files.single.path;
@@ -737,10 +788,13 @@ class _RabbitPageState extends State<RabbitPage>{
           OutlinedButton.icon(onPressed:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
           if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
         ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
-        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed'])]),
+        modeBanner(),
+        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed']),info('Identification',rr['identification'])]),
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
+        dataAlertsSection(),
         healthJourneySection(),
-        if(rr['sex']=='Mâle'||rr['sex']=='Femelle') reproductionSection(),
+        if(appMode=='Éleveur') adoptionSection(),
+        if(appMode=='Éleveur'&&(rr['sex']=='Mâle'||rr['sex']=='Femelle')) reproductionSection(),
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
         appointmentSection(),
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header('Documents',Icons.folder_copy),docButton('Carnet de santé','healthBook'),const SizedBox(height:8),docButton('Passeport','passport')]))),
@@ -751,6 +805,110 @@ class _RabbitPageState extends State<RabbitPage>{
   Widget header(String t,IconData i)=>Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[Icon(i,color:brown),const SizedBox(width:8),Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:ink))]));
   Widget section(String t,IconData i,List<Widget> ch)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch])));
   Widget info(String a,dynamic b)=>Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:145,child:Text(a,style:const TextStyle(fontWeight:FontWeight.w600,color:brown))),Expanded(child:Text((b??'').toString().isEmpty?'—':b.toString()))]));
+  Widget modeBanner()=>Container(
+    margin:const EdgeInsets.only(bottom:4),
+    padding:const EdgeInsets.symmetric(horizontal:13,vertical:10),
+    decoration:BoxDecoration(
+      color:appMode=='Éleveur'?ink.withValues(alpha:.94):const Color(0xFF234C3D).withValues(alpha:.94),
+      borderRadius:BorderRadius.circular(18),
+      border:Border.all(color:gold),
+    ),
+    child:Row(children:[
+      Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:gold),
+      const SizedBox(width:10),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(color:gold,fontWeight:FontWeight.w900)),
+        Text(appMode=='Éleveur'?'Toutes les fonctions professionnelles sont visibles.':'Reproduction et gestion du départ sont masquées pour une fiche plus simple.',style:const TextStyle(color:Colors.white,fontSize:11)),
+      ])),
+    ]),
+  );
+
+  List<String> _dataAlerts(){
+    final alerts=<String>[];
+    if(((r!['name']??'') as String).trim().isEmpty)alerts.add('Nom du lapin à renseigner');
+    if(((r!['birth']??'') as String).trim().isEmpty)alerts.add('Date de naissance à renseigner');
+    if(((r!['sex']??'') as String).trim().isEmpty)alerts.add('Sexe à renseigner');
+    if(((r!['breed']??'') as String).trim().isEmpty)alerts.add('Race à renseigner');
+    if(((r!['identification']??'') as String).trim().isEmpty)alerts.add('Numéro d’identification à renseigner');
+    if(((r!['vaccines'] as List?)??[]).isEmpty)alerts.add('Aucun vaccin enregistré dans le carnet');
+    if(appMode=='Éleveur'){
+      final status=((r!['adoptionStatus']??'À l’élevage') as String);
+      if(status!='À l’élevage'&&((r!['adopterName']??'') as String).trim().isEmpty)alerts.add('Nom de l’adoptant à renseigner');
+      if(status=='Adopté / parti'&&((r!['departureDate']??'') as String).trim().isEmpty)alerts.add('Date de départ à renseigner');
+    }
+    return alerts;
+  }
+
+  Widget dataAlertsSection(){
+    final alerts=_dataAlerts();
+    if(alerts.isEmpty){
+      return Container(
+        margin:const EdgeInsets.symmetric(vertical:4),
+        padding:const EdgeInsets.all(13),
+        decoration:BoxDecoration(color:const Color(0xFF2E7D32).withValues(alpha:.08),borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFF2E7D32).withValues(alpha:.45))),
+        child:const Row(children:[Icon(Icons.check_circle_outline,color:Color(0xFF2E7D32)),SizedBox(width:9),Expanded(child:Text('Les informations essentielles de cette fiche sont complètes.',style:TextStyle(fontWeight:FontWeight.w700,color:ink)))]),
+      );
+    }
+    return Card(child:Padding(padding:const EdgeInsets.all(15),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Row(children:[
+        Container(width:38,height:38,decoration:BoxDecoration(color:const Color(0xFFEF6C00).withValues(alpha:.12),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
+        const SizedBox(width:9),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink)),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
+      ]),
+      const SizedBox(height:10),
+      ...alerts.take(5).map((a)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.circle,size:7,color:Color(0xFFEF6C00)),const SizedBox(width:8),Expanded(child:Text(a,style:const TextStyle(fontSize:13)))]))),
+      if(alerts.length>5)Text('+ ${alerts.length-5} autre${alerts.length-5>1?'s':''} élément${alerts.length-5>1?'s':''}',style:const TextStyle(fontSize:12,color:Colors.black54,fontWeight:FontWeight.w700)),
+      const SizedBox(height:8),
+      Wrap(spacing:8,runSpacing:6,children:[
+        OutlinedButton.icon(onPressed:editIdentity,icon:const Icon(Icons.badge_outlined),label:const Text('Identité')),
+        if(appMode=='Éleveur')OutlinedButton.icon(onPressed:editAdoption,icon:const Icon(Icons.volunteer_activism_outlined),label:const Text('Adoption')),
+      ]),
+    ])));
+  }
+
+  Widget adoptionSection(){
+    final status=((r!['adoptionStatus']??'À l’élevage') as String);
+    final identification=((r!['identification']??'') as String).trim().isNotEmpty;
+    final healthBookGiven=(r!['healthBookGiven']??false) as bool;
+    final certificateGiven=(r!['healthCertificateGiven']??false) as bool;
+    final infoGiven=(r!['adoptionInfoGiven']??false) as bool;
+    final done=[identification,healthBookGiven,certificateGiven,infoGiven].where((x)=>x).length;
+    final progress=done/4;
+    Color statusColor=status=='Adopté / parti'?const Color(0xFF2E7D32):status=='Réservé'?const Color(0xFF1565C0):brown;
+
+    Widget step(String label,bool ok)=>Padding(padding:const EdgeInsets.only(bottom:6),child:Row(children:[Icon(ok?Icons.check_circle:Icons.radio_button_unchecked,color:ok?const Color(0xFF2E7D32):Colors.black38,size:19),const SizedBox(width:8),Expanded(child:Text(label,style:TextStyle(fontSize:13,fontWeight:ok?FontWeight.w700:FontWeight.w500,color:ok?ink:Colors.black54)))]));
+
+    return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      header('Adoption & départ',Icons.volunteer_activism_outlined),
+      Row(children:[
+        Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),decoration:BoxDecoration(color:statusColor.withValues(alpha:.11),borderRadius:BorderRadius.circular(15),border:Border.all(color:statusColor.withValues(alpha:.60))),child:Text(status,style:TextStyle(fontWeight:FontWeight.w900,color:statusColor))),
+        const Spacer(),
+        Text('$done / 4 prêts',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+      ]),
+      const SizedBox(height:11),
+      ClipRRect(borderRadius:BorderRadius.circular(20),child:LinearProgressIndicator(value:progress,minHeight:9,backgroundColor:Colors.black.withValues(alpha:.07),color:gold)),
+      const SizedBox(height:12),
+      if(((r!['adopterName']??'') as String).trim().isNotEmpty)info('Adoptant',r!['adopterName']),
+      if(((r!['adopterContact']??'') as String).trim().isNotEmpty)info('Contact',r!['adopterContact']),
+      if(((r!['departureDate']??'') as String).trim().isNotEmpty)info('Départ',r!['departureDate']),
+      const SizedBox(height:8),
+      Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(15)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        const Text('Préparation du départ',style:TextStyle(fontWeight:FontWeight.w900,color:brown)),
+        const SizedBox(height:8),
+        step('Identification renseignée',identification),
+        step('Carnet de santé remis',healthBookGiven),
+        step('Certificat de santé remis',certificateGiven),
+        step('Consignes / documents d’adoption remis',infoGiven),
+      ])),
+      if(((r!['adoptionNotes']??'') as String).trim().isNotEmpty)...[
+        const SizedBox(height:10),
+        Text(r!['adoptionNotes'],style:const TextStyle(fontSize:12,color:Colors.black54,fontStyle:FontStyle.italic)),
+      ],
+      const SizedBox(height:10),
+      OutlinedButton.icon(onPressed:editAdoption,icon:const Icon(Icons.edit_note),label:const Text('Gérer l’adoption / le départ')),
+    ])));
+  }
+
   DateTime? _reproDate(String? s)=>Notifications.parseDate(s);
 
   Widget _profileBubble(String label,String value,Color color){
@@ -1466,6 +1624,7 @@ class _EditIdentityState extends State<EditIdentity>{
         ChoiceChip(label:const Text('Non stérilisé(e)'),selected:d['sterilized']=='Non stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Non stérilisé(e)')),
       ]),
       field('Race','breed'),
+      field('Numéro d’identification','identification'),
       dateField('Date de naissance','birth'),
       dateField('Date de sevrage','weaning'),
       const SizedBox(height:20),
@@ -1482,6 +1641,71 @@ class _EditIdentityState extends State<EditIdentity>{
   Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(
     readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
     onTap:()async{final x=await showDatePicker(context:context,firstDate:DateTime(1990),lastDate:DateTime.now().add(const Duration(days:365)),initialDate:Notifications.parseDate(d[key])??DateTime.now());if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));},
+  ));
+}
+
+class AdoptionDialog extends StatefulWidget{
+  final Map<String,dynamic> data;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const AdoptionDialog({super.key,required this.data,required this.onSave});
+  @override State<AdoptionDialog> createState()=>_AdoptionDialogState();
+}
+
+class _AdoptionDialogState extends State<AdoptionDialog>{
+  late Map<String,dynamic>d;
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.data);
+    d['adoptionStatus']??='À l’élevage';
+    d['adopterName']??='';
+    d['adopterContact']??='';
+    d['departureDate']??='';
+    d['adoptionNotes']??='';
+    d['healthBookGiven']??=false;
+    d['healthCertificateGiven']??=false;
+    d['adoptionInfoGiven']??=false;
+  }
+
+  Future<void> pickDeparture()async{
+    final current=Notifications.parseDate(d['departureDate'] as String?);
+    final x=await showDatePicker(context:context,firstDate:DateTime(2020),lastDate:DateTime.now().add(const Duration(days:3650)),initialDate:current??DateTime.now());
+    if(x!=null)setState(()=>d['departureDate']=Notifications.formatDate(x));
+  }
+
+  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
+    appBar:AppBar(title:const Text('Adoption & départ'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
+    body:ListView(padding:const EdgeInsets.all(16),children:[
+      const Text('Statut du lapin',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+      const SizedBox(height:10),
+      Wrap(spacing:8,runSpacing:8,children:[
+        for(final status in ['À l’élevage','Réservé','Adopté / parti'])
+          ChoiceChip(label:Text(status),selected:d['adoptionStatus']==status,onSelected:(_)=>setState(()=>d['adoptionStatus']=status)),
+      ]),
+      const SizedBox(height:20),
+      const Text('Adoptant',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+      const SizedBox(height:8),
+      TextFormField(initialValue:d['adopterName'],decoration:const InputDecoration(labelText:'Nom / famille'),onChanged:(v)=>d['adopterName']=v),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['adopterContact'],decoration:const InputDecoration(labelText:'Téléphone / contact'),onChanged:(v)=>d['adopterContact']=v),
+      const SizedBox(height:10),
+      TextFormField(readOnly:true,controller:TextEditingController(text:d['departureDate']??''),decoration:const InputDecoration(labelText:'Date de départ prévue / réelle',suffixIcon:Icon(Icons.calendar_month)),onTap:pickDeparture),
+      const SizedBox(height:20),
+      const Text('Préparation du départ',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+      const SizedBox(height:5),
+      Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(16)),child:Row(children:[
+        Icon(((d['identification']??'') as String).trim().isNotEmpty?Icons.check_circle:Icons.info_outline,color:((d['identification']??'') as String).trim().isNotEmpty?const Color(0xFF2E7D32):const Color(0xFFEF6C00)),
+        const SizedBox(width:9),
+        Expanded(child:Text(((d['identification']??'') as String).trim().isNotEmpty?'Identification : ${d['identification']}':'Identification non renseignée — à compléter dans Identité & filiation.',style:const TextStyle(fontWeight:FontWeight.w700))),
+      ])),
+      CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Carnet de santé remis'),value:d['healthBookGiven'] as bool,onChanged:(v)=>setState(()=>d['healthBookGiven']=v??false)),
+      CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Certificat de santé remis'),value:d['healthCertificateGiven'] as bool,onChanged:(v)=>setState(()=>d['healthCertificateGiven']=v??false)),
+      CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Consignes / documents d’adoption remis'),value:d['adoptionInfoGiven'] as bool,onChanged:(v)=>setState(()=>d['adoptionInfoGiven']=v??false)),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['adoptionNotes'],minLines:3,maxLines:7,decoration:const InputDecoration(labelText:'Notes de départ / informations utiles'),onChanged:(v)=>d['adoptionNotes']=v),
+      const SizedBox(height:18),
+      FilledButton.icon(onPressed:()=>widget.onSave(d),icon:const Icon(Icons.save),label:const Text('Enregistrer le suivi d’adoption')),
+      const SizedBox(height:24),
+    ]),
   ));
 }
 
