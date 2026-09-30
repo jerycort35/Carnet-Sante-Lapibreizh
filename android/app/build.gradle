@@ -6,7 +6,11 @@ plugins {
 
 def privateKeyFile = System.getenv("LAPIBREIZH_KEYSTORE_PATH")
 def privateKeyPassword = System.getenv("LAPIBREIZH_KEYSTORE_PASSWORD")
-def hasPrivateSigning = !privateKeyFile.isNullOrBlank() && !privateKeyPassword.isNullOrBlank()
+def hasPrivateSigning =
+        privateKeyFile != null &&
+        !privateKeyFile.trim().isEmpty() &&
+        privateKeyPassword != null &&
+        !privateKeyPassword.trim().isEmpty()
 
 android {
     namespace = "fr.leslapibreizh.carnetsante"
