@@ -8,6 +8,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -466,6 +468,118 @@ class PrivateFiles {
   }
 }
 
+
+class BackupService {
+  static const format='lapibreizh_backup_v1';
+
+  static Iterable<MapEntry<String,String>> _rabbitFiles(Map<String,dynamic> rabbit) sync* {
+    final photo=((rabbit['photo']??'') as String);
+    if(photo.isNotEmpty)yield MapEntry(photo,'rabbit_photos');
+    for(final key in ['healthBook','passport']){
+      final p=((rabbit[key]??'') as String);
+      if(p.isNotEmpty)yield MapEntry(p,'documents');
+    }
+    for(final key in ['vaccines','dewormings']){
+      for(final raw in ((rabbit[key] as List?)??[])){
+        final item=raw as Map<String,dynamic>;
+        final p=((item['photo']??'') as String);
+        if(p.isNotEmpty)yield MapEntry(p,'treatments');
+      }
+    }
+  }
+
+  static Future<File> createBackup() async {
+    final rabbits=await Store.load();
+    final reproduction=await ReproductionStore.load();
+    final mode=await AppModeStore.load();
+    final files=<String,dynamic>{};
+
+    for(final rabbit in rabbits){
+      for(final entry in _rabbitFiles(rabbit)){
+        if(files.containsKey(entry.key))continue;
+        final f=File(entry.key);
+        if(!await f.exists())continue;
+        try{
+          final bytes=await f.readAsBytes();
+          files[entry.key]={
+            'category':entry.value,
+            'extension':PrivateFiles.extensionOf(entry.key),
+            'data':base64Encode(bytes),
+          };
+        }catch(_){}
+      }
+    }
+
+    final payload={
+      'format':format,
+      'createdAt':DateTime.now().toIso8601String(),
+      'appMode':mode,
+      'rabbits':rabbits,
+      'reproduction':reproduction,
+      'files':files,
+    };
+
+    final dir=await getTemporaryDirectory();
+    final stamp=DateTime.now().toIso8601String().replaceAll(':','-').split('.').first;
+    final file=File('${dir.path}/Sauvegarde-Lapibreizh-$stamp.json');
+    await file.writeAsString(jsonEncode(payload),flush:true);
+    return file;
+  }
+
+  static Future<void> restoreFromFile(String path) async {
+    final source=File(path);
+    if(!await source.exists())throw const FormatException('Fichier introuvable.');
+    final decoded=jsonDecode(await source.readAsString());
+    if(decoded is! Map||decoded['format']!=format)throw const FormatException('Sauvegarde Lapibreizh non reconnue.');
+
+    final rabbits=((decoded['rabbits'] as List?)??[])
+        .map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    final reproduction=((decoded['reproduction'] as List?)??[])
+        .map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    final rawFiles=Map<String,dynamic>.from((decoded['files'] as Map?)??{});
+    final restoredPaths=<String,String>{};
+
+    Future<String> restorePath(String oldPath,String category) async {
+      if(oldPath.isEmpty)return '';
+      if(restoredPaths.containsKey(oldPath))return restoredPaths[oldPath]!;
+      final raw=rawFiles[oldPath];
+      if(raw is! Map)return '';
+      final item=Map<String,dynamic>.from(raw);
+      final data=(item['data']??'') as String;
+      if(data.isEmpty)return '';
+      final extension=((item['extension']??'') as String).isEmpty
+          ? PrivateFiles.extensionOf(oldPath)
+          : item['extension'] as String;
+      final bytes=base64Decode(data);
+      final saved=await PrivateFiles.saveBytes(
+        Uint8List.fromList(bytes),
+        category,
+        extension:extension.isEmpty?'.bin':extension,
+      );
+      restoredPaths[oldPath]=saved;
+      return saved;
+    }
+
+    for(final rabbit in rabbits){
+      rabbit['photo']=await restorePath(((rabbit['photo']??'') as String),'rabbit_photos');
+      for(final key in ['healthBook','passport']){
+        rabbit[key]=await restorePath(((rabbit[key]??'') as String),'documents');
+      }
+      for(final key in ['vaccines','dewormings']){
+        for(final raw in ((rabbit[key] as List?)??[])){
+          final item=raw as Map<String,dynamic>;
+          item['photo']=await restorePath(((item['photo']??'') as String),'treatments');
+        }
+      }
+    }
+
+    await Store.save(rabbits);
+    await ReproductionStore.save(reproduction);
+    await AppModeStore.save((decoded['appMode']??'Éleveur') as String);
+    await Notifications.refreshAll(rabbits);
+  }
+}
+
 class Scenic extends StatelessWidget {
   final Widget child; final bool compact;
   const Scenic({super.key,required this.child,this.compact=false});
@@ -652,6 +766,100 @@ class _HomePageState extends State<HomePage>{
     );
   }
 
+
+  Future<void> createBackup() async {
+    try{
+      final file=await BackupService.createBackup();
+      if(!mounted)return;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject:'Sauvegarde complète Carnet Santé Lapibreizh',
+        text:'Sauvegarde complète du Carnet Santé Lapibreizh. Conservez ce fichier précieusement.',
+      );
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Sauvegarde impossible : $e')));
+    }
+  }
+
+  Future<void> restoreBackup() async {
+    final pick=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['json']);
+    final path=pick?.files.single.path;
+    if(path==null)return;
+    if(!mounted)return;
+
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(c)=>AlertDialog(
+        title:const Text('Restaurer la sauvegarde ?'),
+        content:const Text(
+          'La sauvegarde remplacera les fiches actuellement enregistrées dans l’application. '
+          'Les données et documents contenus dans le fichier seront restaurés.',
+        ),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
+          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Restaurer')),
+        ],
+      ),
+    )??false;
+    if(!ok)return;
+
+    try{
+      setState(()=>loading=true);
+      await BackupService.restoreFromFile(path);
+      await refresh();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Sauvegarde restaurée avec succès.')));
+    }catch(e){
+      if(mounted){
+        setState(()=>loading=false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Restauration impossible : $e')));
+      }
+    }
+  }
+
+  Widget backupSection(){
+    return Card(
+      margin:const EdgeInsets.fromLTRB(14,0,14,14),
+      child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[
+            const Icon(Icons.shield_outlined,color:brown),
+            const SizedBox(width:8),
+            const Expanded(child:Text('Sécurité du carnet',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink))),
+            Container(
+              padding:const EdgeInsets.symmetric(horizontal:9,vertical:4),
+              decoration:BoxDecoration(color:gold.withValues(alpha:.15),borderRadius:BorderRadius.circular(12)),
+              child:const Text('V2',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:brown)),
+            ),
+          ]),
+          const SizedBox(height:5),
+          const Text(
+            'Sauvegardez toutes les fiches, la reproduction, les documents et les photos dans un seul fichier.',
+            style:TextStyle(fontSize:12,color:Colors.black54),
+          ),
+          const SizedBox(height:12),
+          FilledButton.icon(
+            onPressed:rabbits.isEmpty?null:createBackup,
+            icon:const Icon(Icons.cloud_upload_outlined),
+            label:Text(rabbits.isEmpty?'Aucune donnée à sauvegarder':'Créer une sauvegarde complète'),
+          ),
+          const SizedBox(height:8),
+          OutlinedButton.icon(
+            onPressed:restoreBackup,
+            icon:const Icon(Icons.restore),
+            label:const Text('Restaurer une sauvegarde'),
+          ),
+          const SizedBox(height:5),
+          const Text(
+            'Conseil : conservez une copie sur votre téléphone et une autre dans un espace sécurisé.',
+            textAlign:TextAlign.center,
+            style:TextStyle(fontSize:10,color:Colors.black45),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget searchAndFilters(){
     final results=_filteredRabbits();
     return Card(
@@ -727,6 +935,7 @@ class _HomePageState extends State<HomePage>{
         const SizedBox(height:18),
       ]))),
       if(rabbits.isNotEmpty) SliverToBoxAdapter(child:dashboard()),
+      SliverToBoxAdapter(child:backupSection()),
       if(rabbits.isNotEmpty) SliverToBoxAdapter(child:searchAndFilters()),
       if(rabbits.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(22),child:Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(children:[const Icon(Icons.pets,size:46,color:brown),const SizedBox(height:12),const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),const SizedBox(height:16),FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin'))]))))),
       SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(
@@ -1022,6 +1231,216 @@ class _RabbitPageState extends State<RabbitPage>{
     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer ce document ?'),content:const Text('La copie enregistrée dans le carnet sera supprimée. Le fichier original ne sera pas touché.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;
     if(ok){await PrivateFiles.deleteFile(p);r![key]='';await persist();}
   }
+
+  pw.Widget _pdfTitle(String title){
+    return pw.Container(
+      margin:const pw.EdgeInsets.only(top:14,bottom:6),
+      padding:const pw.EdgeInsets.symmetric(horizontal:10,vertical:7),
+      decoration:pw.BoxDecoration(
+        color:PdfColor.fromHex('#171512'),
+        borderRadius:pw.BorderRadius.circular(8),
+      ),
+      child:pw.Text(title,style:pw.TextStyle(color:PdfColor.fromHex('#D4AF67'),fontSize:14,fontWeight:pw.FontWeight.bold)),
+    );
+  }
+
+  pw.Widget _pdfLine(String label,dynamic value){
+    final s=(value??'').toString().trim();
+    return pw.Padding(
+      padding:const pw.EdgeInsets.symmetric(vertical:2),
+      child:pw.Row(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+        pw.SizedBox(width:120,child:pw.Text(label,style:pw.TextStyle(fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#463622')))),
+        pw.Expanded(child:pw.Text(s.isEmpty?'—':s)),
+      ]),
+    );
+  }
+
+  Future<void> exportPdf() async {
+    try{
+      final rr=r!;
+      final pdf=pw.Document(
+        title:'Carnet de santé de ${((rr['name']??'') as String).isEmpty?'Lapin':rr['name']}',
+        author:'Les Lapibreizh',
+        creator:'Carnet Santé Lapibreizh',
+      );
+
+      pw.MemoryImage? rabbitImage;
+      final photo=((rr['photo']??'') as String);
+      if(photo.isNotEmpty&&File(photo).existsSync()){
+        try{rabbitImage=pw.MemoryImage(await File(photo).readAsBytes());}catch(_){}
+      }
+
+      final rabbitId=((rr['id']??'') as String);
+      final linkedBreedings=breedings.where((b)=>b['maleId']==rabbitId||b['femaleId']==rabbitId).toList();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat:PdfPageFormat.a4,
+          margin:const pw.EdgeInsets.all(28),
+          header:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+            pw.Text('LES LAPIBREIZH',style:pw.TextStyle(fontSize:9,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#463622'))),
+            pw.Text('Carnet de santé',style:pw.TextStyle(fontSize:9,color:PdfColors.grey700)),
+          ]),
+          footer:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+            pw.Text('Document généré par Carnet Santé Lapibreizh',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+            pw.Text('${ctx.pageNumber} / ${ctx.pagesCount}',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+          ]),
+          build:(ctx)=>[
+            pw.Container(
+              padding:const pw.EdgeInsets.all(14),
+              decoration:pw.BoxDecoration(
+                border:pw.Border.all(color:PdfColor.fromHex('#D4AF67'),width:1.5),
+                borderRadius:pw.BorderRadius.circular(12),
+              ),
+              child:pw.Row(crossAxisAlignment:pw.CrossAxisAlignment.center,children:[
+                if(rabbitImage!=null)
+                  pw.Container(
+                    width:86,height:86,
+                    decoration:pw.BoxDecoration(borderRadius:pw.BorderRadius.circular(10)),
+                    child:pw.ClipRRect(horizontalRadius:10,verticalRadius:10,child:pw.Image(rabbitImage!,fit:pw.BoxFit.cover)),
+                  ),
+                if(rabbitImage!=null)pw.SizedBox(width:14),
+                pw.Expanded(child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+                  pw.Text(
+                    ((rr['name']??'') as String).trim().isEmpty?'Lapin sans nom':rr['name'],
+                    style:pw.TextStyle(fontSize:24,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#171512')),
+                  ),
+                  pw.SizedBox(height:4),
+                  pw.Text(((rr['breed']??'') as String).trim().isEmpty?'Race non renseignée':rr['breed'],style:pw.TextStyle(fontSize:12,color:PdfColor.fromHex('#463622'))),
+                  pw.SizedBox(height:8),
+                  pw.Text('Dossier individuel de santé',style:pw.TextStyle(fontSize:11,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#D4AF67'))),
+                ])),
+              ]),
+            ),
+
+            _pdfTitle('Identité'),
+            _pdfLine('Sexe',rr['sex']),
+            _pdfLine('Statut',rr['sterilized']),
+            _pdfLine('Naissance',rr['birth']),
+            _pdfLine('Sevrage',rr['weaning']),
+            _pdfLine('Identification',rr['identification']),
+
+            _pdfTitle('Filiation'),
+            _pdfLine('Père',rr['fatherName']),
+            _pdfLine('Race du père',rr['fatherBreed']),
+            _pdfLine('Mère',rr['motherName']),
+            _pdfLine('Race de la mère',rr['motherBreed']),
+
+            _pdfTitle('Vaccins'),
+            if(((rr['vaccines'] as List?)??[]).isEmpty)
+              pw.Text('Aucun vaccin enregistré.')
+            else
+              pw.TableHelper.fromTextArray(
+                headers:['Date','Produit'],
+                data:((rr['vaccines'] as List?)??[]).map((e)=>[
+                  (e as Map)['date']??'',
+                  e['product']??'',
+                ]).toList(),
+                headerDecoration:pw.BoxDecoration(color:PdfColor.fromHex('#F1E4C6')),
+                headerStyle:pw.TextStyle(fontWeight:pw.FontWeight.bold),
+                cellStyle:const pw.TextStyle(fontSize:9),
+                cellPadding:const pw.EdgeInsets.all(5),
+              ),
+
+            _pdfTitle('Vermifuges'),
+            if(((rr['dewormings'] as List?)??[]).isEmpty)
+              pw.Text('Aucun vermifuge enregistré.')
+            else
+              pw.TableHelper.fromTextArray(
+                headers:['Date','Produit'],
+                data:((rr['dewormings'] as List?)??[]).map((e)=>[
+                  (e as Map)['date']??'',
+                  e['product']??'',
+                ]).toList(),
+                headerDecoration:pw.BoxDecoration(color:PdfColor.fromHex('#F1E4C6')),
+                headerStyle:pw.TextStyle(fontWeight:pw.FontWeight.bold),
+                cellStyle:const pw.TextStyle(fontSize:9),
+                cellPadding:const pw.EdgeInsets.all(5),
+              ),
+
+            _pdfTitle('Rendez-vous vétérinaires'),
+            if(((rr['appointments'] as List?)??[]).isEmpty)
+              pw.Text('Aucun rendez-vous enregistré.')
+            else
+              ...((rr['appointments'] as List?)??[]).map((raw){
+                final a=raw as Map;
+                return pw.Container(
+                  margin:const pw.EdgeInsets.only(bottom:6),
+                  padding:const pw.EdgeInsets.all(7),
+                  decoration:pw.BoxDecoration(
+                    color:PdfColors.grey100,
+                    borderRadius:pw.BorderRadius.circular(6),
+                  ),
+                  child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+                    pw.Text('${a['date']??''} • ${a['time']??''}',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+                    if(((a['reason']??'') as String).isNotEmpty)pw.Text('Motif : ${a['reason']}'),
+                    if(((a['vet']??'') as String).isNotEmpty)pw.Text('Vétérinaire : ${a['vet']}'),
+                    if(((a['description']??'') as String).isNotEmpty)pw.Text('Notes : ${a['description']}'),
+                  ]),
+                );
+              }),
+
+            if(appMode=='Éleveur')...[
+              _pdfTitle('Adoption / départ'),
+              _pdfLine('Statut',rr['adoptionStatus']),
+              _pdfLine('Adoptant',rr['adopterName']),
+              _pdfLine('Contact',rr['adopterContact']),
+              _pdfLine('Date de départ',rr['departureDate']),
+              _pdfLine('Notes',rr['adoptionNotes']),
+              _pdfLine('Carnet remis',(rr['healthBookGiven']??false)==true?'Oui':'Non'),
+              _pdfLine('Certificat remis',(rr['healthCertificateGiven']??false)==true?'Oui':'Non'),
+              _pdfLine('Consignes remises',(rr['adoptionInfoGiven']??false)==true?'Oui':'Non'),
+            ],
+
+            if(appMode=='Éleveur'&&linkedBreedings.isNotEmpty)...[
+              _pdfTitle('Reproduction'),
+              ...linkedBreedings.map((b){
+                final t=ReproductionStore.totals(b);
+                final partner=(rr['sex']=='Mâle')
+                    ? rabbitNameById((b['femaleId']??'') as String)
+                    : rabbitNameById((b['maleId']??'') as String);
+                return pw.Container(
+                  margin:const pw.EdgeInsets.only(bottom:6),
+                  padding:const pw.EdgeInsets.all(7),
+                  decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromHex('#D4AF67')),borderRadius:pw.BorderRadius.circular(6)),
+                  child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+                    pw.Text('${b['matingDate']??'Date non renseignée'} • $partner',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+                    pw.Text('Nés : ${t['born']} • Vivants : ${t['liveBirth']} • Morts : ${t['deadBirth']}'),
+                    if(((b['weaningDate']??'') as String).isNotEmpty)pw.Text('Sevrage : ${b['weaningDate']} • Vivants : ${t['weaned']}'),
+                  ]),
+                );
+              }),
+            ],
+
+            _pdfTitle('Documents'),
+            _pdfLine('Carnet de santé',((rr['healthBook']??'') as String).isEmpty?'Non joint':'Joint dans l’application'),
+            _pdfLine('Passeport',((rr['passport']??'') as String).isEmpty?'Non joint':'Joint dans l’application'),
+
+            pw.SizedBox(height:16),
+            pw.Text(
+              'Ce document reprend les informations enregistrées dans l’application et ne remplace pas un document vétérinaire officiel.',
+              style:pw.TextStyle(fontSize:8,color:PdfColors.grey600),
+            ),
+          ],
+        ),
+      );
+
+      final dir=await getTemporaryDirectory();
+      final name=((rr['name']??'Lapin') as String).trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');
+      final file=File('${dir.path}/Carnet-Sante-${name.isEmpty?'Lapin':name}.pdf');
+      await file.writeAsBytes(await pdf.save(),flush:true);
+
+      if(!mounted)return;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject:'Carnet de santé de ${((rr['name']??'') as String).isEmpty?'Lapin':rr['name']}',
+        text:'Dossier PDF généré par Carnet Santé Lapibreizh.',
+      );
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Création du PDF impossible : $e')));
+    }
+  }
+
   Future<void> share()async{
     final rr=r!; final text="Carnet de santé – Les Lapibreizh\n\n${rr['name']}\nSexe : ${rr['sex']}\nRace : ${rr['breed']}\nNaissance : ${rr['birth']}\nSevrage : ${rr['weaning']}\n\nPère : ${rr['fatherName']} – ${rr['fatherBreed']} – ${rr['fatherBirth']}\nMère : ${rr['motherName']} – ${rr['motherBreed']} – ${rr['motherBirth']}\n\nVaccins :\n${lines(rr['vaccines'])}\n\nVermifuges :\n${lines(rr['dewormings'])}";
     final paths=<String>[]; for(final k in ['photo','healthBook','passport']){final p=rr[k];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);} for(final k in ['vaccines','dewormings']){for(final x in rr[k] as List){final p=x['photo'];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);}}
@@ -1038,7 +1457,7 @@ class _RabbitPageState extends State<RabbitPage>{
   }}
   @override Widget build(BuildContext context){if(r==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));final rr=r!;return Scaffold(
     body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
-      SliverAppBar(backgroundColor:ink.withValues(alpha:.94),foregroundColor:gold,pinned:true,title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),actions:[IconButton(onPressed:share,icon:const Icon(Icons.share)),PopupMenuButton<String>(onSelected:(v){if(v=='delete')deleteRabbit();},itemBuilder:(_)=>const [PopupMenuItem(value:'delete',child:Text('Supprimer la fiche'))])]),
+      SliverAppBar(backgroundColor:ink.withValues(alpha:.94),foregroundColor:gold,pinned:true,title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),actions:[IconButton(tooltip:'PDF',onPressed:exportPdf,icon:const Icon(Icons.picture_as_pdf)),IconButton(onPressed:share,icon:const Icon(Icons.share)),PopupMenuButton<String>(onSelected:(v){if(v=='delete')deleteRabbit();},itemBuilder:(_)=>const [PopupMenuItem(value:'delete',child:Text('Supprimer la fiche'))])]),
       SliverPadding(padding:const EdgeInsets.fromLTRB(14,16,14,40),sliver:SliverList.list(children:[
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[GestureDetector(onTap:showRabbitPhoto,child:Hero(tag:'rabbit${widget.index}',child:Container(width:180,height:180,decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(22),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:14,color:Colors.black26)]),clipBehavior:Clip.antiAlias,child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:48,color:ink):Image.file(File(rr['photo']),fit:BoxFit.cover)))),const SizedBox(height:8),Wrap(alignment:WrapAlignment.center,spacing:8,children:[
           OutlinedButton.icon(onPressed:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
@@ -1054,7 +1473,10 @@ class _RabbitPageState extends State<RabbitPage>{
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
         appointmentSection(),
         Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header('Documents',Icons.folder_copy),docButton('Carnet de santé','healthBook'),const SizedBox(height:8),docButton('Passeport','passport')]))),
-        const SizedBox(height:12),FilledButton.icon(onPressed:share,icon:const Icon(Icons.share),label:const Text('Partager la fiche complète')),
+        const SizedBox(height:12),
+        FilledButton.icon(onPressed:exportPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Créer le dossier PDF')),
+        const SizedBox(height:8),
+        OutlinedButton.icon(onPressed:share,icon:const Icon(Icons.share),label:const Text('Partager la fiche complète')),
       ]))
     ]))),
   );}
