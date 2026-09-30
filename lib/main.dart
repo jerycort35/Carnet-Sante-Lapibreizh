@@ -312,6 +312,30 @@ class ReproductionStore {
     'femaleTotal':n(r['liveFemaleBirth'])+n(r['deadFemaleBirth']),
     'weaned':n(r['liveMaleWeaning'])+n(r['liveFemaleWeaning']),
   };
+
+  static Map<String,int> aggregate(Iterable<Map<String,dynamic>> records){
+    const keys=[
+      'liveMaleBirth','liveFemaleBirth','deadMaleBirth','deadFemaleBirth',
+      'liveMaleWeaning','liveFemaleWeaning',
+    ];
+    final result=<String,int>{for(final key in keys) key:0};
+    for(final record in records){
+      for(final key in keys){result[key]=(result[key]??0)+n(record[key]);}
+    }
+    return result;
+  }
+
+  static Map<String,double> sexProfile(Iterable<Map<String,dynamic>> records){
+    final sums=aggregate(records);
+    final male=n(sums['liveMaleBirth'])+n(sums['deadMaleBirth']);
+    final female=n(sums['liveFemaleBirth'])+n(sums['deadFemaleBirth']);
+    final total=male+female;
+    if(total==0)return {'male':0,'female':0,'balance':0};
+    final malePct=male*100/total;
+    final femalePct=female*100/total;
+    final balance=100-(malePct-femalePct).abs();
+    return {'male':malePct,'female':femalePct,'balance':balance};
+  }
 }
 
 
@@ -727,6 +751,111 @@ class _RabbitPageState extends State<RabbitPage>{
   Widget info(String a,dynamic b)=>Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:145,child:Text(a,style:const TextStyle(fontWeight:FontWeight.w600,color:brown))),Expanded(child:Text((b??'').toString().isEmpty?'—':b.toString()))]));
   DateTime? _reproDate(String? s)=>Notifications.parseDate(s);
 
+  Widget _profileBubble(String label,String value,Color color){
+    return Container(
+      padding:const EdgeInsets.symmetric(horizontal:11,vertical:9),
+      decoration:BoxDecoration(
+        color:color.withValues(alpha:.12),
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:color.withValues(alpha:.70),width:1.4),
+      ),
+      child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text(label,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:color)),
+        const SizedBox(height:2),
+        Text(value,style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:color)),
+      ]),
+    );
+  }
+
+  Widget _reproductionProfile(List<Map<String,dynamic>> records){
+    final p=ReproductionStore.sexProfile(records);
+    final sums=ReproductionStore.aggregate(records);
+    final sexed=ReproductionStore.n(sums['liveMaleBirth'])+
+        ReproductionStore.n(sums['deadMaleBirth'])+
+        ReproductionStore.n(sums['liveFemaleBirth'])+
+        ReproductionStore.n(sums['deadFemaleBirth']);
+    if(sexed==0){
+      return Container(
+        padding:const EdgeInsets.all(12),
+        decoration:BoxDecoration(color:Colors.white70,borderRadius:BorderRadius.circular(16)),
+        child:const Text('Les indicateurs apparaîtront dès que des lapereaux mâles ou femelles seront renseignés.',style:TextStyle(color:Colors.black54)),
+      );
+    }
+    final female='${(p['female']??0).round()} %';
+    final balance='${(p['balance']??0).round()} %';
+    final male='${(p['male']??0).round()} %';
+    return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      const Text('Profil cumulé de toutes les portées liées',style:TextStyle(fontWeight:FontWeight.w800,color:brown)),
+      const SizedBox(height:9),
+      Wrap(spacing:8,runSpacing:8,children:[
+        _profileBubble('Femelles',female,const Color(0xFF2E7D32)),
+        _profileBubble('Équilibre',balance,const Color(0xFF1565C0)),
+        _profileBubble('Mâles',male,const Color(0xFFEF6C00)),
+      ]),
+      const SizedBox(height:7),
+      Text('$sexed lapereaux sexés pris en compte • ${records.length} ${records.length>1?'portées liées':'portée liée'}',style:const TextStyle(fontSize:12,color:Colors.black54)),
+    ]);
+  }
+
+  Widget _chartRow({required String label,required int male,required int female,required Color color,required int maxValue}){
+    final value=male+female;
+    final factor=maxValue<=0?0.0:value/maxValue;
+    return Padding(
+      padding:const EdgeInsets.only(bottom:11),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          Expanded(child:Text(label,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w700))),
+          Text('$value',style:TextStyle(fontSize:14,fontWeight:FontWeight.w900,color:color)),
+        ]),
+        const SizedBox(height:5),
+        Container(
+          height:12,
+          decoration:BoxDecoration(color:Colors.black.withValues(alpha:.07),borderRadius:BorderRadius.circular(20)),
+          clipBehavior:Clip.antiAlias,
+          child:Align(
+            alignment:Alignment.centerLeft,
+            child:FractionallySizedBox(
+              widthFactor:factor,
+              heightFactor:1,
+              child:Container(decoration:BoxDecoration(color:color,borderRadius:BorderRadius.circular(20))),
+            ),
+          ),
+        ),
+        const SizedBox(height:3),
+        Text('♂ $male   •   ♀ $female',style:const TextStyle(fontSize:11,color:Colors.black54)),
+      ]),
+    );
+  }
+
+  Widget _breedingChart(Map<String,dynamic> data,{bool cumulative=false}){
+    final liveMale=ReproductionStore.n(data['liveMaleBirth']);
+    final liveFemale=ReproductionStore.n(data['liveFemaleBirth']);
+    final deadMale=ReproductionStore.n(data['deadMaleBirth']);
+    final deadFemale=ReproductionStore.n(data['deadFemaleBirth']);
+    final weanedMale=ReproductionStore.n(data['liveMaleWeaning']);
+    final weanedFemale=ReproductionStore.n(data['liveFemaleWeaning']);
+    final lossMale=liveMale>weanedMale?liveMale-weanedMale:0;
+    final lossFemale=liveFemale>weanedFemale?liveFemale-weanedFemale:0;
+    final values=[liveMale+liveFemale,deadMale+deadFemale,weanedMale+weanedFemale,lossMale+lossFemale];
+    final maxValue=values.fold<int>(1,(m,v)=>v>m?v:m);
+    return Container(
+      padding:const EdgeInsets.fromLTRB(12,12,12,2),
+      decoration:BoxDecoration(
+        color:Colors.white.withValues(alpha:.72),
+        borderRadius:BorderRadius.circular(14),
+        border:Border.all(color:gold.withValues(alpha:.42)),
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Text(cumulative?'Graphique cumulé':'Résultats de la portée',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
+        const SizedBox(height:10),
+        _chartRow(label:'Vivants à la naissance',male:liveMale,female:liveFemale,color:const Color(0xFF2E7D32),maxValue:maxValue),
+        _chartRow(label:'Morts à la naissance',male:deadMale,female:deadFemale,color:const Color(0xFFEF6C00),maxValue:maxValue),
+        _chartRow(label:'Vivants au sevrage',male:weanedMale,female:weanedFemale,color:const Color(0xFF1565C0),maxValue:maxValue),
+        _chartRow(label:'Pertes avant sevrage',male:lossMale,female:lossFemale,color:const Color(0xFF8D6E63),maxValue:maxValue),
+      ]),
+    );
+  }
+
   Widget reproductionSection(){
     final id=(r!['id']??'') as String;
     final records=breedings.where((b)=>b['maleId']==id||b['femaleId']==id).toList();
@@ -736,26 +865,36 @@ class _RabbitPageState extends State<RabbitPage>{
       return bd.compareTo(ad);
     });
     final sex=(r!['sex']??'') as String;
+    final cumulative=ReproductionStore.aggregate(records);
     return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       header(sex=='Mâle'?'Reproduction / Saillies':'Reproduction / Portées',Icons.favorite),
-      if(records.isEmpty)Padding(padding:const EdgeInsets.only(bottom:10),child:Text(sex=='Mâle'?'Aucune saillie enregistrée.':'Aucune portée enregistrée.',style:const TextStyle(color:Colors.black54))),
+      _reproductionProfile(records),
+      if(records.isNotEmpty)...[
+        const SizedBox(height:14),
+        _breedingChart(cumulative,cumulative:true),
+        const SizedBox(height:16),
+      ],
+      if(records.isEmpty)Padding(padding:const EdgeInsets.only(top:12,bottom:10),child:Text(sex=='Mâle'?'Aucune saillie enregistrée.':'Aucune portée enregistrée.',style:const TextStyle(color:Colors.black54))),
       ...records.map((b){
         final t=ReproductionStore.totals(b);
         final partner=sex=='Mâle'?rabbitNameById((b['femaleId']??'') as String):rabbitNameById((b['maleId']??'') as String);
         return Container(
-          margin:const EdgeInsets.only(bottom:10),
+          margin:const EdgeInsets.only(bottom:12),
           decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.65))),
-          child:ListTile(
-            onTap:()=>editBreeding(b),
-            title:Text('${b['matingDate']?.toString().isEmpty==false?b['matingDate']:'Date à compléter'} • $partner',style:const TextStyle(fontWeight:FontWeight.bold)),
-            subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              if(((b['birthDate']??'') as String).isNotEmpty)Text('Naissance : ${b['birthDate']}'),
-              Text('Nés : ${t['born']} • vivants : ${t['liveBirth']} • morts : ${t['deadBirth']}'),
-              Text('Mâles : ${t['maleTotal']} • femelles : ${t['femaleTotal']}'),
-              if(((b['weaningDate']??'') as String).isNotEmpty)Text('Sevrage : ${b['weaningDate']} • vivants : ${t['weaned']}'),
-            ]),
-            trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>deleteBreeding(b)),
-          ),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            ListTile(
+              onTap:()=>editBreeding(b),
+              title:Text('${b['matingDate']?.toString().isEmpty==false?b['matingDate']:'Date à compléter'} • $partner',style:const TextStyle(fontWeight:FontWeight.bold)),
+              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                if(((b['birthDate']??'') as String).isNotEmpty)Text('Naissance : ${b['birthDate']}'),
+                Text('Nés : ${t['born']} • vivants : ${t['liveBirth']} • morts : ${t['deadBirth']}'),
+                Text('Mâles : ${t['maleTotal']} • femelles : ${t['femaleTotal']}'),
+                if(((b['weaningDate']??'') as String).isNotEmpty)Text('Sevrage : ${b['weaningDate']} • vivants : ${t['weaned']}'),
+              ]),
+              trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>deleteBreeding(b)),
+            ),
+            Padding(padding:const EdgeInsets.fromLTRB(10,0,10,10),child:_breedingChart(b)),
+          ]),
         );
       }),
       OutlinedButton.icon(onPressed:addBreeding,icon:const Icon(Icons.add),label:Text(sex=='Mâle'?'Ajouter une saillie':'Ajouter une portée / saillie')),
