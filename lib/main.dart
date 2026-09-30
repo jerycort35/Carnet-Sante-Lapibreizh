@@ -480,6 +480,7 @@ Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEp
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
   List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
+  String healthFilter='Tout'; bool healthExpanded=false;
   @override void initState(){super.initState();load();}
   Future<void> load()async{all=await Store.load();r=all[widget.index];breedings=await ReproductionStore.load();if(mounted)setState((){});}
   Future<void> refreshBreedings()async{breedings=await ReproductionStore.load();if(mounted)setState((){});}
@@ -738,6 +739,7 @@ class _RabbitPageState extends State<RabbitPage>{
         ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
         section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed'])]),
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
+        healthJourneySection(),
         if(rr['sex']=='Mâle'||rr['sex']=='Femelle') reproductionSection(),
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
         appointmentSection(),
@@ -899,6 +901,362 @@ class _RabbitPageState extends State<RabbitPage>{
       }),
       OutlinedButton.icon(onPressed:addBreeding,icon:const Icon(Icons.add),label:Text(sex=='Mâle'?'Ajouter une saillie':'Ajouter une portée / saillie')),
     ])));
+  }
+
+
+  List<Map<String,dynamic>> _healthEvents(){
+    final events=<Map<String,dynamic>>[];
+
+    for(final key in ['vaccines','dewormings']){
+      final list=(r![key] as List?)??[];
+      for(var i=0;i<list.length;i++){
+        final item=Map<String,dynamic>.from(list[i] as Map);
+        final d=Notifications.parseDate(item['date'] as String?);
+        if(d==null)continue;
+        final product=((item['product']??'') as String).trim();
+        events.add({
+          'kind':key=='vaccines'?'Vaccin':'Vermifuge',
+          'key':key,
+          'index':i,
+          'item':item,
+          'dt':DateTime(d.year,d.month,d.day,12),
+          'dateLabel':item['date']??'',
+          'title':product.isEmpty?(key=='vaccines'?'Vaccin':'Vermifuge'):product,
+          'detail':'',
+        });
+      }
+    }
+
+    for(final raw in ((r!['appointments'] as List?)??[])){
+      final item=raw as Map<String,dynamic>;
+      final d=appointmentDate(item);
+      if(d==null)continue;
+      final reason=((item['reason']??'') as String).trim();
+      final vet=((item['vet']??'') as String).trim();
+      final description=((item['description']??'') as String).trim();
+      final details=<String>[
+        if(vet.isNotEmpty)vet,
+        if(description.isNotEmpty)description,
+      ];
+      events.add({
+        'kind':'Vétérinaire',
+        'key':'appointments',
+        'index':-1,
+        'item':item,
+        'dt':d,
+        'dateLabel':'${item['date']??''} • ${item['time']??''}',
+        'title':reason.isEmpty?'Consultation vétérinaire':reason,
+        'detail':details.join(' • '),
+      });
+    }
+
+    events.sort((a,b)=>(b['dt'] as DateTime).compareTo(a['dt'] as DateTime));
+    return events;
+  }
+
+  Color _healthColor(String kind){
+    if(kind=='Vaccin')return const Color(0xFF2E7D32);
+    if(kind=='Vermifuge')return const Color(0xFFEF6C00);
+    return const Color(0xFF1565C0);
+  }
+
+  IconData _healthIcon(String kind){
+    if(kind=='Vaccin')return Icons.vaccines;
+    if(kind=='Vermifuge')return Icons.medication;
+    return Icons.local_hospital;
+  }
+
+  Widget _healthStat(String label,int value,IconData icon,Color color){
+    return Container(
+      width:137,
+      padding:const EdgeInsets.symmetric(horizontal:11,vertical:12),
+      decoration:BoxDecoration(
+        color:color.withValues(alpha:.09),
+        borderRadius:BorderRadius.circular(17),
+        border:Border.all(color:color.withValues(alpha:.48)),
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(icon,color:color,size:21),
+        const SizedBox(height:7),
+        Text('$value',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:color)),
+        Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:ink)),
+      ]),
+    );
+  }
+
+  Widget _healthActivityChart(List<Map<String,dynamic>> past){
+    final now=DateTime.now();
+    final months=List.generate(6,(i)=>DateTime(now.year,now.month-(5-i),1));
+    final counts=months.map((m)=>past.where((e){
+      final d=e['dt'] as DateTime;
+      return d.year==m.year&&d.month==m.month;
+    }).length).toList();
+    final maxCount=counts.fold<int>(1,(m,v)=>v>m?v:m);
+    const names=['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+    return Container(
+      padding:const EdgeInsets.fromLTRB(13,13,13,10),
+      decoration:BoxDecoration(
+        color:ivory.withValues(alpha:.72),
+        borderRadius:BorderRadius.circular(17),
+        border:Border.all(color:gold.withValues(alpha:.58)),
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        const Text('Activité santé • 6 derniers mois',style:TextStyle(fontWeight:FontWeight.w800,color:brown)),
+        const SizedBox(height:12),
+        SizedBox(
+          height:92,
+          child:Row(
+            crossAxisAlignment:CrossAxisAlignment.end,
+            children:List.generate(months.length,(i)=>Expanded(
+              child:Padding(
+                padding:const EdgeInsets.symmetric(horizontal:3),
+                child:Column(mainAxisAlignment:MainAxisAlignment.end,children:[
+                  Text('${counts[i]}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:brown)),
+                  const SizedBox(height:3),
+                  Expanded(child:Align(
+                    alignment:Alignment.bottomCenter,
+                    child:FractionallySizedBox(
+                      heightFactor:counts[i]==0?.04:counts[i]/maxCount,
+                      widthFactor:.62,
+                      child:Container(
+                        decoration:BoxDecoration(
+                          color:gold,
+                          borderRadius:BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  )),
+                  const SizedBox(height:4),
+                  Text(names[months[i].month-1],style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700)),
+                ]),
+              ),
+            )),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _openHealthEvent(Map<String,dynamic> event)async{
+    final kind=event['kind'] as String;
+    if(kind=='Vaccin'){
+      await editTreatment('vaccines',event['index'] as int,'Vaccin');
+    }else if(kind=='Vermifuge'){
+      await editTreatment('dewormings',event['index'] as int,'Vermifuge');
+    }else{
+      await editAppointment(event['item'] as Map<String,dynamic>);
+    }
+  }
+
+  Widget _healthEventTile(Map<String,dynamic> event,{bool last=false}){
+    final kind=event['kind'] as String;
+    final color=_healthColor(kind);
+    final detail=(event['detail']??'') as String;
+    return InkWell(
+      borderRadius:BorderRadius.circular(16),
+      onTap:()=>_openHealthEvent(event),
+      child:Padding(
+        padding:const EdgeInsets.symmetric(vertical:4),
+        child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          SizedBox(
+            width:40,
+            child:Column(children:[
+              Container(
+                width:34,height:34,
+                decoration:BoxDecoration(
+                  color:color.withValues(alpha:.13),
+                  shape:BoxShape.circle,
+                  border:Border.all(color:color,width:1.6),
+                ),
+                child:Icon(_healthIcon(kind),size:18,color:color),
+              ),
+              if(!last)Container(width:2,height:66,color:gold.withValues(alpha:.42)),
+            ]),
+          ),
+          const SizedBox(width:8),
+          Expanded(child:Container(
+            margin:const EdgeInsets.only(bottom:7),
+            padding:const EdgeInsets.fromLTRB(12,10,10,10),
+            decoration:BoxDecoration(
+              color:Colors.white.withValues(alpha:.72),
+              borderRadius:BorderRadius.circular(15),
+              border:Border.all(color:color.withValues(alpha:.34)),
+            ),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Row(children:[
+                Expanded(child:Text(event['dateLabel'] as String,style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:color))),
+                Container(
+                  padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                  decoration:BoxDecoration(color:color.withValues(alpha:.11),borderRadius:BorderRadius.circular(12)),
+                  child:Text(kind,style:TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:color)),
+                ),
+              ]),
+              const SizedBox(height:5),
+              Text(event['title'] as String,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:ink)),
+              if(detail.isNotEmpty)...[
+                const SizedBox(height:3),
+                Text(detail,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:12,color:Colors.black54)),
+              ],
+              const SizedBox(height:4),
+              const Text('Appuyer pour ouvrir ou modifier',style:TextStyle(fontSize:10,color:Colors.black45)),
+            ]),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget healthJourneySection(){
+    final allEvents=_healthEvents();
+    final now=DateTime.now();
+    final past=allEvents.where((e)=>!(e['dt'] as DateTime).isAfter(now)).toList();
+    final future=allEvents.where((e)=>(e['dt'] as DateTime).isAfter(now)&&e['kind']=='Vétérinaire').toList()
+      ..sort((a,b)=>(a['dt'] as DateTime).compareTo(b['dt'] as DateTime));
+
+    final vaccines=past.where((e)=>e['kind']=='Vaccin').length;
+    final dewormings=past.where((e)=>e['kind']=='Vermifuge').length;
+    final vetVisits=past.where((e)=>e['kind']=='Vétérinaire').length;
+    final yearAgo=now.subtract(const Duration(days:365));
+    final recent=past.where((e)=>(e['dt'] as DateTime).isAfter(yearAgo)).length;
+
+    bool keep(Map<String,dynamic> e){
+      if(healthFilter=='Vaccins')return e['kind']=='Vaccin';
+      if(healthFilter=='Vermifuges')return e['kind']=='Vermifuge';
+      if(healthFilter=='Véto')return e['kind']=='Vétérinaire';
+      return true;
+    }
+
+    final filtered=past.where(keep).toList();
+    final shown=healthExpanded?filtered:filtered.take(6).toList();
+
+    return Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        header('Parcours santé',Icons.timeline),
+        const Text(
+          'Toute l’histoire médicale réunie au même endroit.',
+          style:TextStyle(color:Colors.black54),
+        ),
+        const SizedBox(height:14),
+
+        Wrap(spacing:8,runSpacing:8,children:[
+          _healthStat('Événements',past.length,Icons.monitor_heart,const Color(0xFF6D4C41)),
+          _healthStat('Vaccins',vaccines,Icons.vaccines,const Color(0xFF2E7D32)),
+          _healthStat('Vermifuges',dewormings,Icons.medication,const Color(0xFFEF6C00)),
+          _healthStat('Visites véto',vetVisits,Icons.local_hospital,const Color(0xFF1565C0)),
+        ]),
+
+        const SizedBox(height:11),
+        Container(
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
+          decoration:BoxDecoration(
+            color:ink.withValues(alpha:.92),
+            borderRadius:BorderRadius.circular(15),
+          ),
+          child:Row(children:[
+            const Icon(Icons.insights,color:gold,size:20),
+            const SizedBox(width:8),
+            Expanded(child:Text(
+              '$recent événement${recent>1?'s':''} enregistré${recent>1?'s':''} sur les 12 derniers mois',
+              style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w700),
+            )),
+          ]),
+        ),
+
+        if(future.isNotEmpty)...[
+          const SizedBox(height:14),
+          InkWell(
+            borderRadius:BorderRadius.circular(16),
+            onTap:()=>_openHealthEvent(future.first),
+            child:Container(
+              padding:const EdgeInsets.all(13),
+              decoration:BoxDecoration(
+                gradient:LinearGradient(colors:[gold.withValues(alpha:.24),Colors.white.withValues(alpha:.78)]),
+                borderRadius:BorderRadius.circular(16),
+                border:Border.all(color:gold,width:1.3),
+              ),
+              child:Row(children:[
+                Container(
+                  width:42,height:42,
+                  decoration:BoxDecoration(color:ink,shape:BoxShape.circle,border:Border.all(color:gold)),
+                  child:const Icon(Icons.event_available,color:gold),
+                ),
+                const SizedBox(width:11),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  const Text('PROCHAIN RENDEZ-VOUS',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:brown,letterSpacing:.7)),
+                  const SizedBox(height:2),
+                  Text(future.first['dateLabel'] as String,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink)),
+                  Text(future.first['title'] as String,style:const TextStyle(color:brown,fontWeight:FontWeight.w600)),
+                ])),
+                const Icon(Icons.chevron_right,color:brown),
+              ]),
+            ),
+          ),
+        ],
+
+        if(past.isNotEmpty)...[
+          const SizedBox(height:14),
+          _healthActivityChart(past),
+          const SizedBox(height:15),
+          const Text('Chronologie médicale',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink)),
+          const SizedBox(height:3),
+          const Text('Du plus récent au plus ancien',style:TextStyle(fontSize:12,color:Colors.black54)),
+          const SizedBox(height:10),
+          Wrap(spacing:7,runSpacing:7,children:[
+            for(final f in ['Tout','Vaccins','Vermifuges','Véto'])
+              ChoiceChip(
+                label:Text(f),
+                selected:healthFilter==f,
+                onSelected:(_)=>setState((){healthFilter=f;healthExpanded=false;}),
+              ),
+          ]),
+          const SizedBox(height:12),
+        ],
+
+        if(past.isEmpty&&future.isEmpty)
+          Container(
+            padding:const EdgeInsets.all(16),
+            decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(16)),
+            child:const Column(children:[
+              Icon(Icons.favorite_border,color:brown,size:34),
+              SizedBox(height:8),
+              Text('Le parcours santé commencera dès le premier soin ou rendez-vous.',textAlign:TextAlign.center,style:TextStyle(color:Colors.black54)),
+            ]),
+          ),
+
+        if(past.isNotEmpty&&filtered.isEmpty)
+          const Padding(
+            padding:EdgeInsets.symmetric(vertical:12),
+            child:Text('Aucun événement dans cette catégorie.',textAlign:TextAlign.center,style:TextStyle(color:Colors.black54)),
+          ),
+
+        ...shown.asMap().entries.map((e)=>_healthEventTile(e.value,last:e.key==shown.length-1)),
+
+        if(filtered.length>6)
+          TextButton.icon(
+            onPressed:()=>setState(()=>healthExpanded=!healthExpanded),
+            icon:Icon(healthExpanded?Icons.expand_less:Icons.expand_more),
+            label:Text(healthExpanded?'Réduire la chronologie':'Voir toute la chronologie (${filtered.length})'),
+          ),
+
+        if(past.isNotEmpty)...[
+          const Divider(height:24),
+          Builder(builder:(_){
+            final first=past.last['dateLabel'] as String;
+            final last=past.first['dateLabel'] as String;
+            return Row(children:[
+              const Icon(Icons.history,color:brown,size:19),
+              const SizedBox(width:7),
+              Expanded(child:Text(
+                first==last?'Suivi enregistré le $last':'Suivi enregistré de $first à $last',
+                style:const TextStyle(fontSize:12,color:Colors.black54,fontWeight:FontWeight.w600),
+              )),
+            ]);
+          }),
+        ],
+      ]),
+    ));
   }
 
   String reminderLabel(Map<String,dynamic> item){
