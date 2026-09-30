@@ -486,6 +486,42 @@ class PrivateFiles {
 }
 
 
+
+class LayoutStore {
+  static String _key(String name)=>'lapibreizh_layout_$name';
+
+  static Future<List<String>> load(String name,List<String> defaults) async {
+    final p=await SharedPreferences.getInstance();
+    final raw=p.getString(_key(name));
+    if(raw==null||raw.isEmpty)return List<String>.from(defaults);
+    try{
+      final saved=(jsonDecode(raw) as List).map((e)=>e.toString()).toList();
+      final result=<String>[];
+      for(final id in saved){
+        if(defaults.contains(id)&&!result.contains(id))result.add(id);
+      }
+      for(final id in defaults){
+        if(!result.contains(id))result.add(id);
+      }
+      return result;
+    }catch(_){
+      return List<String>.from(defaults);
+    }
+  }
+
+  static Future<void> save(String name,List<String> order,List<String> defaults) async {
+    final merged=<String>[];
+    for(final id in order){
+      if(defaults.contains(id)&&!merged.contains(id))merged.add(id);
+    }
+    for(final id in defaults){
+      if(!merged.contains(id))merged.add(id);
+    }
+    final p=await SharedPreferences.getInstance();
+    await p.setString(_key(name),jsonEncode(merged));
+  }
+}
+
 class BackupService {
   static const format='lapibreizh_backup_v1';
 
@@ -621,8 +657,20 @@ class HomePage extends StatefulWidget { const HomePage({super.key}); @override S
 class _HomePageState extends State<HomePage>{
   List<Map<String,dynamic>> rabbits=[]; bool loading=true; String appMode='Éleveur';
   String searchQuery=''; String sexFilter='Tous'; String adoptionFilter='Tous';
+  bool homeOrganizing=false; bool homeLayoutLoaded=false;
+  List<String> homeOrder=['dashboard','backup','filters','rabbits'];
+  static const homeDefaults=['dashboard','backup','filters','rabbits'];
   @override void initState(){super.initState();refresh();}
-  Future<void> refresh() async {rabbits=await Store.load(); appMode=await AppModeStore.load(); await Notifications.refreshAll(rabbits); if(mounted)setState(()=>loading=false);}
+  Future<void> refresh() async {
+    rabbits=await Store.load();
+    appMode=await AppModeStore.load();
+    if(!homeLayoutLoaded){
+      homeOrder=await LayoutStore.load('home',homeDefaults);
+      homeLayoutLoaded=true;
+    }
+    await Notifications.refreshAll(rabbits);
+    if(mounted)setState(()=>loading=false);
+  }
   Future<void> setAppMode(String mode) async {await AppModeStore.save(mode);if(mounted)setState(()=>appMode=mode);}
   Future<void> addRabbit() async { final r=emptyRabbit(); rabbits.add(r); await Store.save(rabbits); if(!mounted)return; await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:rabbits.length-1))); await refresh(); }
 
@@ -694,7 +742,7 @@ class _HomePageState extends State<HomePage>{
     var count=0;
     for(final r in rabbits){
       final missing=[
-        r['name'],r['sex'],r['breed'],r['birth'],r['identification'],
+        r['name'],r['sex'],r['breed'],r['birth'],
       ].where((v)=>(v??'').toString().trim().isEmpty).length;
       if(missing>0)count++;
     }
@@ -729,6 +777,161 @@ class _HomePageState extends State<HomePage>{
         const SizedBox(height:6),
         Text(value,style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:color)),
         Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:ink)),
+      ]),
+    );
+  }
+
+
+  List<String> get visibleHomeOrder=>homeOrder.where((id){
+    if(id=='dashboard'||id=='filters')return rabbits.isNotEmpty;
+    return true;
+  }).toList();
+
+  Future<void> toggleHomeOrganizing(bool value) async {
+    if(value){
+      setState(()=>homeOrganizing=true);
+      return;
+    }
+    await LayoutStore.save('home',homeOrder,homeDefaults);
+    if(!mounted)return;
+    setState(()=>homeOrganizing=false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Nouvel ordre enregistré.')));
+  }
+
+  void reorderHome(int oldIndex,int newIndex){
+    final visible=visibleHomeOrder;
+    if(newIndex>oldIndex)newIndex--;
+    final moved=visible.removeAt(oldIndex);
+    visible.insert(newIndex,moved);
+    final visibleSet=visibleHomeOrder.toSet();
+    final queue=List<String>.from(visible);
+    final updated=<String>[];
+    for(final id in homeOrder){
+      if(visibleSet.contains(id)){
+        updated.add(queue.removeAt(0));
+      }else{
+        updated.add(id);
+      }
+    }
+    setState(()=>homeOrder=updated);
+  }
+
+  Widget homeOrganizeControl()=>Padding(
+    padding:const EdgeInsets.fromLTRB(14,0,14,12),
+    child:Container(
+      padding:const EdgeInsets.fromLTRB(12,9,10,9),
+      decoration:BoxDecoration(
+        color:homeOrganizing?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.88),
+        borderRadius:BorderRadius.circular(16),
+        border:Border.all(color:homeOrganizing?gold:Colors.black12),
+      ),
+      child:Row(children:[
+        Icon(homeOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
+        const SizedBox(width:8),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
+          Text('Activez Organiser puis maintenez un cadre pour le déplacer.',style:TextStyle(fontSize:10,color:Colors.black54)),
+        ])),
+        Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
+      ]),
+    ),
+  );
+
+  Widget homeSection(String id){
+    switch(id){
+      case 'dashboard': return dashboard();
+      case 'backup': return backupSection();
+      case 'filters': return searchAndFilters();
+      case 'rabbits': return rabbitListSection();
+      default: return const SizedBox.shrink();
+    }
+  }
+
+  Widget homeFrame(String id,int index,Widget child){
+    final content=Column(
+      key:ValueKey('home_$id'),
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        if(homeOrganizing)
+          const Padding(
+            padding:EdgeInsets.fromLTRB(14,0,14,4),
+            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Icon(Icons.drag_handle,color:brown,size:21),
+              SizedBox(width:5),
+              Text('Maintenir pour déplacer',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:brown)),
+            ]),
+          ),
+        IgnorePointer(ignoring:homeOrganizing,child:child),
+      ],
+    );
+    return homeOrganizing?ReorderableDelayedDragStartListener(index:index,child:content):content;
+  }
+
+  Widget rabbitListSection(){
+    final filtered=_filteredRabbits();
+    if(rabbits.isEmpty){
+      return Padding(
+        padding:const EdgeInsets.fromLTRB(14,0,14,14),
+        child:Card(child:Padding(
+          padding:const EdgeInsets.all(22),
+          child:Column(children:[
+            const Icon(Icons.pets,size:46,color:brown),
+            const SizedBox(height:12),
+            const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),
+            const SizedBox(height:8),
+            const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),
+            const SizedBox(height:16),
+            FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin')),
+          ]),
+        )),
+      );
+    }
+    return Padding(
+      padding:const EdgeInsets.fromLTRB(14,0,14,14),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        if(filtered.isEmpty)
+          Card(child:Padding(
+            padding:const EdgeInsets.all(18),
+            child:Column(children:[
+              const Icon(Icons.search_off,color:brown,size:34),
+              const SizedBox(height:8),
+              const Text('Aucun lapin ne correspond aux filtres.',textAlign:TextAlign.center),
+            ]),
+          )),
+        ...filtered.map((entry){
+          final originalIndex=entry.key;
+          final rabbit=entry.value;
+          final status=((rabbit['adoptionStatus']??'') as String);
+          return Padding(
+            padding:const EdgeInsets.only(bottom:12),
+            child:Card(child:ListTile(
+              contentPadding:const EdgeInsets.all(12),
+              leading:Hero(
+                tag:'rabbit$originalIndex',
+                child:Container(
+                  width:68,height:68,
+                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),
+                  clipBehavior:Clip.antiAlias,
+                  child:(rabbit['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(rabbit['photo']),fit:BoxFit.cover),
+                ),
+              ),
+              title:Text((rabbit['name']??'').isEmpty?'Lapin sans nom':rabbit['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),
+              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('${rabbit['breed']?.isEmpty==false?rabbit['breed']:'Race à renseigner'}${rabbit['birth']?.isEmpty==false?'  •  ${rabbit['birth']}':''}'),
+                if(appMode=='Éleveur'&&status.isNotEmpty)
+                  Padding(
+                    padding:const EdgeInsets.only(top:4),
+                    child:Text(status,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:status=='Réservé'?const Color(0xFFEF6C00):brown)),
+                  ),
+              ]),
+              trailing:const Icon(Icons.chevron_right,color:brown),
+              onTap:homeOrganizing?null:()async{
+                await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:originalIndex)));
+                await refresh();
+              },
+            )),
+          );
+        }),
       ]),
     );
   }
@@ -935,78 +1138,68 @@ class _HomePageState extends State<HomePage>{
       ),
     );
   }
-  @override Widget build(BuildContext context)=>Scaffold(
-    body:Scenic(child:SafeArea(child:loading?const Center(child:CircularProgressIndicator()):CustomScrollView(slivers:[
-      SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.fromLTRB(18,18,18,8),child:Column(children:[
-        Container(width:150,height:150,decoration:BoxDecoration(borderRadius:BorderRadius.circular(30),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:18,color:Colors.black38)]),clipBehavior:Clip.antiAlias,child:Image.asset('assets/images/logo.png',fit:BoxFit.cover)),
-        const SizedBox(height:10),
-        Container(padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),decoration:BoxDecoration(color:ink.withValues(alpha:.90),borderRadius:BorderRadius.circular(20),border:Border.all(color:gold)),child:const Column(children:[Text('CARNET DE SANTÉ',style:TextStyle(color:gold,fontWeight:FontWeight.w800,fontSize:22,letterSpacing:1.2)),Text('Les Lapibreizh',style:TextStyle(color:Colors.white,fontSize:16))])),
-        const SizedBox(height:12),
-        Container(
-          padding:const EdgeInsets.fromLTRB(14,10,14,10),
-          decoration:BoxDecoration(color:Colors.white.withValues(alpha:.91),borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
-          child:Column(children:[
-            Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:brown,size:20),
-              const SizedBox(width:7),
-              Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
-            ]),
-            const SizedBox(height:8),
-            Wrap(alignment:WrapAlignment.center,spacing:8,children:[
-              ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:(_)=>setAppMode('Éleveur')),
-              ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:(_)=>setAppMode('Adoptant')),
-            ]),
-            const SizedBox(height:4),
-            Text(appMode=='Éleveur'?'Reproduction, préparation au départ et suivi santé.':'Une vue simplifiée centrée sur la santé au quotidien.',textAlign:TextAlign.center,style:const TextStyle(fontSize:11,color:Colors.black54)),
-          ]),
-        ),
-        const SizedBox(height:18),
-      ]))),
-      if(rabbits.isNotEmpty) SliverToBoxAdapter(child:dashboard()),
-      SliverToBoxAdapter(child:backupSection()),
-      if(rabbits.isNotEmpty) SliverToBoxAdapter(child:searchAndFilters()),
-      if(rabbits.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(22),child:Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(children:[const Icon(Icons.pets,size:46,color:brown),const SizedBox(height:12),const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),const SizedBox(height:16),FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin'))]))))),
-      SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(
-        itemCount:_filteredRabbits().length,
-        itemBuilder:(c,i){
-          final entry=_filteredRabbits()[i];
-          final originalIndex=entry.key;
-          final r=entry.value;
-          final status=((r['adoptionStatus']??'') as String);
-          return Padding(
-            padding:const EdgeInsets.only(bottom:12),
-            child:Card(child:ListTile(
-              contentPadding:const EdgeInsets.all(12),
-              leading:Hero(
-                tag:'rabbit$originalIndex',
-                child:Container(
-                  width:68,height:68,
-                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),
-                  clipBehavior:Clip.antiAlias,
-                  child:(r['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(r['photo']),fit:BoxFit.cover),
-                ),
+  @override Widget build(BuildContext context){
+    final visible=visibleHomeOrder;
+    return Scaffold(
+      body:Scenic(child:SafeArea(child:loading
+        ?const Center(child:CircularProgressIndicator())
+        :CustomScrollView(slivers:[
+          SliverToBoxAdapter(child:Padding(
+            padding:const EdgeInsets.fromLTRB(18,18,18,8),
+            child:Column(children:[
+              Container(width:150,height:150,decoration:BoxDecoration(borderRadius:BorderRadius.circular(30),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:18,color:Colors.black38)]),clipBehavior:Clip.antiAlias,child:Image.asset('assets/images/logo.png',fit:BoxFit.cover)),
+              const SizedBox(height:10),
+              Container(padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),decoration:BoxDecoration(color:ink.withValues(alpha:.90),borderRadius:BorderRadius.circular(20),border:Border.all(color:gold)),child:const Column(children:[
+                Text('CARNET DE SANTÉ',style:TextStyle(color:gold,fontWeight:FontWeight.w800,fontSize:22,letterSpacing:1.2)),
+                Text('Les Lapibreizh',style:TextStyle(color:Colors.white,fontSize:16)),
+              ])),
+              const SizedBox(height:12),
+              Container(
+                padding:const EdgeInsets.fromLTRB(14,10,14,10),
+                decoration:BoxDecoration(color:Colors.white.withValues(alpha:.91),borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
+                child:Column(children:[
+                  Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                    Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:brown,size:20),
+                    const SizedBox(width:7),
+                    Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
+                  ]),
+                  const SizedBox(height:8),
+                  Wrap(alignment:WrapAlignment.center,spacing:8,children:[
+                    ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:homeOrganizing?null:(_)=>setAppMode('Éleveur')),
+                    ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:homeOrganizing?null:(_)=>setAppMode('Adoptant')),
+                  ]),
+                  const SizedBox(height:4),
+                  Text(appMode=='Éleveur'?'Reproduction, préparation au départ et suivi santé.':'Une vue simplifiée centrée sur la santé au quotidien.',textAlign:TextAlign.center,style:const TextStyle(fontSize:11,color:Colors.black54)),
+                ]),
               ),
-              title:Text((r['name']??'').isEmpty?'Lapin sans nom':r['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),
-              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text('${r['breed']?.isEmpty==false?r['breed']:'Race à renseigner'}${r['birth']?.isEmpty==false?'  •  ${r['birth']}':''}'),
-                if(appMode=='Éleveur'&&status.isNotEmpty)
-                  Padding(
-                    padding:const EdgeInsets.only(top:4),
-                    child:Text(status,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:status=='Réservé'?const Color(0xFFEF6C00):brown)),
-                  ),
-              ]),
-              trailing:const Icon(Icons.chevron_right,color:brown),
-              onTap:()async{
-                await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:originalIndex)));
-                await refresh();
+              const SizedBox(height:10),
+            ]),
+          )),
+          SliverToBoxAdapter(child:homeOrganizeControl()),
+          if(homeOrganizing)
+            SliverReorderableList(
+              itemCount:visible.length,
+              onReorder:reorderHome,
+              itemBuilder:(context,index){
+                final id=visible[index];
+                return homeFrame(id,index,homeSection(id));
               },
-            )),
-          );
-        },
-      )),
-    ]))),
-    floatingActionButton:rabbits.isEmpty?null:FloatingActionButton.extended(onPressed:addRabbit,backgroundColor:ink,foregroundColor:gold,icon:const Icon(Icons.add),label:const Text('Nouveau lapin')),
-  );
+            )
+          else
+            SliverList.builder(
+              itemCount:visible.length,
+              itemBuilder:(context,index){
+                final id=visible[index];
+                return homeFrame(id,index,homeSection(id));
+              },
+            ),
+          const SliverToBoxAdapter(child:SizedBox(height:105)),
+        ]))),
+      floatingActionButton:rabbits.isEmpty||homeOrganizing?null:FloatingActionButton.extended(
+        onPressed:addRabbit,backgroundColor:ink,foregroundColor:gold,icon:const Icon(Icons.add),label:const Text('Nouveau lapin'),
+      ),
+    );
+  }
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
@@ -1016,8 +1209,21 @@ class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.
 class _RabbitPageState extends State<RabbitPage>{
   List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
   String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
+  bool rabbitOrganizing=false;
+  List<String> rabbitOrder=[];
+  static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','weight','adoption','reproduction','vaccines','dewormings','appointments','documents'];
+  static const rabbitDefaultsAdoptant=['identity','filiation','alerts','health','weight','vaccines','dewormings','appointments','documents'];
+
   @override void initState(){super.initState();load();}
-  Future<void> load()async{all=await Store.load();r=all[widget.index];breedings=await ReproductionStore.load();appMode=await AppModeStore.load();if(mounted)setState((){});}
+  Future<void> load()async{
+    all=await Store.load();
+    r=all[widget.index];
+    breedings=await ReproductionStore.load();
+    appMode=await AppModeStore.load();
+    final defaults=appMode=='Éleveur'?rabbitDefaultsEleveur:rabbitDefaultsAdoptant;
+    rabbitOrder=await LayoutStore.load(appMode=='Éleveur'?'rabbit_eleveur':'rabbit_adoptant',defaults);
+    if(mounted)setState((){});
+  }
   Future<void> refreshBreedings()async{breedings=await ReproductionStore.load();if(mounted)setState((){});}
   Future<void> persist()async{all[widget.index]=r!;await Store.save(all);if(mounted)setState((){});}
   Future<String> pickSquareRabbitPhoto()async{
@@ -1935,32 +2141,212 @@ class _RabbitPageState extends State<RabbitPage>{
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
     all.removeAt(widget.index);await Store.save(all);if(mounted)Navigator.pop(context);
   }}
-  @override Widget build(BuildContext context){if(r==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));final rr=r!;return Scaffold(
-    body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
-      SliverAppBar(backgroundColor:ink.withValues(alpha:.94),foregroundColor:gold,pinned:true,title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),actions:[IconButton(tooltip:'PDF',onPressed:exportPdf,icon:const Icon(Icons.picture_as_pdf)),IconButton(onPressed:share,icon:const Icon(Icons.share)),PopupMenuButton<String>(onSelected:(v){if(v=='delete')deleteRabbit();},itemBuilder:(_)=>const [PopupMenuItem(value:'delete',child:Text('Supprimer la fiche'))])]),
-      SliverPadding(padding:const EdgeInsets.fromLTRB(14,16,14,40),sliver:SliverList.list(children:[
-        Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[GestureDetector(onTap:showRabbitPhoto,child:Hero(tag:'rabbit${widget.index}',child:Container(width:180,height:180,decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(22),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:14,color:Colors.black26)]),clipBehavior:Clip.antiAlias,child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:48,color:ink):Image.file(File(rr['photo']),fit:BoxFit.cover)))),const SizedBox(height:8),Wrap(alignment:WrapAlignment.center,spacing:8,children:[
-          OutlinedButton.icon(onPressed:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
-          if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
-        ]),const SizedBox(height:12),Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),const SizedBox(height:12),FilledButton.icon(onPressed:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation'))]))),
-        modeBanner(),
-        section('Identité',Icons.badge,[info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),info('Sevrage',rr['weaning']),info('Race',rr['breed']),info('Identification (facultatif)',rr['identification']),info('Tatouage (facultatif)',rr['tattoo'])]),
-        section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
-        dataAlertsSection(),
-        healthJourneySection(),
-        weightSection(),
-        if(appMode=='Éleveur') adoptionSection(),
-        if(appMode=='Éleveur'&&(rr['sex']=='Mâle'||rr['sex']=='Femelle')) reproductionSection(),
-        treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
-        appointmentSection(),
-        Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header('Documents',Icons.folder_copy),docButton('Carnet de santé','healthBook'),const SizedBox(height:8),docButton('Passeport','passport')]))),
-        const SizedBox(height:12),
-        FilledButton.icon(onPressed:exportPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Créer le dossier PDF')),
+
+  List<String> get visibleRabbitOrder{
+    final defaults=appMode=='Éleveur'?rabbitDefaultsEleveur:rabbitDefaultsAdoptant;
+    return rabbitOrder.where((id){
+      if(!defaults.contains(id))return false;
+      if(id=='reproduction'){
+        final sex=(r?['sex']??'') as String;
+        return sex=='Mâle'||sex=='Femelle';
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<void> toggleRabbitOrganizing(bool value) async {
+    if(value){
+      setState(()=>rabbitOrganizing=true);
+      return;
+    }
+    final defaults=appMode=='Éleveur'?rabbitDefaultsEleveur:rabbitDefaultsAdoptant;
+    await LayoutStore.save(appMode=='Éleveur'?'rabbit_eleveur':'rabbit_adoptant',rabbitOrder,defaults);
+    if(!mounted)return;
+    setState(()=>rabbitOrganizing=false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Nouvel ordre enregistré.')));
+  }
+
+  void reorderRabbit(int oldIndex,int newIndex){
+    final visible=visibleRabbitOrder;
+    if(newIndex>oldIndex)newIndex--;
+    final moved=visible.removeAt(oldIndex);
+    visible.insert(newIndex,moved);
+    final visibleSet=visibleRabbitOrder.toSet();
+    final queue=List<String>.from(visible);
+    final updated=<String>[];
+    for(final id in rabbitOrder){
+      if(visibleSet.contains(id)){
+        updated.add(queue.removeAt(0));
+      }else{
+        updated.add(id);
+      }
+    }
+    setState(()=>rabbitOrder=updated);
+  }
+
+  Widget rabbitOrganizeControl()=>Container(
+    margin:const EdgeInsets.only(bottom:8),
+    padding:const EdgeInsets.fromLTRB(12,9,10,9),
+    decoration:BoxDecoration(
+      color:rabbitOrganizing?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.88),
+      borderRadius:BorderRadius.circular(16),
+      border:Border.all(color:rabbitOrganizing?gold:Colors.black12),
+    ),
+    child:Row(children:[
+      Icon(rabbitOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
+      const SizedBox(width:8),
+      const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
+        Text('Activez Organiser puis maintenez un cadre pour le déplacer.',style:TextStyle(fontSize:10,color:Colors.black54)),
+      ])),
+      Switch(value:rabbitOrganizing,onChanged:toggleRabbitOrganizing),
+    ]),
+  );
+
+  Widget rabbitSection(String id,Map<String,dynamic> rr){
+    switch(id){
+      case 'identity':
+        return section('Identité',Icons.badge,[
+          info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),
+          info('Sevrage',rr['weaning']),info('Race',rr['breed']),
+          info('Identification (facultatif)',rr['identification']),info('Tatouage (facultatif)',rr['tattoo']),
+        ]);
+      case 'filiation':
+        return section('Filiation',Icons.account_tree,[
+          info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),
+          const Divider(),
+          info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth']),
+        ]);
+      case 'alerts': return dataAlertsSection();
+      case 'health': return healthJourneySection();
+      case 'weight': return weightSection();
+      case 'adoption': return adoptionSection();
+      case 'reproduction': return reproductionSection();
+      case 'vaccines': return treatmentSection('Vaccins','vaccines',Icons.vaccines);
+      case 'dewormings': return treatmentSection('Vermifuges','dewormings',Icons.medication);
+      case 'appointments': return appointmentSection();
+      case 'documents':
+        return Card(child:Padding(
+          padding:const EdgeInsets.all(16),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            header('Documents',Icons.folder_copy),
+            docButton('Carnet de santé','healthBook'),
+            const SizedBox(height:8),
+            docButton('Passeport','passport'),
+          ]),
+        ));
+      default: return const SizedBox.shrink();
+    }
+  }
+
+  Widget rabbitFrame(String id,int index,Widget child){
+    final content=Column(
+      key:ValueKey('rabbit_$id'),
+      crossAxisAlignment:CrossAxisAlignment.stretch,
+      children:[
+        if(rabbitOrganizing)
+          const Padding(
+            padding:EdgeInsets.only(bottom:4),
+            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Icon(Icons.drag_handle,color:brown,size:21),
+              SizedBox(width:5),
+              Text('Maintenir pour déplacer',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:brown)),
+            ]),
+          ),
+        IgnorePointer(ignoring:rabbitOrganizing,child:child),
+      ],
+    );
+    return rabbitOrganizing?ReorderableDelayedDragStartListener(index:index,child:content):content;
+  }
+
+  @override Widget build(BuildContext context){
+    if(r==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+    final rr=r!;
+    final visible=visibleRabbitOrder;
+
+    final photoCard=Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(children:[
+        GestureDetector(
+          onTap:rabbitOrganizing?null:showRabbitPhoto,
+          child:Hero(
+            tag:'rabbit${widget.index}',
+            child:Container(
+              width:180,height:180,
+              decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(22),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:14,color:Colors.black26)]),
+              clipBehavior:Clip.antiAlias,
+              child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:48,color:ink):Image.file(File(rr['photo']),fit:BoxFit.cover),
+            ),
+          ),
+        ),
         const SizedBox(height:8),
-        OutlinedButton.icon(onPressed:share,icon:const Icon(Icons.share),label:const Text('Partager la fiche complète')),
-      ]))
-    ]))),
-  );}
+        Wrap(alignment:WrapAlignment.center,spacing:8,children:[
+          OutlinedButton.icon(onPressed:rabbitOrganizing?null:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
+          if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:rabbitOrganizing?null:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
+        ]),
+        const SizedBox(height:12),
+        Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),
+        if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),
+        const SizedBox(height:12),
+        FilledButton.icon(onPressed:rabbitOrganizing?null:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation')),
+      ]),
+    ));
+
+    return Scaffold(
+      body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
+        SliverAppBar(
+          backgroundColor:ink.withValues(alpha:.94),
+          foregroundColor:gold,
+          pinned:true,
+          title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),
+          actions:[
+            IconButton(tooltip:'PDF',onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf)),
+            IconButton(onPressed:rabbitOrganizing?null:share,icon:const Icon(Icons.share)),
+            PopupMenuButton<String>(
+              enabled:!rabbitOrganizing,
+              onSelected:(v){if(v=='delete')deleteRabbit();},
+              itemBuilder:(_)=>const [PopupMenuItem(value:'delete',child:Text('Supprimer la fiche'))],
+            ),
+          ],
+        ),
+        SliverPadding(
+          padding:const EdgeInsets.fromLTRB(14,16,14,4),
+          sliver:SliverList.list(children:[
+            photoCard,
+            modeBanner(),
+            rabbitOrganizeControl(),
+          ]),
+        ),
+        SliverPadding(
+          padding:const EdgeInsets.symmetric(horizontal:14),
+          sliver:rabbitOrganizing
+            ?SliverReorderableList(
+                itemCount:visible.length,
+                onReorder:reorderRabbit,
+                itemBuilder:(context,index){
+                  final id=visible[index];
+                  return rabbitFrame(id,index,rabbitSection(id,rr));
+                },
+              )
+            :SliverList.builder(
+                itemCount:visible.length,
+                itemBuilder:(context,index){
+                  final id=visible[index];
+                  return rabbitFrame(id,index,rabbitSection(id,rr));
+                },
+              ),
+        ),
+        SliverPadding(
+          padding:const EdgeInsets.fromLTRB(14,8,14,40),
+          sliver:SliverList.list(children:[
+            FilledButton.icon(onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Créer le dossier PDF')),
+            const SizedBox(height:8),
+            OutlinedButton.icon(onPressed:rabbitOrganizing?null:share,icon:const Icon(Icons.share),label:const Text('Partager la fiche complète')),
+          ]),
+        ),
+      ]))),
+    );
+  }
   Widget header(String t,IconData i)=>Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[Icon(i,color:brown),const SizedBox(width:8),Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:ink))]));
   Widget section(String t,IconData i,List<Widget> ch)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch])));
   Widget info(String a,dynamic b)=>Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:145,child:Text(a,style:const TextStyle(fontWeight:FontWeight.w600,color:brown))),Expanded(child:Text((b??'').toString().isEmpty?'—':b.toString()))]));
