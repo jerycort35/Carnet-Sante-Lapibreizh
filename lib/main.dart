@@ -478,10 +478,227 @@ class Scenic extends StatelessWidget {
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
 class _HomePageState extends State<HomePage>{
   List<Map<String,dynamic>> rabbits=[]; bool loading=true; String appMode='Éleveur';
+  String searchQuery=''; String sexFilter='Tous'; String adoptionFilter='Tous';
   @override void initState(){super.initState();refresh();}
   Future<void> refresh() async {rabbits=await Store.load(); appMode=await AppModeStore.load(); await Notifications.refreshAll(rabbits); if(mounted)setState(()=>loading=false);}
   Future<void> setAppMode(String mode) async {await AppModeStore.save(mode);if(mounted)setState(()=>appMode=mode);}
   Future<void> addRabbit() async { final r=emptyRabbit(); rabbits.add(r); await Store.save(rabbits); if(!mounted)return; await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:rabbits.length-1))); await refresh(); }
+
+  DateTime? _nextTreatmentDue(Map<String,dynamic> item){
+    final months=(item['reminderMonths']??0) as int;
+    final date=Notifications.parseDate(item['date'] as String?);
+    if(months<=0||date==null)return null;
+    var due=Notifications.addMonths(date,months);
+    while(due.isBefore(DateTime.now()))due=Notifications.addMonths(due,months);
+    return due;
+  }
+
+  int _healthRemindersSoon(){
+    final now=DateTime.now();
+    final limit=now.add(const Duration(days:30));
+    var count=0;
+    for(final rabbit in rabbits){
+      for(final key in ['vaccines','dewormings']){
+        for(final raw in ((rabbit[key] as List?)??[])){
+          final due=_nextTreatmentDue(Map<String,dynamic>.from(raw as Map));
+          if(due!=null&&!due.isAfter(limit))count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  int _upcomingAppointments(){
+    final now=DateTime.now();
+    var count=0;
+    for(final rabbit in rabbits){
+      for(final raw in ((rabbit['appointments'] as List?)??[])){
+        final a=Map<String,dynamic>.from(raw as Map);
+        final d=Notifications.parseDate(a['date'] as String?);
+        if(d==null)continue;
+        final parts=((a['time']??'09:00') as String).split(':');
+        final dt=DateTime(d.year,d.month,d.day,int.tryParse(parts[0])??9,parts.length>1?int.tryParse(parts[1])??0:0);
+        if(dt.isAfter(now))count++;
+      }
+    }
+    return count;
+  }
+
+  Map<String,dynamic>? _nextAppointment(){
+    final now=DateTime.now();
+    Map<String,dynamic>? best;
+    DateTime? bestDate;
+    for(var i=0;i<rabbits.length;i++){
+      final rabbit=rabbits[i];
+      for(final raw in ((rabbit['appointments'] as List?)??[])){
+        final a=Map<String,dynamic>.from(raw as Map);
+        final d=Notifications.parseDate(a['date'] as String?);
+        if(d==null)continue;
+        final parts=((a['time']??'09:00') as String).split(':');
+        final dt=DateTime(d.year,d.month,d.day,int.tryParse(parts[0])??9,parts.length>1?int.tryParse(parts[1])??0:0);
+        if(!dt.isAfter(now))continue;
+        if(bestDate==null||dt.isBefore(bestDate)){
+          bestDate=dt;
+          best={'rabbitIndex':i,'rabbitName':((rabbit['name']??'') as String).trim().isEmpty?'Lapin sans nom':rabbit['name'],'appointment':a,'date':dt};
+        }
+      }
+    }
+    return best;
+  }
+
+  int _reservedCount()=>rabbits.where((r)=>r['adoptionStatus']=='Réservé').length;
+
+  int _incompleteCount(){
+    var count=0;
+    for(final r in rabbits){
+      final missing=[
+        r['name'],r['sex'],r['breed'],r['birth'],r['identification'],
+      ].where((v)=>(v??'').toString().trim().isEmpty).length;
+      if(missing>0)count++;
+    }
+    return count;
+  }
+
+  List<MapEntry<int,Map<String,dynamic>>> _filteredRabbits(){
+    final q=searchQuery.trim().toLowerCase();
+    return rabbits.asMap().entries.where((entry){
+      final r=entry.value;
+      final haystack=[
+        r['name'],r['breed'],r['identification'],r['fatherName'],r['motherName']
+      ].map((e)=>(e??'').toString().toLowerCase()).join(' ');
+      if(q.isNotEmpty&&!haystack.contains(q))return false;
+      if(sexFilter!='Tous'&&r['sex']!=sexFilter)return false;
+      if(appMode=='Éleveur'&&adoptionFilter!='Tous'&&r['adoptionStatus']!=adoptionFilter)return false;
+      return true;
+    }).toList();
+  }
+
+  Widget _dashStat(String label,String value,IconData icon,Color color){
+    return Container(
+      width:142,
+      padding:const EdgeInsets.symmetric(horizontal:12,vertical:12),
+      decoration:BoxDecoration(
+        color:color.withValues(alpha:.09),
+        borderRadius:BorderRadius.circular(17),
+        border:Border.all(color:color.withValues(alpha:.45)),
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(icon,color:color,size:22),
+        const SizedBox(height:6),
+        Text(value,style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:color)),
+        Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:ink)),
+      ]),
+    );
+  }
+
+  Widget dashboard(){
+    final next=_nextAppointment();
+    return Card(
+      margin:const EdgeInsets.fromLTRB(14,0,14,14),
+      child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[
+            const Icon(Icons.dashboard_rounded,color:brown),
+            const SizedBox(width:8),
+            const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink))),
+            Container(
+              padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
+              decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(14)),
+              child:Text(appMode=='Éleveur'?'ÉLEVAGE':'ADOPTANT',style:const TextStyle(color:gold,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:.6)),
+            ),
+          ]),
+          const SizedBox(height:12),
+          Wrap(spacing:8,runSpacing:8,children:[
+            _dashStat('Lapins','${rabbits.length}',Icons.pets,const Color(0xFF6D4C41)),
+            _dashStat('RDV à venir','${_upcomingAppointments()}',Icons.event_available,const Color(0xFF1565C0)),
+            _dashStat('Rappels ≤ 30 j','${_healthRemindersSoon()}',Icons.notifications_active,const Color(0xFF2E7D32)),
+            if(appMode=='Éleveur')
+              _dashStat('Réservés','${_reservedCount()}',Icons.favorite,const Color(0xFFEF6C00))
+            else
+              _dashStat('À compléter','${_incompleteCount()}',Icons.fact_check,const Color(0xFFEF6C00)),
+          ]),
+          if(next!=null)...[
+            const SizedBox(height:13),
+            InkWell(
+              borderRadius:BorderRadius.circular(16),
+              onTap:()async{
+                await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:next['rabbitIndex'] as int)));
+                await refresh();
+              },
+              child:Container(
+                padding:const EdgeInsets.all(12),
+                decoration:BoxDecoration(
+                  color:gold.withValues(alpha:.10),
+                  borderRadius:BorderRadius.circular(16),
+                  border:Border.all(color:gold.withValues(alpha:.75)),
+                ),
+                child:Row(children:[
+                  Container(width:40,height:40,decoration:BoxDecoration(color:ink,shape:BoxShape.circle,border:Border.all(color:gold)),child:const Icon(Icons.local_hospital,color:gold,size:21)),
+                  const SizedBox(width:10),
+                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    const Text('PROCHAIN RENDEZ-VOUS',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:brown,letterSpacing:.6)),
+                    Text('${next['rabbitName']} • ${(next['appointment'] as Map)['date']} à ${(next['appointment'] as Map)['time']}',style:const TextStyle(fontWeight:FontWeight.w900,color:ink)),
+                    if((((next['appointment'] as Map)['reason']??'') as String).isNotEmpty)
+                      Text((next['appointment'] as Map)['reason'],style:const TextStyle(fontSize:12,color:Colors.black54)),
+                  ])),
+                  const Icon(Icons.chevron_right,color:brown),
+                ]),
+              ),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Widget searchAndFilters(){
+    final results=_filteredRabbits();
+    return Card(
+      margin:const EdgeInsets.fromLTRB(14,0,14,14),
+      child:Padding(
+        padding:const EdgeInsets.all(14),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          TextField(
+            decoration:InputDecoration(
+              hintText:'Rechercher un lapin…',
+              prefixIcon:const Icon(Icons.search),
+              suffixIcon:searchQuery.isEmpty?null:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>searchQuery='')),
+            ),
+            onChanged:(v)=>setState(()=>searchQuery=v),
+          ),
+          const SizedBox(height:10),
+          const Text('Sexe',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+          const SizedBox(height:5),
+          Wrap(spacing:7,runSpacing:7,children:[
+            for(final f in ['Tous','Mâle','Femelle'])
+              ChoiceChip(label:Text(f),selected:sexFilter==f,onSelected:(_)=>setState(()=>sexFilter=f)),
+          ]),
+          if(appMode=='Éleveur')...[
+            const SizedBox(height:10),
+            const Text('Statut adoption',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
+            const SizedBox(height:5),
+            Wrap(spacing:7,runSpacing:7,children:[
+              for(final f in ['Tous','À l’élevage','Réservé','Adopté / parti'])
+                ChoiceChip(label:Text(f),selected:adoptionFilter==f,onSelected:(_)=>setState(()=>adoptionFilter=f)),
+            ]),
+          ],
+          const SizedBox(height:9),
+          Row(children:[
+            const Icon(Icons.filter_alt_outlined,size:17,color:brown),
+            const SizedBox(width:6),
+            Text('${results.length} résultat${results.length>1?'s':''}',style:const TextStyle(fontWeight:FontWeight.w700,color:brown)),
+            const Spacer(),
+            if(searchQuery.isNotEmpty||sexFilter!='Tous'||adoptionFilter!='Tous')
+              TextButton(
+                onPressed:()=>setState((){searchQuery='';sexFilter='Tous';adoptionFilter='Tous';}),
+                child:const Text('Réinitialiser'),
+              ),
+          ]),
+        ]),
+      ),
+    );
+  }
   @override Widget build(BuildContext context)=>Scaffold(
     body:Scenic(child:SafeArea(child:loading?const Center(child:CircularProgressIndicator()):CustomScrollView(slivers:[
       SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.fromLTRB(18,18,18,8),child:Column(children:[
@@ -509,8 +726,47 @@ class _HomePageState extends State<HomePage>{
         ),
         const SizedBox(height:18),
       ]))),
+      if(rabbits.isNotEmpty) SliverToBoxAdapter(child:dashboard()),
+      if(rabbits.isNotEmpty) SliverToBoxAdapter(child:searchAndFilters()),
       if(rabbits.isEmpty) SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.all(22),child:Card(child:Padding(padding:const EdgeInsets.all(22),child:Column(children:[const Icon(Icons.pets,size:46,color:brown),const SizedBox(height:12),const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:8),const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),const SizedBox(height:16),FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin'))]))))),
-      SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(itemCount:rabbits.length,itemBuilder:(c,i){final r=rabbits[i];return Padding(padding:const EdgeInsets.only(bottom:12),child:Card(child:ListTile(contentPadding:const EdgeInsets.all(12),leading:Hero(tag:'rabbit$i',child:Container(width:68,height:68,decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),clipBehavior:Clip.antiAlias,child:(r['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(r['photo']),fit:BoxFit.cover))),title:Text((r['name']??'').isEmpty?'Lapin sans nom':r['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),subtitle:Text('${r['breed']?.isEmpty==false?r['breed']:'Race à renseigner'}${r['birth']?.isEmpty==false?'  •  ${r['birth']}':''}'),trailing:const Icon(Icons.chevron_right,color:brown),onTap:()async{await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:i)));await refresh();})));})),
+      SliverPadding(padding:const EdgeInsets.fromLTRB(14,0,14,110),sliver:SliverList.builder(
+        itemCount:_filteredRabbits().length,
+        itemBuilder:(c,i){
+          final entry=_filteredRabbits()[i];
+          final originalIndex=entry.key;
+          final r=entry.value;
+          final status=((r['adoptionStatus']??'') as String);
+          return Padding(
+            padding:const EdgeInsets.only(bottom:12),
+            child:Card(child:ListTile(
+              contentPadding:const EdgeInsets.all(12),
+              leading:Hero(
+                tag:'rabbit$originalIndex',
+                child:Container(
+                  width:68,height:68,
+                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),
+                  clipBehavior:Clip.antiAlias,
+                  child:(r['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(r['photo']),fit:BoxFit.cover),
+                ),
+              ),
+              title:Text((r['name']??'').isEmpty?'Lapin sans nom':r['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),
+              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('${r['breed']?.isEmpty==false?r['breed']:'Race à renseigner'}${r['birth']?.isEmpty==false?'  •  ${r['birth']}':''}'),
+                if(appMode=='Éleveur'&&status.isNotEmpty)
+                  Padding(
+                    padding:const EdgeInsets.only(top:4),
+                    child:Text(status,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:status=='Réservé'?const Color(0xFFEF6C00):brown)),
+                  ),
+              ]),
+              trailing:const Icon(Icons.chevron_right,color:brown),
+              onTap:()async{
+                await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:originalIndex)));
+                await refresh();
+              },
+            )),
+          );
+        },
+      )),
     ]))),
     floatingActionButton:rabbits.isEmpty?null:FloatingActionButton.extended(onPressed:addRabbit,backgroundColor:ink,foregroundColor:gold,icon:const Icon(Icons.add),label:const Text('Nouveau lapin')),
   );
