@@ -261,6 +261,7 @@ class Store {
       if(r['healthCertificateGiven']==null){r['healthCertificateGiven']=false;changed=true;}
       if(r['adoptionInfoGiven']==null){r['adoptionInfoGiven']=false;changed=true;}
       if(r['appointments']==null){r['appointments']=[];changed=true;}
+      if(r['weights']==null){r['weights']=[];changed=true;}
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((r[key] as List?)??[])){
           final item=raw as Map<String,dynamic>;
@@ -982,7 +983,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -1049,6 +1050,243 @@ class _RabbitPageState extends State<RabbitPage>{
       await Notifications.refreshAll([r!]);
       if(ctx.mounted)Navigator.pop(ctx);
     }));
+  }
+
+
+  List<Map<String,dynamic>> _sortedWeights(){
+    final items=((r!['weights'] as List?)??[])
+        .map((e)=>Map<String,dynamic>.from(e as Map))
+        .toList();
+    items.sort((a,b){
+      final ad=Notifications.parseDate(a['date'] as String?)??DateTime(1900);
+      final bd=Notifications.parseDate(b['date'] as String?)??DateTime(1900);
+      return ad.compareTo(bd);
+    });
+    return items;
+  }
+
+  Future<void> addWeight()async{
+    final item=<String,dynamic>{
+      'id':'w_${DateTime.now().microsecondsSinceEpoch}',
+      'date':Notifications.formatDate(DateTime.now()),
+      'grams':0,
+      'note':'',
+    };
+    await showDialog(
+      context:context,
+      builder:(ctx)=>WeightDialog(
+        item:item,
+        onSave:(v)async{
+          (r!['weights'] as List).add(v);
+          await persist();
+          if(ctx.mounted)Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> editWeight(Map<String,dynamic> weight)async{
+    final list=r!['weights'] as List;
+    final id=(weight['id']??'') as String;
+    var index=id.isEmpty?-1:list.indexWhere((e)=>(e as Map)['id']==id);
+    if(index<0)index=list.indexWhere((e)=>identical(e,weight));
+    if(index<0)return;
+    final current=Map<String,dynamic>.from(list[index] as Map);
+    await showDialog(
+      context:context,
+      builder:(ctx)=>WeightDialog(
+        item:current,
+        onSave:(v)async{
+          list[index]=v;
+          await persist();
+          if(ctx.mounted)Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> removeWeight(Map<String,dynamic> weight)async{
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(c)=>AlertDialog(
+        title:const Text('Supprimer cette pesée ?'),
+        content:const Text('Cette mesure sera retirée du suivi du poids.'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
+          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+        ],
+      ),
+    )??false;
+    if(!ok)return;
+
+    final list=r!['weights'] as List;
+    final id=(weight['id']??'') as String;
+    if(id.isNotEmpty){
+      list.removeWhere((e)=>(e as Map)['id']==id);
+    }else{
+      final date=(weight['date']??'') as String;
+      final grams=weight['grams'];
+      list.removeWhere((e)=>(e as Map)['date']==date&&(e as Map)['grams']==grams);
+    }
+    await persist();
+  }
+
+  String _weightDisplay(int grams){
+    if(grams<=0)return '—';
+    final kg=grams/1000;
+    return '$grams g • ${kg.toStringAsFixed(2).replaceAll('.',',')} kg';
+  }
+
+  Widget _weightStat(String label,String value,IconData icon){
+    return Container(
+      width:142,
+      padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+      decoration:BoxDecoration(
+        color:gold.withValues(alpha:.09),
+        borderRadius:BorderRadius.circular(16),
+        border:Border.all(color:gold.withValues(alpha:.55)),
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(icon,color:brown,size:20),
+        const SizedBox(height:6),
+        Text(value,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink)),
+        Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:brown)),
+      ]),
+    );
+  }
+
+  Widget weightSection(){
+    final items=_sortedWeights();
+    final valid=items.where((e)=>(e['grams'] is int?e['grams'] as int:int.tryParse('${e['grams']}')??0)>0).toList();
+
+    int gramsOf(Map<String,dynamic> e)=>e['grams'] is int?e['grams'] as int:int.tryParse('${e['grams']}')??0;
+
+    if(valid.isEmpty){
+      return Card(child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          header('Poids & évolution',Icons.monitor_weight_outlined),
+          const Text('Enregistrez chaque pesée avec sa date pour construire automatiquement la courbe de poids.',style:TextStyle(color:Colors.black54)),
+          const SizedBox(height:12),
+          OutlinedButton.icon(onPressed:addWeight,icon:const Icon(Icons.add),label:const Text('Ajouter une première pesée')),
+        ]),
+      ));
+    }
+
+    final current=gramsOf(valid.last);
+    final first=gramsOf(valid.first);
+    final minimum=valid.map(gramsOf).reduce((a,b)=>a<b?a:b);
+    final maximum=valid.map(gramsOf).reduce((a,b)=>a>b?a:b);
+    final previous=valid.length>1?gramsOf(valid[valid.length-2]):null;
+    final deltaPrevious=previous==null?null:current-previous;
+    final pctPrevious=previous==null||previous==0?null:(deltaPrevious!*100/previous);
+    final deltaFirst=current-first;
+    final pctFirst=first==0?null:(deltaFirst*100/first);
+
+    String deltaText(int? delta,double? pct){
+      if(delta==null||pct==null)return '—';
+      final sign=delta>0?'+':'';
+      final pctSign=pct>0?'+':'';
+      return '$sign$delta g • $pctSign${pct.toStringAsFixed(1).replaceAll('.',',')} %';
+    }
+
+    return Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        header('Poids & évolution',Icons.monitor_weight_outlined),
+        const Text('La courbe utilise les dates réelles des pesées.',style:TextStyle(color:Colors.black54)),
+        const SizedBox(height:12),
+
+        Wrap(spacing:8,runSpacing:8,children:[
+          _weightStat('Poids actuel',_weightDisplay(current),Icons.monitor_weight),
+          _weightStat('Minimum',_weightDisplay(minimum),Icons.south_east),
+          _weightStat('Maximum',_weightDisplay(maximum),Icons.north_east),
+          _weightStat('Depuis la dernière',deltaText(deltaPrevious,pctPrevious),Icons.swap_vert),
+        ]),
+
+        if(valid.length>1)...[
+          const SizedBox(height:10),
+          Container(
+            padding:const EdgeInsets.all(11),
+            decoration:BoxDecoration(
+              color:ink.withValues(alpha:.93),
+              borderRadius:BorderRadius.circular(15),
+            ),
+            child:Row(children:[
+              const Icon(Icons.insights,color:gold,size:20),
+              const SizedBox(width:8),
+              Expanded(child:Text(
+                'Depuis la première pesée : ${deltaText(deltaFirst,pctFirst)}',
+                style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w700),
+              )),
+            ]),
+          ),
+        ],
+
+        const SizedBox(height:14),
+        Container(
+          padding:const EdgeInsets.fromLTRB(10,12,10,8),
+          decoration:BoxDecoration(
+            color:Colors.white.withValues(alpha:.72),
+            borderRadius:BorderRadius.circular(16),
+            border:Border.all(color:gold.withValues(alpha:.55)),
+          ),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            const Text('Courbe du poids',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
+            const SizedBox(height:3),
+            Text(
+              valid.length==1
+                  ? 'Ajoutez une seconde pesée pour faire apparaître l’évolution.'
+                  : '${valid.first['date']}  →  ${valid.last['date']}',
+              style:const TextStyle(fontSize:11,color:Colors.black54),
+            ),
+            const SizedBox(height:10),
+            SizedBox(
+              height:220,
+              child:CustomPaint(
+                painter:WeightChartPainter(
+                  points:valid.map((e)=>WeightPoint(
+                    date:Notifications.parseDate(e['date'] as String?)!,
+                    grams:gramsOf(e),
+                  )).toList(),
+                ),
+                child:const SizedBox.expand(),
+              ),
+            ),
+          ]),
+        ),
+
+        const SizedBox(height:14),
+        Row(children:[
+          const Expanded(child:Text('Historique des pesées',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink))),
+          FilledButton.icon(onPressed:addWeight,icon:const Icon(Icons.add,size:18),label:const Text('Pesée')),
+        ]),
+        const SizedBox(height:6),
+
+        ...valid.reversed.map((w){
+          final grams=gramsOf(w);
+          final note=((w['note']??'') as String).trim();
+          return Container(
+            margin:const EdgeInsets.only(bottom:7),
+            decoration:BoxDecoration(
+              color:gold.withValues(alpha:.06),
+              borderRadius:BorderRadius.circular(14),
+              border:Border.all(color:gold.withValues(alpha:.38)),
+            ),
+            child:ListTile(
+              onTap:()=>editWeight(w),
+              leading:const CircleAvatar(backgroundColor:ivory,child:Icon(Icons.monitor_weight_outlined,color:brown)),
+              title:Text(_weightDisplay(grams),style:const TextStyle(fontWeight:FontWeight.w800)),
+              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(w['date']??''),
+                if(note.isNotEmpty)Text(note,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Colors.black54)),
+              ]),
+              trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>removeWeight(w)),
+            ),
+          );
+        }),
+      ]),
+    ));
   }
 
   Future<void> addTreatment(String key,String title)async{
@@ -1326,6 +1564,28 @@ class _RabbitPageState extends State<RabbitPage>{
             _pdfLine('Mère',rr['motherName']),
             _pdfLine('Race de la mère',rr['motherBreed']),
 
+
+            _pdfTitle('Suivi du poids'),
+            if(((rr['weights'] as List?)??[]).isEmpty)
+              pw.Text('Aucune pesée enregistrée.')
+            else
+              pw.TableHelper.fromTextArray(
+                headers:['Date','Poids','Note'],
+                data:((rr['weights'] as List?)??[]).map((e){
+                  final w=e as Map;
+                  final grams=w['grams'] is int?w['grams'] as int:int.tryParse('${w['grams']}')??0;
+                  return [
+                    w['date']??'',
+                    grams>0?'$grams g':'—',
+                    w['note']??'',
+                  ];
+                }).toList(),
+                headerDecoration:pw.BoxDecoration(color:PdfColor.fromHex('#F1E4C6')),
+                headerStyle:pw.TextStyle(fontWeight:pw.FontWeight.bold),
+                cellStyle:const pw.TextStyle(fontSize:9),
+                cellPadding:const pw.EdgeInsets.all(5),
+              ),
+
             _pdfTitle('Vaccins'),
             if(((rr['vaccines'] as List?)??[]).isEmpty)
               pw.Text('Aucun vaccin enregistré.')
@@ -1468,6 +1728,7 @@ class _RabbitPageState extends State<RabbitPage>{
         section('Filiation',Icons.account_tree,[info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),const Divider(),info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth'])]),
         dataAlertsSection(),
         healthJourneySection(),
+        weightSection(),
         if(appMode=='Éleveur') adoptionSection(),
         if(appMode=='Éleveur'&&(rr['sex']=='Mâle'||rr['sex']=='Femelle')) reproductionSection(),
         treatmentSection('Vaccins','vaccines',Icons.vaccines), treatmentSection('Vermifuges','dewormings',Icons.medication),
@@ -2222,6 +2483,203 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 }
 
+
+
+class WeightDialog extends StatefulWidget{
+  final Map<String,dynamic> item;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const WeightDialog({super.key,required this.item,required this.onSave});
+  @override State<WeightDialog> createState()=>_WeightDialogState();
+}
+
+class _WeightDialogState extends State<WeightDialog>{
+  late Map<String,dynamic>d;
+  late TextEditingController gramsController;
+
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.item);
+    d['id']??='w_${DateTime.now().microsecondsSinceEpoch}';
+    d['date']??=Notifications.formatDate(DateTime.now());
+    d['grams']??=0;
+    d['note']??='';
+    final grams=d['grams'] is int?d['grams'] as int:int.tryParse('${d['grams']}')??0;
+    gramsController=TextEditingController(text:grams>0?'$grams':'');
+  }
+
+  @override void dispose(){
+    gramsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> pickDate()async{
+    final current=Notifications.parseDate(d['date'] as String?)??DateTime.now();
+    final x=await showDatePicker(
+      context:context,
+      firstDate:DateTime(1990),
+      lastDate:DateTime.now().add(const Duration(days:365)),
+      initialDate:current.isAfter(DateTime.now().add(const Duration(days:365)))?DateTime.now():current,
+    );
+    if(x!=null)setState(()=>d['date']=Notifications.formatDate(x));
+  }
+
+  @override Widget build(BuildContext context)=>AlertDialog(
+    title:Text(widget.item['grams']!=null&&ReproductionStore.n(widget.item['grams'])>0?'Modifier la pesée':'Nouvelle pesée'),
+    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      TextFormField(
+        readOnly:true,
+        controller:TextEditingController(text:d['date']??''),
+        decoration:const InputDecoration(labelText:'Date de la pesée',suffixIcon:Icon(Icons.calendar_month)),
+        onTap:pickDate,
+      ),
+      const SizedBox(height:12),
+      TextField(
+        controller:gramsController,
+        keyboardType:TextInputType.number,
+        decoration:const InputDecoration(
+          labelText:'Poids en grammes',
+          hintText:'Ex. 5420',
+          suffixText:'g',
+        ),
+      ),
+      const SizedBox(height:12),
+      TextFormField(
+        initialValue:d['note']??'',
+        minLines:2,
+        maxLines:4,
+        decoration:const InputDecoration(
+          labelText:'Note facultative',
+          hintText:'Ex. contrôle mensuel, après maladie…',
+        ),
+        onChanged:(v)=>d['note']=v,
+      ),
+    ])),
+    actions:[
+      TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Annuler')),
+      FilledButton(
+        onPressed:(){
+          final grams=int.tryParse(gramsController.text.trim());
+          if(((d['date']??'') as String).isEmpty){
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date de la pesée.')));
+            return;
+          }
+          if(grams==null||grams<=0||grams>30000){
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Indiquez un poids valide en grammes.')));
+            return;
+          }
+          d['grams']=grams;
+          widget.onSave(d);
+        },
+        child:const Text('Enregistrer'),
+      ),
+    ],
+  );
+}
+
+class WeightPoint{
+  final DateTime date;
+  final int grams;
+  const WeightPoint({required this.date,required this.grams});
+}
+
+class WeightChartPainter extends CustomPainter{
+  final List<WeightPoint> points;
+  const WeightChartPainter({required this.points});
+
+  @override void paint(Canvas canvas,Size size){
+    if(points.isEmpty)return;
+
+    const left=48.0;
+    const right=12.0;
+    const top=14.0;
+    const bottom=34.0;
+    final chart=Rect.fromLTRB(left,top,size.width-right,size.height-bottom);
+    if(chart.width<=0||chart.height<=0)return;
+
+    final minWeight=points.map((e)=>e.grams).reduce((a,b)=>a<b?a:b);
+    final maxWeight=points.map((e)=>e.grams).reduce((a,b)=>a>b?a:b);
+    final padding=((maxWeight-minWeight)*0.15).round().clamp(100,1000);
+    final yMin=(minWeight-padding).clamp(0,30000);
+    final yMax=(maxWeight+padding).clamp(yMin+100,30000);
+    final firstDate=points.first.date;
+    final lastDate=points.last.date;
+    final totalDays=(lastDate.difference(firstDate).inDays).abs();
+
+    final grid=Paint()..color=const Color(0x22000000)..strokeWidth=1;
+    final axis=Paint()..color=const Color(0x66463622)..strokeWidth=1.2;
+    final line=Paint()
+      ..color=gold
+      ..strokeWidth=3
+      ..style=PaintingStyle.stroke
+      ..strokeCap=StrokeCap.round
+      ..strokeJoin=StrokeJoin.round;
+    final dot=Paint()..color=ink;
+
+    canvas.drawLine(Offset(chart.left,chart.top),Offset(chart.left,chart.bottom),axis);
+    canvas.drawLine(Offset(chart.left,chart.bottom),Offset(chart.right,chart.bottom),axis);
+
+    final textStyle=const TextStyle(color:Color(0xFF6B6258),fontSize:9,fontWeight:FontWeight.w600);
+    void drawText(String value,Offset offset,{TextAlign align=TextAlign.left,double? maxWidth}){
+      final painter=TextPainter(
+        text:TextSpan(text:value,style:textStyle),
+        textDirection:TextDirection.ltr,
+        textAlign:align,
+      )..layout(maxWidth:maxWidth??80);
+      painter.paint(canvas,offset);
+    }
+
+    for(var i=0;i<=4;i++){
+      final y=chart.top+chart.height*i/4;
+      canvas.drawLine(Offset(chart.left,y),Offset(chart.right,y),grid);
+      final weight=(yMax-(yMax-yMin)*i/4).round();
+      drawText('${weight} g',Offset(0,y-6),maxWidth:left-5);
+    }
+
+    Offset pointOffset(WeightPoint p){
+      final days=totalDays==0?0:p.date.difference(firstDate).inDays;
+      final x=totalDays==0
+          ? chart.left+chart.width/2
+          : chart.left+chart.width*(days/totalDays);
+      final ratio=(p.grams-yMin)/(yMax-yMin);
+      final y=chart.bottom-chart.height*ratio;
+      return Offset(x,y);
+    }
+
+    if(points.length>1){
+      final path=Path();
+      for(var i=0;i<points.length;i++){
+        final o=pointOffset(points[i]);
+        if(i==0)path.moveTo(o.dx,o.dy);else path.lineTo(o.dx,o.dy);
+      }
+      canvas.drawPath(path,line);
+    }
+
+    for(final p in points){
+      final o=pointOffset(p);
+      canvas.drawCircle(o,5,dot);
+      canvas.drawCircle(o,2.4,Paint()..color=gold);
+    }
+
+    String shortDate(DateTime d)=>'${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}';
+    if(points.length==1){
+      final label=shortDate(points.first.date);
+      drawText(label,Offset(chart.left+chart.width/2-20,chart.bottom+8),maxWidth:50);
+    }else{
+      drawText(shortDate(firstDate),Offset(chart.left,chart.bottom+8),maxWidth:55);
+      final last=shortDate(lastDate);
+      final tp=TextPainter(text:TextSpan(text:last,style:textStyle),textDirection:TextDirection.ltr)..layout();
+      tp.paint(canvas,Offset(chart.right-tp.width,chart.bottom+8));
+    }
+  }
+
+  @override bool shouldRepaint(covariant WeightChartPainter oldDelegate){
+    if(oldDelegate.points.length!=points.length)return true;
+    for(var i=0;i<points.length;i++){
+      if(oldDelegate.points[i].grams!=points[i].grams||oldDelegate.points[i].date!=points[i].date)return true;
+    }
+    return false;
+  }
+}
 
 class SquareCropPage extends StatefulWidget{
   final Uint8List image;
