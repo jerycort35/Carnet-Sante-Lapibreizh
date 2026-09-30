@@ -1017,7 +1017,7 @@ class _RabbitPageState extends State<RabbitPage>{
                   Expanded(child:Align(
                     alignment:Alignment.bottomCenter,
                     child:FractionallySizedBox(
-                      heightFactor:counts[i]==0?.04:counts[i]/maxCount,
+                      heightFactor:counts[i] == 0 ? 0.04 : counts[i] / maxCount,
                       widthFactor:.62,
                       child:Container(
                         decoration:BoxDecoration(
