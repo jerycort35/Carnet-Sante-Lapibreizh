@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -17,6 +19,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 const gold = Color(0xFFD4AF67);
 const ink = Color(0xFF171512);
@@ -735,13 +738,292 @@ class Scenic extends StatelessWidget {
   );
 }
 
+
+
+class VeterinaryService {
+  static Future<Position> currentPosition() async {
+    final enabled=await Geolocator.isLocationServiceEnabled();
+    if(!enabled){
+      throw Exception('La localisation est désactivée sur ce téléphone.');
+    }
+
+    var permission=await Geolocator.checkPermission();
+    if(permission==LocationPermission.denied){
+      permission=await Geolocator.requestPermission();
+    }
+    if(permission==LocationPermission.denied){
+      throw Exception('Autorisation de localisation refusée.');
+    }
+    if(permission==LocationPermission.deniedForever){
+      throw Exception('La localisation est bloquée pour cette application. Activez-la dans les paramètres du téléphone.');
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings:const LocationSettings(
+        accuracy:LocationAccuracy.high,
+        timeLimit:Duration(seconds:15),
+      ),
+    );
+  }
+
+  static bool _nacMention(Map<String,dynamic> tags){
+    final text=tags.values.map((e)=>e.toString().toLowerCase()).join(' ');
+    const words=[
+      'nac',
+      'nouveaux animaux de compagnie',
+      'exotic',
+      'exotique',
+      'rabbit',
+      'lapin',
+      'rongeur',
+      'rodent',
+      'reptile',
+      'avian',
+      'oiseau',
+    ];
+    return words.any(text.contains);
+  }
+
+  static String _address(Map<String,dynamic> tags){
+    final line=[
+      tags['addr:housenumber'],
+      tags['addr:street'],
+    ].where((e)=>e!=null&&e.toString().trim().isNotEmpty)
+      .map((e)=>e.toString().trim()).join(' ');
+
+    final city=[
+      tags['addr:postcode'],
+      tags['addr:city']??tags['addr:town']??tags['addr:village'],
+    ].where((e)=>e!=null&&e.toString().trim().isNotEmpty)
+      .map((e)=>e.toString().trim()).join(' ');
+
+    return [line,city].where((e)=>e.isNotEmpty).join(', ');
+  }
+
+  static Future<List<Map<String,dynamic>>> searchNearby({
+    required double latitude,
+    required double longitude,
+    required int radiusKm,
+  }) async {
+    final radius=radiusKm*1000;
+    final query='[out:json][timeout:30];('
+      'node["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
+      'way["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
+      'relation["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
+      ');out center tags;';
+
+    final response=await http.post(
+      Uri.parse('https://overpass-api.de/api/interpreter'),
+      headers:{'User-Agent':'LapiGestion-LesLapibreizh/1.0'},
+      body:{'data':query},
+    ).timeout(const Duration(seconds:40));
+
+    if(response.statusCode!=200){
+      throw Exception('Le service de recherche vétérinaire est momentanément indisponible.');
+    }
+
+    final decoded=jsonDecode(response.body) as Map<String,dynamic>;
+    final elements=(decoded['elements'] as List?)??[];
+    final result=<Map<String,dynamic>>[];
+    final seen=<String>{};
+
+    for(final raw in elements){
+      final element=Map<String,dynamic>.from(raw as Map);
+      final tags=Map<String,dynamic>.from((element['tags'] as Map?)??{});
+      final center=element['center'] is Map
+          ?Map<String,dynamic>.from(element['center'] as Map)
+          :<String,dynamic>{};
+
+      final latValue=element['lat']??center['lat'];
+      final lonValue=element['lon']??center['lon'];
+      if(latValue is! num||lonValue is! num)continue;
+
+      final lat=latValue.toDouble();
+      final lon=lonValue.toDouble();
+      final rawName=(tags['name']??tags['operator']??'Cabinet vétérinaire').toString().trim();
+      final name=rawName.isEmpty?'Cabinet vétérinaire':rawName;
+      final key='${name.toLowerCase()}|${lat.toStringAsFixed(4)}|${lon.toStringAsFixed(4)}';
+      if(!seen.add(key))continue;
+
+      final distance=Geolocator.distanceBetween(latitude,longitude,lat,lon)/1000.0;
+      result.add({
+        'name':name,
+        'lat':lat,
+        'lon':lon,
+        'distance':distance,
+        'address':_address(tags),
+        'phone':(tags['contact:phone']??tags['phone']??'').toString(),
+        'website':(tags['contact:website']??tags['website']??'').toString(),
+        'openingHours':(tags['opening_hours']??'').toString(),
+        'emergency':tags['emergency']=='yes',
+        'nac':_nacMention(tags),
+      });
+    }
+
+    result.sort((a,b)=>(a['distance'] as double).compareTo(b['distance'] as double));
+    return result;
+  }
+
+  static Future<void> call(String phone) async {
+    final cleaned=phone.replaceAll(RegExp(r'[^0-9+]'),'');
+    if(cleaned.isEmpty)return;
+    final uri=Uri.parse('tel:$cleaned');
+    if(await canLaunchUrl(uri))await launchUrl(uri);
+  }
+
+  static Future<void> openMap(Map<String,dynamic> vet) async {
+    final lat=(vet['lat'] as double).toString();
+    final lon=(vet['lon'] as double).toString();
+    final geo=Uri.parse('geo:$lat,$lon?q=$lat,$lon');
+    if(await canLaunchUrl(geo)){
+      await launchUrl(geo,mode:LaunchMode.externalApplication);
+      return;
+    }
+    await launchUrl(
+      Uri.parse('https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=16/$lat/$lon'),
+      mode:LaunchMode.externalApplication,
+    );
+  }
+
+  static Future<void> openWebsite(String website) async {
+    var value=website.trim();
+    if(value.isEmpty)return;
+    if(!value.startsWith('http://')&&!value.startsWith('https://')){
+      value='https://$value';
+    }
+    final uri=Uri.parse(value);
+    if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);
+  }
+}
+
+class VeterinaryResultsPage extends StatelessWidget {
+  final List<Map<String,dynamic>> vets;
+  final String filter;
+  final int radiusKm;
+
+  const VeterinaryResultsPage({
+    super.key,
+    required this.vets,
+    required this.filter,
+    required this.radiusKm,
+  });
+
+  @override Widget build(BuildContext context){
+    final visible=filter=='NAC'
+        ?vets.where((v)=>v['nac']==true).toList()
+        :vets;
+
+    return Scaffold(
+      appBar:AppBar(
+        title:Text(filter=='NAC'?'Vétérinaires NAC identifiés':'Vétérinaires autour de moi'),
+      ),
+      body:visible.isEmpty
+        ?Center(child:Padding(
+            padding:const EdgeInsets.all(24),
+            child:Text(
+              filter=='NAC'
+                ?'Aucun vétérinaire mentionnant explicitement les NAC n’a été identifié dans un rayon de $radiusKm km. Essayez le filtre Tous et appelez le cabinet pour confirmer la prise en charge des lapins.'
+                :'Aucun vétérinaire n’a été trouvé dans ce rayon.',
+              textAlign:TextAlign.center,
+            ),
+          ))
+        :ListView.builder(
+            padding:const EdgeInsets.all(14),
+            itemCount:visible.length,
+            itemBuilder:(context,index){
+              final vet=visible[index];
+              final phone=(vet['phone']??'').toString();
+              final website=(vet['website']??'').toString();
+              final address=(vet['address']??'').toString();
+              final hours=(vet['openingHours']??'').toString();
+
+              return Card(
+                child:Padding(
+                  padding:const EdgeInsets.all(14),
+                  child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Container(
+                        width:42,height:42,
+                        decoration:BoxDecoration(color:gold.withValues(alpha:.16),shape:BoxShape.circle),
+                        child:const Icon(Icons.local_hospital,color:brown),
+                      ),
+                      const SizedBox(width:10),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(
+                          (vet['name']??'Cabinet vétérinaire').toString(),
+                          style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink),
+                        ),
+                        Text(
+                          '${(vet['distance'] as double).toStringAsFixed(1).replaceAll('.',',')} km',
+                          style:const TextStyle(fontWeight:FontWeight.w800,color:brown),
+                        ),
+                      ])),
+                      if(vet['nac']==true)
+                        Container(
+                          padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                          decoration:BoxDecoration(
+                            color:const Color(0xFF2E7D32).withValues(alpha:.12),
+                            borderRadius:BorderRadius.circular(10),
+                          ),
+                          child:const Text(
+                            'NAC mentionné',
+                            style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:Color(0xFF2E7D32)),
+                          ),
+                        ),
+                    ]),
+                    if(address.isNotEmpty)...[
+                      const SizedBox(height:8),
+                      Text(address),
+                    ],
+                    if(hours.isNotEmpty)...[
+                      const SizedBox(height:5),
+                      Text('Horaires : $hours',style:const TextStyle(fontSize:12,color:Colors.black54)),
+                    ],
+                    if(vet['emergency']==true)...[
+                      const SizedBox(height:6),
+                      const Text(
+                        'Urgences indiquées par le cabinet',
+                        style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:Color(0xFFC62828)),
+                      ),
+                    ],
+                    const SizedBox(height:10),
+                    Wrap(spacing:7,runSpacing:7,children:[
+                      OutlinedButton.icon(
+                        onPressed:()=>VeterinaryService.openMap(vet),
+                        icon:const Icon(Icons.directions),
+                        label:const Text('Itinéraire'),
+                      ),
+                      if(phone.isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed:()=>VeterinaryService.call(phone),
+                          icon:const Icon(Icons.call),
+                          label:const Text('Appeler'),
+                        ),
+                      if(website.isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed:()=>VeterinaryService.openWebsite(website),
+                          icon:const Icon(Icons.language),
+                          label:const Text('Site'),
+                        ),
+                    ]),
+                  ]),
+                ),
+              );
+            },
+          ),
+    );
+  }
+}
+
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
 class _HomePageState extends State<HomePage>{
   List<Map<String,dynamic>> rabbits=[]; bool loading=true; String appMode='Éleveur';
   String searchQuery=''; String sexFilter='Tous'; String adoptionFilter='Tous';
   bool homeOrganizing=false; bool homeLayoutLoaded=false;
-  List<String> homeOrder=['dashboard','backup','filters','rabbits'];
-  static const homeDefaults=['dashboard','backup','filters','rabbits'];
+  bool vetLoading=false; String vetError=''; int vetRadiusKm=20; String vetFilter='Tous';
+  List<Map<String,dynamic>> nearbyVets=[];
+  List<String> homeOrder=['dashboard','vets','backup','filters','rabbits'];
+  static const homeDefaults=['dashboard','vets','backup','filters','rabbits'];
   @override void initState(){super.initState();refresh();}
   Future<void> refresh() async {
     rabbits=await Store.load();
@@ -922,6 +1204,7 @@ class _HomePageState extends State<HomePage>{
   Widget homeSection(String id){
     switch(id){
       case 'dashboard': return dashboard();
+      case 'vets': return veterinarySearchSection();
       case 'backup': return backupSection();
       case 'filters': return searchAndFilters();
       case 'rabbits': return rabbitListSection();
@@ -952,6 +1235,269 @@ class _HomePageState extends State<HomePage>{
             child:content,
           )
         :KeyedSubtree(key:ValueKey('home_$id'),child:content);
+  }
+
+
+  Future<void> _chooseCustomVetRadius() async {
+    final controller=TextEditingController(text:vetRadiusKm.toString());
+    final value=await showDialog<int>(
+      context:context,
+      builder:(c)=>AlertDialog(
+        title:const Text('Rayon de recherche'),
+        content:TextField(
+          controller:controller,
+          keyboardType:TextInputType.number,
+          autofocus:true,
+          decoration:const InputDecoration(
+            labelText:'Distance en kilomètres',
+            hintText:'Ex. 35',
+          ),
+        ),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Annuler')),
+          FilledButton(
+            onPressed:(){
+              final n=int.tryParse(controller.text.trim());
+              if(n==null||n<1||n>200){
+                ScaffoldMessenger.of(c).showSnackBar(
+                  const SnackBar(content:Text('Choisissez une distance entre 1 et 200 km.')),
+                );
+                return;
+              }
+              Navigator.pop(c,n);
+            },
+            child:const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if(value!=null&&mounted)setState(()=>vetRadiusKm=value);
+  }
+
+  Future<void> _searchVeterinarians() async {
+    if(vetLoading)return;
+    setState((){
+      vetLoading=true;
+      vetError='';
+    });
+
+    try{
+      final position=await VeterinaryService.currentPosition();
+      final found=await VeterinaryService.searchNearby(
+        latitude:position.latitude,
+        longitude:position.longitude,
+        radiusKm:vetRadiusKm,
+      );
+      if(!mounted)return;
+      setState((){
+        nearbyVets=found;
+        vetLoading=false;
+        vetError=found.isEmpty?'Aucun vétérinaire trouvé dans ce rayon.':'';
+      });
+    }catch(e){
+      if(!mounted)return;
+      setState((){
+        vetLoading=false;
+        vetError=e.toString().replaceFirst('Exception: ','');
+      });
+    }
+  }
+
+  List<Map<String,dynamic>> get _visibleNearbyVets=>
+      vetFilter=='NAC'?nearbyVets.where((v)=>v['nac']==true).toList():nearbyVets;
+
+  Widget veterinarySearchSection(){
+    final visible=_visibleNearbyVets;
+
+    return Card(
+      margin:const EdgeInsets.fromLTRB(14,0,14,14),
+      child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[
+            Container(
+              width:42,height:42,
+              decoration:BoxDecoration(color:gold.withValues(alpha:.16),shape:BoxShape.circle),
+              child:const Icon(Icons.location_on,color:brown),
+            ),
+            const SizedBox(width:10),
+            const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text('Trouver un vétérinaire',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+              Text('Recherche autour de votre position',style:TextStyle(fontSize:11,color:Colors.black54)),
+            ])),
+          ]),
+          const SizedBox(height:14),
+
+          const Text('Type de vétérinaire',style:TextStyle(fontWeight:FontWeight.w800,color:ink)),
+          const SizedBox(height:7),
+          SegmentedButton<String>(
+            segments:const [
+              ButtonSegment(value:'Tous',label:Text('Tous'),icon:Icon(Icons.local_hospital)),
+              ButtonSegment(value:'NAC',label:Text('NAC'),icon:Icon(Icons.pets)),
+            ],
+            selected:{vetFilter},
+            onSelectionChanged:(value)=>setState(()=>vetFilter=value.first),
+          ),
+
+          const SizedBox(height:14),
+          Row(children:[
+            const Expanded(child:Text('Rayon de recherche',style:TextStyle(fontWeight:FontWeight.w800,color:ink))),
+            Text('$vetRadiusKm km',style:const TextStyle(fontWeight:FontWeight.w900,color:brown)),
+          ]),
+          const SizedBox(height:7),
+          Wrap(
+            spacing:6,
+            runSpacing:6,
+            children:[
+              for(final km in const [10,20,30,50,100])
+                ChoiceChip(
+                  label:Text('$km km'),
+                  selected:vetRadiusKm==km,
+                  onSelected:(_)=>setState(()=>vetRadiusKm=km),
+                ),
+              ActionChip(
+                avatar:const Icon(Icons.edit,size:17),
+                label:const Text('Autre'),
+                onPressed:_chooseCustomVetRadius,
+              ),
+            ],
+          ),
+
+          const SizedBox(height:14),
+          FilledButton.icon(
+            onPressed:vetLoading?null:_searchVeterinarians,
+            icon:vetLoading
+              ?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))
+              :const Icon(Icons.my_location),
+            label:Text(vetLoading?'Recherche en cours...':'Rechercher autour de moi'),
+          ),
+
+          if(vetError.isNotEmpty)...[
+            const SizedBox(height:10),
+            Container(
+              padding:const EdgeInsets.all(10),
+              decoration:BoxDecoration(
+                color:const Color(0xFFC62828).withValues(alpha:.07),
+                borderRadius:BorderRadius.circular(12),
+              ),
+              child:Text(vetError,style:const TextStyle(fontSize:12,color:Color(0xFFC62828))),
+            ),
+          ],
+
+          if(nearbyVets.isNotEmpty)...[
+            const SizedBox(height:12),
+            Container(
+              padding:const EdgeInsets.all(11),
+              decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(13)),
+              child:Row(children:[
+                const Icon(Icons.search,color:brown),
+                const SizedBox(width:8),
+                Expanded(child:Text(
+                  vetFilter=='NAC'
+                    ?'${visible.length} vétérinaire(s) avec mention NAC identifié(s) sur ${nearbyVets.length} résultat(s)'
+                    :'${nearbyVets.length} vétérinaire(s) trouvé(s) dans un rayon de $vetRadiusKm km',
+                  style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800),
+                )),
+              ]),
+            ),
+            const SizedBox(height:9),
+
+            if(visible.isNotEmpty)
+              ...visible.take(3).map((vet)=>ListTile(
+                dense:true,
+                contentPadding:EdgeInsets.zero,
+                leading:const CircleAvatar(
+                  backgroundColor:Color(0x1AD4AF67),
+                  child:Icon(Icons.local_hospital,color:brown,size:19),
+                ),
+                title:Text(
+                  (vet['name']??'Cabinet vétérinaire').toString(),
+                  maxLines:1,
+                  overflow:TextOverflow.ellipsis,
+                  style:const TextStyle(fontWeight:FontWeight.w800),
+                ),
+                subtitle:Text(
+                  '${(vet['distance'] as double).toStringAsFixed(1).replaceAll('.',',')} km'
+                  '${vet['nac']==true?' • NAC mentionné':''}',
+                ),
+                trailing:const Icon(Icons.chevron_right),
+                onTap:()=>VeterinaryService.openMap(vet),
+              )),
+
+            if(visible.isEmpty&&vetFilter=='NAC')
+              const Padding(
+                padding:EdgeInsets.symmetric(vertical:8),
+                child:Text(
+                  'Aucune mention NAC explicite n’a été trouvée. Passez sur Tous : certains cabinets prennent les lapins sans l’indiquer dans leurs informations publiques.',
+                  style:TextStyle(fontSize:12,color:Colors.black54),
+                ),
+              ),
+
+            if(visible.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed:()=>Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:(_)=>VeterinaryResultsPage(
+                      vets:nearbyVets,
+                      filter:vetFilter,
+                      radiusKm:vetRadiusKm,
+                    ),
+                  ),
+                ),
+                icon:const Icon(Icons.list),
+                label:Text('Voir les ${visible.length} résultat(s)'),
+              ),
+
+            const SizedBox(height:7),
+            const Text(
+              'Données publiques OpenStreetMap. La mention NAC dépend des informations publiées : confirmez toujours par téléphone la prise en charge des lapins.',
+              style:TextStyle(fontSize:9.5,color:Colors.black45),
+              textAlign:TextAlign.center,
+            ),
+          ],
+
+          const SizedBox(height:15),
+          Container(
+            padding:const EdgeInsets.all(13),
+            decoration:BoxDecoration(
+              color:const Color(0xFFC62828).withValues(alpha:.06),
+              borderRadius:BorderRadius.circular(15),
+              border:Border.all(color:const Color(0xFFC62828).withValues(alpha:.35)),
+            ),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              const Row(children:[
+                Icon(Icons.emergency,color:Color(0xFFC62828)),
+                SizedBox(width:7),
+                Text('URGENCE VÉTÉRINAIRE',style:TextStyle(fontWeight:FontWeight.w900,color:Color(0xFFC62828))),
+              ]),
+              const SizedBox(height:7),
+              const Text(
+                'En cas d’urgence, si vous ne trouvez pas de vétérinaire disponible, composez le 3115.',
+                style:TextStyle(fontSize:12,fontWeight:FontWeight.w700),
+              ),
+              const SizedBox(height:4),
+              const Text(
+                'Demandez un vétérinaire spécialisé dans les NAC.',
+                style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:brown),
+              ),
+              const SizedBox(height:5),
+              const Text(
+                'Le 3115 vous oriente selon votre secteur ; lorsque celui-ci n’est pas couvert, le service indique la procédure pour trouver un vétérinaire de garde.',
+                style:TextStyle(fontSize:10,color:Colors.black54),
+              ),
+              const SizedBox(height:9),
+              OutlinedButton.icon(
+                onPressed:()=>VeterinaryService.call('3115'),
+                icon:const Icon(Icons.call),
+                label:const Text('Appeler le 3115'),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
   }
 
   Widget rabbitListSection(){
@@ -2498,7 +3044,6 @@ class _RabbitPageState extends State<RabbitPage>{
       child:pw.Text(title,style:pw.TextStyle(color:PdfColor.fromHex('#D4AF67'),fontSize:14,fontWeight:pw.FontWeight.bold)),
     );
   }
-
   pw.Widget _pdfLine(String label,dynamic value){
     final s=(value??'').toString().trim();
     return pw.Padding(
@@ -2582,7 +3127,6 @@ class _RabbitPageState extends State<RabbitPage>{
             _pdfLine('Mère',rr['motherName']),
             _pdfLine('Race de la mère',rr['motherBreed']),
 
-
             _pdfTitle('Suivi du poids'),
             if(((rr['weights'] as List?)??[]).isEmpty)
               pw.Text('Aucune pesée enregistrée.')
@@ -2603,7 +3147,6 @@ class _RabbitPageState extends State<RabbitPage>{
                 cellStyle:const pw.TextStyle(fontSize:9),
                 cellPadding:const pw.EdgeInsets.all(5),
               ),
-
 
             _pdfTitle('Traitements médicaux'),
             if(((rr['medications'] as List?)??[]).isEmpty)
@@ -2997,8 +3540,7 @@ class _RabbitPageState extends State<RabbitPage>{
             FilledButton.icon(onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Créer le dossier PDF')),
             const SizedBox(height:8),
             OutlinedButton.icon(onPressed:rabbitOrganizing?null:share,icon:const Icon(Icons.share),label:const Text('Partager la fiche complète')),
-          ]),
-        ),
+          ]),        ),
       ]))),
     );
   }
@@ -3497,8 +4039,7 @@ class _RabbitPageState extends State<RabbitPage>{
     return InkWell(
       borderRadius:BorderRadius.circular(16),
       onTap:()=>_openHealthEvent(event),
-      child:Padding(
-        padding:const EdgeInsets.symmetric(vertical:4),
+      child:Padding(        padding:const EdgeInsets.symmetric(vertical:4),
         child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
           SizedBox(
             width:40,
@@ -3997,8 +4538,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
             Row(children:[
               Icon(hasSheet?Icons.check_circle:Icons.description_outlined,color:hasSheet?const Color(0xFF2E7D32):brown),
               const SizedBox(width:8),
-              const Expanded(child:Text('Carte / fiche de jugement',style:TextStyle(fontWeight:FontWeight.w800))),
-              TextButton(onPressed:chooseSheet,child:Text(hasSheet?'Remplacer':'Joindre')),
+              const Expanded(child:Text('Carte / fiche de jugement',style:TextStyle(fontWeight:FontWeight.w800))),              TextButton(onPressed:chooseSheet,child:Text(hasSheet?'Remplacer':'Joindre')),
               if(hasSheet)IconButton(tooltip:'Retirer',onPressed:()=>setState((){newSheetSource=null;removeSheet=true;}),icon:const Icon(Icons.close)),
             ]),
           ]),
@@ -4497,8 +5037,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
 
         const SizedBox(height:18),
         TextFormField(initialValue:d['engagementPlace']??'',decoration:const InputDecoration(labelText:'Fait à'),onChanged:(v)=>d['engagementPlace']=v),
-        const SizedBox(height:12),
-        const Text('Signature manuscrite numérique',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:12),        const Text('Signature manuscrite numérique',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
         const SizedBox(height:5),
         const Text('La signature est dessinée directement sur l’écran et intégrée au PDF archivé.',style:TextStyle(fontSize:11,color:Colors.black54)),
         const SizedBox(height:8),
@@ -4997,8 +5536,7 @@ class _MedicationDialogState extends State<MedicationDialog>{
       ),
       const SizedBox(height:10),
       TextFormField(initialValue:d['vet']??'',decoration:const InputDecoration(labelText:'Vétérinaire / clinique'),onChanged:(v)=>d['vet']=v),
-      const SizedBox(height:10),
-      TextFormField(initialValue:d['notes']??'',minLines:3,maxLines:6,decoration:const InputDecoration(labelText:'Notes / observations'),onChanged:(v)=>d['notes']=v),
+      const SizedBox(height:10),      TextFormField(initialValue:d['notes']??'',minLines:3,maxLines:6,decoration:const InputDecoration(labelText:'Notes / observations'),onChanged:(v)=>d['notes']=v),
       const SizedBox(height:14),
       OutlinedButton.icon(onPressed:attachImage,icon:Icon(((d['photo']??'') as String).isEmpty?Icons.add_a_photo:Icons.check_circle),label:Text(((d['photo']??'') as String).isEmpty?'Ajouter une photo du produit':'Photo du produit ajoutée')),
       const SizedBox(height:8),

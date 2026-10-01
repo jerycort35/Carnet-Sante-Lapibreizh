@@ -1,0 +1,48 @@
+CARNET SANTÉ LAPIBREIZH — V3 1.06
+Recherche vétérinaires géolocalisée
+
+Base vérifiée :
+- branche main
+- V3 - 1.05 traitements médicaux avancés
+- commit de départ : 985936caa1e3d545fafaf5e56d976fb6c71fc6f7
+
+Fichiers contenus dans ce ZIP :
+- lib/main.dart
+- pubspec.yaml
+- android/app/src/main/AndroidManifest.xml
+- .github/workflows/build_apk.yml
+
+Installation :
+1. Décompresser le ZIP à la racine du projet.
+2. Autoriser le remplacement des fichiers existants.
+3. Vérifier les changements dans GitLab/Git.
+4. Commit conseillé :
+   V3 - 1.06 recherche vétérinaires géolocalisée
+5. Push sur main pour lancer le build APK.
+
+Fonctions ajoutées :
+- localisation à la demande
+- recherche des vétérinaires OpenStreetMap/Overpass
+- rayon 10 / 20 / 30 / 50 / 100 km
+- rayon personnalisé de 1 à 200 km
+- filtre Tous / NAC
+- classement par distance
+- adresse, téléphone, horaires et site si disponibles
+- appel direct
+- itinéraire
+- cadre urgence vétérinaire 3115
+- bouton Appeler le 3115
+
+Important :
+Le filtre NAC dépend des mentions disponibles dans les données publiques.
+Un cabinet pouvant soigner les lapins peut ne pas être marqué NAC dans OpenStreetMap.
+
+
+IMPORTANT — VERSION SANS MODIFICATION DU WORKFLOW
+Ce ZIP ne contient PAS .github/workflows/build_apk.yml.
+Le workflow de build/signature permanent déjà présent dans le dépôt reste donc strictement inchangé.
+
+Après extraction à la racine, seuls ces fichiers doivent être remplacés :
+- lib/main.dart
+- pubspec.yaml
+- android/app/src/main/AndroidManifest.xml
