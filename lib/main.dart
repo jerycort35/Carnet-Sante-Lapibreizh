@@ -1451,7 +1451,6 @@ class _HomePageState extends State<HomePage>{
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
     ),
-    ),
   );
 
   Widget homeSection(String id){
@@ -4192,6 +4191,7 @@ class _RabbitPageState extends State<RabbitPage>{
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
         ),
       ]),
+      ),
     ),
   );
   Widget info(String a,dynamic b){
