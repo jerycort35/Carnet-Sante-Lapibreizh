@@ -1433,7 +1433,7 @@ class _HomePageState extends State<HomePage>{
       if(!mounted)return;
       setState((){
         vetLoading=false;
-        vetError=e.toString().replaceFirst('Exception: ','');
+        vetError='La recherche n’a pas pu aboutir. Vérifiez votre connexion puis réessayez.';
       });
     }
   }
@@ -1452,8 +1452,8 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             Container(
               width:42,height:42,
-              decoration:BoxDecoration(color:gold.withValues(alpha:.16),shape:BoxShape.circle),
-              child:const Icon(Icons.location_on,color:brown),
+              decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(6)),
+              child:const Icon(Icons.location_on_outlined,color:lapiGreenDark),
             ),
             const SizedBox(width:10),
             const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1510,12 +1510,27 @@ class _HomePageState extends State<HomePage>{
           if(vetError.isNotEmpty)...[
             const SizedBox(height:10),
             Container(
-              padding:const EdgeInsets.all(10),
+              padding:const EdgeInsets.all(12),
               decoration:BoxDecoration(
-                color:const Color(0xFFC62828).withValues(alpha:.07),
-                borderRadius:BorderRadius.circular(12),
+                color:const Color(0xFFFFF4F3),
+                borderRadius:BorderRadius.circular(6),
+                border:Border.all(color:const Color(0xFFF1C4C0)),
               ),
-              child:Text(vetError,style:const TextStyle(fontSize:12,color:Color(0xFFC62828))),
+              child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Icon(Icons.wifi_off_outlined,color:Color(0xFFB3261E),size:20),
+                const SizedBox(width:9),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  const Text('Recherche momentanément indisponible',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:Color(0xFF8C1D18))),
+                  const SizedBox(height:3),
+                  Text(vetError,style:const TextStyle(fontSize:11,color:Color(0xFF7A4743))),
+                  const SizedBox(height:7),
+                  TextButton.icon(
+                    onPressed:vetLoading?null:_searchVeterinarians,
+                    icon:const Icon(Icons.refresh,size:17),
+                    label:const Text('Réessayer'),
+                  ),
+                ])),
+              ]),
             ),
           ],
 
@@ -1642,7 +1657,7 @@ class _HomePageState extends State<HomePage>{
         child:Card(child:Padding(
           padding:const EdgeInsets.all(22),
           child:Column(children:[
-            const Icon(Icons.pets,size:46,color:brown),
+            const Icon(Icons.pets,size:46,color:lapiGreenDark),
             const SizedBox(height:12),
             const Text('Votre carnet commence ici',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),
             const SizedBox(height:8),
@@ -1656,6 +1671,12 @@ class _HomePageState extends State<HomePage>{
     return Padding(
       padding:const EdgeInsets.fromLTRB(14,0,14,14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        FilledButton.icon(
+          onPressed:homeOrganizing?null:addRabbit,
+          icon:const Icon(Icons.add),
+          label:const Text('Ajouter un lapin'),
+        ),
+        const SizedBox(height:10),
         if(filtered.isEmpty)
           Card(child:Padding(
             padding:const EdgeInsets.all(18),
@@ -1716,8 +1737,8 @@ class _HomePageState extends State<HomePage>{
             const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink))),
             Container(
               padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
-              decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(14)),
-              child:Text(appMode=='Éleveur'?'ÉLEVAGE':'ADOPTANT',style:const TextStyle(color:gold,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:.6)),
+              decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+              child:Text(appMode=='Éleveur'?'ÉLEVAGE':'ADOPTANT',style:const TextStyle(color:lapiGreenDark,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:.6)),
             ),
           ]),
           const SizedBox(height:12),
@@ -1733,7 +1754,7 @@ class _HomePageState extends State<HomePage>{
           if(next!=null)...[
             const SizedBox(height:13),
             InkWell(
-              borderRadius:BorderRadius.circular(16),
+              borderRadius:BorderRadius.circular(6),
               onTap:()async{
                 await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:next['rabbitIndex'] as int)));
                 await refresh();
@@ -1742,7 +1763,7 @@ class _HomePageState extends State<HomePage>{
                 padding:const EdgeInsets.all(12),
                 decoration:BoxDecoration(
                   color:gold.withValues(alpha:.10),
-                  borderRadius:BorderRadius.circular(16),
+                  borderRadius:BorderRadius.circular(6),
                   border:Border.all(color:gold.withValues(alpha:.75)),
                 ),
                 child:Row(children:[
@@ -1771,8 +1792,8 @@ class _HomePageState extends State<HomePage>{
       if(!mounted)return;
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject:'Sauvegarde complète Carnet Santé Lapibreizh',
-        text:'Sauvegarde complète du Carnet Santé Lapibreizh. Conservez ce fichier précieusement.',
+        subject:'Sauvegarde complète LapiGestion',
+        text:'Sauvegarde complète de LapiGestion. Conservez ce fichier précieusement.',
       );
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Sauvegarde impossible : $e')));
@@ -1823,7 +1844,7 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             const Icon(Icons.shield_outlined,color:brown),
             const SizedBox(width:8),
-            const Expanded(child:Text('Sécurité du carnet',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink))),
+            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink))),
             Container(
               padding:const EdgeInsets.symmetric(horizontal:9,vertical:4),
               decoration:BoxDecoration(color:gold.withValues(alpha:.15),borderRadius:BorderRadius.circular(12)),
@@ -2008,13 +2029,6 @@ class _HomePageState extends State<HomePage>{
           const SliverToBoxAdapter(child:SizedBox(height:105)),
         ]))),
       bottomNavigationBar:_bottomNavigation(),
-      floatingActionButton:rabbits.isEmpty||homeOrganizing?null:FloatingActionButton.extended(
-        onPressed:addRabbit,
-        backgroundColor:lapiGreen,
-        foregroundColor:Colors.white,
-        icon:const Icon(Icons.add),
-        label:const Text('Nouveau lapin'),
-      ),
     );
   }
 }
