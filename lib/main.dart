@@ -216,6 +216,51 @@ class Notifications {
     }
   }
 
+
+  static Future<void> scheduleMedication({
+    required String rabbitName,
+    required Map<String,dynamic> item,
+  }) async {
+    final token=(item['notificationKey']??'') as String;
+    await cancelToken(token);
+    if(token.isEmpty||(item['notificationsEnabled']??true)!=true)return;
+
+    final start=parseDate(item['startDate'] as String?);
+    if(start==null)return;
+    final end=parseDate(item['endDate'] as String?);
+    final times=((item['times'] as List?)??[]).map((e)=>e.toString()).where((e)=>e.contains(':')).toList();
+    if(times.isEmpty)return;
+
+    await requestPermission();
+    final now=DateTime.now();
+    final horizon=end??now.add(const Duration(days:60));
+    var day=DateTime(start.year,start.month,start.day);
+    var scheduled=0;
+
+    while(!day.isAfter(horizon)&&scheduled<180){
+      for(final time in times){
+        final p=time.split(':');
+        final hour=int.tryParse(p[0])??9;
+        final minute=p.length>1?int.tryParse(p[1])??0:0;
+        final when=DateTime(day.year,day.month,day.day,hour,minute);
+        if(!when.isAfter(now))continue;
+        final medicine=((item['name']??'Médicament') as String).trim();
+        final dose=((item['dose']??'') as String).trim();
+        final route=((item['route']??'') as String).trim();
+        await _schedule(
+          token:token,
+          idSeed:'$token|medication|${day.toIso8601String()}|$time',
+          title:'Traitement • $rabbitName',
+          body:'$medicine${dose.isEmpty?'':' • $dose'}${route.isEmpty?'':' • $route'}',
+          when:when,
+        );
+        scheduled++;
+        if(scheduled>=180)break;
+      }
+      day=day.add(const Duration(days:1));
+    }
+  }
+
   static Future<void> refreshAll(List<Map<String,dynamic>> rabbits) async {
     for(final r in rabbits){
       final name=((r['name']??'Lapin') as String).trim().isEmpty?'Lapin':(r['name'] as String);
@@ -228,11 +273,14 @@ class Notifications {
       for(final raw in ((r['appointments'] as List?)??[])){
         await scheduleAppointment(rabbitName:name,item:Map<String,dynamic>.from(raw));
       }
+      for(final raw in ((r['medications'] as List?)??[])){
+        await scheduleMedication(rabbitName:name,item:Map<String,dynamic>.from(raw));
+      }
     }
   }
 
   static Future<void> cancelRabbit(Map<String,dynamic> rabbit) async {
-    for(final key in ['vaccines','dewormings','appointments']){
+    for(final key in ['vaccines','dewormings','appointments','medications']){
       for(final raw in ((rabbit[key] as List?)??[])){
         final token=((raw['notificationKey']??'') as String);
         await cancelToken(token);
@@ -279,6 +327,7 @@ class Store {
       if(r['appointments']==null){r['appointments']=[];changed=true;}
       if(r['weights']==null){r['weights']=[];changed=true;}
       if(r['competitions']==null){r['competitions']=[];changed=true;}
+      if(r['medications']==null){r['medications']=[];changed=true;}
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((r[key] as List?)??[])){
           final item=raw as Map<String,dynamic>;
@@ -556,6 +605,13 @@ class BackupService {
         if(p.isNotEmpty)yield MapEntry(p,'treatments');
       }
     }
+    for(final raw in ((rabbit['medications'] as List?)??[])){
+      final item=raw as Map<String,dynamic>;
+      for(final key in ['photo','prescription']){
+        final p=((item[key]??'') as String);
+        if(p.isNotEmpty)yield MapEntry(p,key=='prescription'?'documents':'treatments');
+      }
+    }
     for(final raw in ((rabbit['competitions'] as List?)??[])){
       final item=raw as Map<String,dynamic>;
       for(final key in ['photo','judgingSheet']){
@@ -650,6 +706,11 @@ class BackupService {
           final item=raw as Map<String,dynamic>;
           item['photo']=await restorePath(((item['photo']??'') as String),'treatments');
         }
+      }
+      for(final raw in ((rabbit['medications'] as List?)??[])){
+        final item=raw as Map<String,dynamic>;
+        item['photo']=await restorePath(((item['photo']??'') as String),'treatments');
+        item['prescription']=await restorePath(((item['prescription']??'') as String),'documents');
       }
       for(final raw in ((rabbit['competitions'] as List?)??[])){
         final item=raw as Map<String,dynamic>;
@@ -1229,7 +1290,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -1237,8 +1298,8 @@ class _RabbitPageState extends State<RabbitPage>{
   String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
   bool rabbitOrganizing=false;
   List<String> rabbitOrder=[];
-  static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','weight','adoption','reproduction','competitions','vaccines','dewormings','appointments','documents'];
-  static const rabbitDefaultsAdoptant=['identity','filiation','alerts','health','weight','vaccines','dewormings','appointments','documents'];
+  static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','medications','weight','adoption','reproduction','competitions','vaccines','dewormings','appointments','documents'];
+  static const rabbitDefaultsAdoptant=['identity','filiation','alerts','health','medications','weight','vaccines','dewormings','appointments','documents'];
 
   @override void initState(){super.initState();load();}
   Future<void> load()async{
@@ -1544,6 +1605,212 @@ class _RabbitPageState extends State<RabbitPage>{
             ),
           );
         }),
+      ]),
+    ));
+  }
+
+
+  List<Map<String,dynamic>> sortedMedications(){
+    final list=((r!['medications'] as List?)??[]).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    list.sort((a,b){
+      final ad=Notifications.parseDate(a['startDate'] as String?)??DateTime(1900);
+      final bd=Notifications.parseDate(b['startDate'] as String?)??DateTime(1900);
+      return bd.compareTo(ad);
+    });
+    return list;
+  }
+
+  bool medicationIsActive(Map<String,dynamic> item){
+    if((item['completed']??false)==true)return false;
+    final start=Notifications.parseDate(item['startDate'] as String?);
+    final end=Notifications.parseDate(item['endDate'] as String?);
+    final now=DateTime.now();
+    if(start!=null&&DateTime(now.year,now.month,now.day).isBefore(start))return false;
+    if(end!=null&&DateTime(now.year,now.month,now.day).isAfter(end))return false;
+    return true;
+  }
+
+  Future<void> addMedication()async{
+    final item=<String,dynamic>{
+      'id':'m_${DateTime.now().microsecondsSinceEpoch}',
+      'name':'','reason':'','dose':'','route':'Voie orale',
+      'startDate':Notifications.formatDate(DateTime.now()),'endDate':'',
+      'times':['09:00'],'vet':'','notes':'',
+      'photo':'','prescription':'',
+      'completed':false,'notificationsEnabled':true,
+      'notificationKey':'m_${DateTime.now().microsecondsSinceEpoch}',
+    };
+    await showDialog(context:context,builder:(ctx)=>MedicationDialog(item:item,onSave:(v)async{
+      (r!['medications'] as List).add(v);
+      await persist();
+      await Notifications.scheduleMedication(rabbitName:(r!['name']??'Lapin') as String,item:v);
+      if(ctx.mounted)Navigator.pop(ctx);
+    }));
+  }
+
+  Future<void> editMedication(Map<String,dynamic> item)async{
+    final list=r!['medications'] as List;
+    final id=(item['id']??'') as String;
+    final index=list.indexWhere((e)=>(e as Map)['id']==id);
+    if(index<0)return;
+    final current=Map<String,dynamic>.from(list[index] as Map);
+    await showDialog(context:context,builder:(ctx)=>MedicationDialog(item:current,onSave:(v)async{
+      await Notifications.cancelToken((current['notificationKey']??'') as String);
+      list[index]=v;
+      await persist();
+      await Notifications.scheduleMedication(rabbitName:(r!['name']??'Lapin') as String,item:v);
+      if(ctx.mounted)Navigator.pop(ctx);
+    }));
+  }
+
+  Future<void> toggleMedicationComplete(Map<String,dynamic> item)async{
+    final list=r!['medications'] as List;
+    final id=(item['id']??'') as String;
+    final index=list.indexWhere((e)=>(e as Map)['id']==id);
+    if(index<0)return;
+    final current=Map<String,dynamic>.from(list[index] as Map);
+    current['completed']=!(current['completed']??false);
+    list[index]=current;
+    await persist();
+    if(current['completed']==true){
+      await Notifications.cancelToken((current['notificationKey']??'') as String);
+    }else{
+      await Notifications.scheduleMedication(rabbitName:(r!['name']??'Lapin') as String,item:current);
+    }
+  }
+
+  Future<void> deleteMedication(Map<String,dynamic> item)async{
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer ce traitement ?'),
+      content:const Text('Les rappels et les copies internes de la photo / ordonnance seront également supprimés.'),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
+        FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+      ],
+    ))??false;
+    if(!ok)return;
+    (r!['medications'] as List).removeWhere((e)=>(e as Map)['id']==item['id']);
+    await persist();
+    await Notifications.cancelToken((item['notificationKey']??'') as String);
+    await PrivateFiles.deleteFile((item['photo']??'') as String);
+    await PrivateFiles.deleteFile((item['prescription']??'') as String);
+  }
+
+  Future<void> openMedicationFile(String path,String label)async{
+    if(path.isEmpty)return;
+    if(PrivateFiles.isImage(path)){
+      if(!mounted)return;
+      await showDialog(context:context,builder:(c)=>Dialog.fullscreen(child:Scaffold(
+        backgroundColor:Colors.black,
+        appBar:AppBar(backgroundColor:ink,foregroundColor:gold,title:Text(label)),
+        body:Center(child:InteractiveViewer(minScale:.5,maxScale:6,child:Image.file(File(path),fit:BoxFit.contain))),
+      )));
+    }else{
+      await OpenFilex.open(path);
+    }
+  }
+
+  Widget medicationsSection(){
+    final items=sortedMedications();
+    final active=items.where(medicationIsActive).toList();
+    final finished=items.where((e)=>!medicationIsActive(e)).toList();
+
+    Widget medTile(Map<String,dynamic> item){
+      final on=medicationIsActive(item);
+      final times=((item['times'] as List?)??[]).map((e)=>e.toString()).join(' • ');
+      final dose=((item['dose']??'') as String).trim();
+      final reason=((item['reason']??'') as String).trim();
+      final photo=((item['photo']??'') as String);
+      final prescription=((item['prescription']??'') as String);
+
+      return Container(
+        margin:const EdgeInsets.only(bottom:8),
+        decoration:BoxDecoration(
+          color:(on?const Color(0xFF1565C0):Colors.black54).withValues(alpha:.07),
+          borderRadius:BorderRadius.circular(15),
+          border:Border.all(color:(on?const Color(0xFF1565C0):Colors.black38).withValues(alpha:.35)),
+        ),
+        child:Column(children:[
+          ListTile(
+            onTap:()=>editMedication(item),
+            leading:CircleAvatar(
+              backgroundColor:(on?const Color(0xFF1565C0):Colors.black45).withValues(alpha:.12),
+              child:Icon(on?Icons.medication_liquid_outlined:Icons.task_alt,color:on?const Color(0xFF1565C0):Colors.black54),
+            ),
+            title:Text(((item['name']??'') as String).trim().isEmpty?'Médicament':item['name'],style:const TextStyle(fontWeight:FontWeight.w900)),
+            subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              if(reason.isNotEmpty)Text(reason),
+              Text('${item['startDate']??''}${((item['endDate']??'') as String).isNotEmpty?' → ${item['endDate']}':' • sans date de fin'}'),
+              if(dose.isNotEmpty)Text('$dose${((item['route']??'') as String).isNotEmpty?' • ${item['route']}':''}',style:const TextStyle(fontWeight:FontWeight.w700)),
+              if(times.isNotEmpty)Text('Prises : $times',style:const TextStyle(fontSize:12,color:Colors.black54)),
+            ]),
+            trailing:PopupMenuButton<String>(
+              onSelected:(v){
+                if(v=='edit')editMedication(item);
+                if(v=='toggle')toggleMedicationComplete(item);
+                if(v=='delete')deleteMedication(item);
+              },
+              itemBuilder:(_)=>[
+                const PopupMenuItem(value:'edit',child:Text('Modifier')),
+                PopupMenuItem(value:'toggle',child:Text(on?'Marquer terminé':'Réactiver')),
+                const PopupMenuItem(value:'delete',child:Text('Supprimer')),
+              ],
+            ),
+          ),
+          if(photo.isNotEmpty||prescription.isNotEmpty)
+            Padding(
+              padding:const EdgeInsets.fromLTRB(12,0,12,10),
+              child:Wrap(spacing:7,runSpacing:7,children:[
+                if(photo.isNotEmpty)OutlinedButton.icon(onPressed:()=>openMedicationFile(photo,'Photo du médicament'),icon:const Icon(Icons.photo_outlined),label:const Text('Produit')),
+                if(prescription.isNotEmpty)OutlinedButton.icon(onPressed:()=>openMedicationFile(prescription,'Ordonnance'),icon:const Icon(Icons.description_outlined),label:const Text('Ordonnance')),
+              ]),
+            ),
+        ]),
+      );
+    }
+
+    return Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          Expanded(child:header('Traitements médicaux',Icons.medication_liquid_outlined)),
+          FilledButton.icon(onPressed:addMedication,icon:const Icon(Icons.add,size:18),label:const Text('Ajouter')),
+        ]),
+        const Text('Médicaments prescrits, doses, horaires et ordonnances. Les doses restent celles saisies selon les indications vétérinaires.',style:TextStyle(fontSize:11,color:Colors.black54)),
+        const SizedBox(height:12),
+        if(items.isEmpty)
+          Container(
+            padding:const EdgeInsets.all(14),
+            decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(15)),
+            child:const Text('Aucun traitement médical enregistré.',textAlign:TextAlign.center,style:TextStyle(color:Colors.black54)),
+          )
+        else...[
+          Row(children:[
+            Expanded(child:Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFF1565C0).withValues(alpha:.08),borderRadius:BorderRadius.circular(14)),child:Column(children:[
+              Text('${active.length}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:Color(0xFF1565C0))),
+              const Text('En cours',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700)),
+            ]))),
+            const SizedBox(width:8),
+            Expanded(child:Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.05),borderRadius:BorderRadius.circular(14)),child:Column(children:[
+              Text('${finished.length}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:brown)),
+              const Text('Terminés',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700)),
+            ]))),
+          ]),
+          if(active.isNotEmpty)...[
+            const SizedBox(height:12),
+            const Text('En cours',style:TextStyle(fontWeight:FontWeight.w900,color:brown)),
+            const SizedBox(height:6),
+            ...active.map(medTile),
+          ],
+          if(finished.isNotEmpty)...[
+            const SizedBox(height:8),
+            ExpansionTile(
+              tilePadding:EdgeInsets.zero,
+              title:Text('Historique terminé (${finished.length})',style:const TextStyle(fontWeight:FontWeight.w800)),
+              children:finished.map(medTile).toList(),
+            ),
+          ],
+        ],
       ]),
     ));
   }
@@ -2337,6 +2604,30 @@ class _RabbitPageState extends State<RabbitPage>{
                 cellPadding:const pw.EdgeInsets.all(5),
               ),
 
+
+            _pdfTitle('Traitements médicaux'),
+            if(((rr['medications'] as List?)??[]).isEmpty)
+              pw.Text('Aucun traitement médical enregistré.')
+            else
+              ...sortedMedications().map((item){
+                final times=((item['times'] as List?)??[]).map((e)=>e.toString()).join(', ');
+                final completed=(item['completed']??false)==true;
+                return pw.Container(
+                  margin:const pw.EdgeInsets.only(bottom:6),
+                  padding:const pw.EdgeInsets.all(7),
+                  decoration:pw.BoxDecoration(color:PdfColors.grey100,borderRadius:pw.BorderRadius.circular(6)),
+                  child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+                    pw.Text('${item['name']??'Médicament'} • ${completed?'Terminé':'En cours'}',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+                    if(((item['reason']??'') as String).isNotEmpty)pw.Text('Motif : ${item['reason']}'),
+                    pw.Text('Période : ${item['startDate']??''}${((item['endDate']??'') as String).isNotEmpty?' → ${item['endDate']}':' • sans date de fin'}'),
+                    if(((item['dose']??'') as String).isNotEmpty)pw.Text('Dose : ${item['dose']}${((item['route']??'') as String).isNotEmpty?' • ${item['route']}':''}'),
+                    if(times.isNotEmpty)pw.Text('Horaires : $times'),
+                    if(((item['vet']??'') as String).isNotEmpty)pw.Text('Prescrit / suivi : ${item['vet']}'),
+                    if(((item['notes']??'') as String).isNotEmpty)pw.Text('Notes : ${item['notes']}'),
+                  ]),
+                );
+              }),
+
             _pdfTitle('Vaccins'),
             if(((rr['vaccines'] as List?)??[]).isEmpty)
               pw.Text('Aucun vaccin enregistré.')
@@ -2486,6 +2777,12 @@ class _RabbitPageState extends State<RabbitPage>{
     await ReproductionStore.removeRabbit((doomed['id']??'') as String);
     for(final k in ['photo','healthBook','passport','engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
+    for(final raw in ((doomed['medications'] as List?)??[])){
+      final x=raw as Map;
+      await Notifications.cancelToken((x['notificationKey']??'') as String);
+      await PrivateFiles.deleteFile((x['photo']??'') as String);
+      await PrivateFiles.deleteFile((x['prescription']??'') as String);
+    }
     for(final x in ((doomed['competitions'] as List?)??[])){
       await PrivateFiles.deleteFile(((x as Map)['photo']??'') as String);
       await PrivateFiles.deleteFile((x['judgingSheet']??'') as String);
@@ -2570,6 +2867,7 @@ class _RabbitPageState extends State<RabbitPage>{
         ]);
       case 'alerts': return dataAlertsSection();
       case 'health': return healthJourneySection();
+      case 'medications': return medicationsSection();
       case 'weight': return weightSection();
       case 'adoption': return adoptionSection();
       case 'reproduction': return reproductionSection();
@@ -4570,6 +4868,171 @@ class _TreatmentDialogState extends State<TreatmentDialog>{
       ),
     ],
   );
+}
+
+
+class MedicationDialog extends StatefulWidget{
+  final Map<String,dynamic> item;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const MedicationDialog({super.key,required this.item,required this.onSave});
+  @override State<MedicationDialog> createState()=>_MedicationDialogState();
+}
+
+class _MedicationDialogState extends State<MedicationDialog>{
+  late Map<String,dynamic>d;
+
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.item);
+    d['times']=List<String>.from((d['times'] as List?)??['09:00']);
+    d['route']??='Voie orale';
+    d['completed']??=false;
+    d['notificationsEnabled']??=true;
+    d['notificationKey']??='m_${DateTime.now().microsecondsSinceEpoch}';
+    d['photo']??='';
+    d['prescription']??='';
+  }
+
+  Future<void> pickDate(String key,{bool future=true})async{
+    final current=Notifications.parseDate(d[key] as String?)??DateTime.now();
+    final x=await showDatePicker(
+      context:context,
+      firstDate:DateTime.now().subtract(const Duration(days:3650)),
+      lastDate:DateTime.now().add(const Duration(days:3650)),
+      initialDate:current,
+    );
+    if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));
+  }
+
+  Future<void> addTime()async{
+    final t=await showTimePicker(context:context,initialTime:const TimeOfDay(hour:9,minute:0));
+    if(t==null)return;
+    final value='${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+    final times=List<String>.from(d['times'] as List);
+    if(!times.contains(value))times.add(value);
+    times.sort();
+    setState(()=>d['times']=times);
+  }
+
+  Future<void> attachImage()async{
+    final x=await ImagePicker().pickImage(source:ImageSource.gallery,imageQuality:88);
+    if(x==null)return;
+    final saved=await PrivateFiles.importFile(x.path,'treatments');
+    if(saved.isNotEmpty)setState(()=>d['photo']=saved);
+  }
+
+  Future<void> attachPrescription()async{
+    final result=await FilePicker.platform.pickFiles(type:FileType.any);
+    final source=result?.files.single.path;
+    if(source==null)return;
+    final saved=await PrivateFiles.importFile(source,'documents');
+    if(saved.isNotEmpty)setState(()=>d['prescription']=saved);
+  }
+
+  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
+    appBar:AppBar(
+      title:Text(((widget.item['name']??'') as String).isEmpty?'Nouveau traitement':'Modifier le traitement'),
+      actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
+    ),
+    body:ListView(padding:const EdgeInsets.all(16),children:[
+      Container(
+        padding:const EdgeInsets.all(12),
+        decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(15),border:Border.all(color:gold.withValues(alpha:.5))),
+        child:const Text('Saisissez uniquement la posologie indiquée par votre vétérinaire. L’application sert au suivi et aux rappels, pas au calcul d’une dose.',style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:brown)),
+      ),
+      const SizedBox(height:14),
+      TextFormField(initialValue:d['name']??'',decoration:const InputDecoration(labelText:'Médicament / produit *'),onChanged:(v)=>d['name']=v),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['reason']??'',decoration:const InputDecoration(labelText:'Motif / affection'),onChanged:(v)=>d['reason']=v),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['dose']??'',decoration:const InputDecoration(labelText:'Dose prescrite',hintText:'Ex. 0,8 ml'),onChanged:(v)=>d['dose']=v),
+      const SizedBox(height:10),
+      DropdownButtonFormField<String>(
+        value:['Voie orale','Injection','Application locale','Gouttes','Autre'].contains(d['route'])?d['route']:'Autre',
+        decoration:const InputDecoration(labelText:'Voie d’administration'),
+        items:['Voie orale','Injection','Application locale','Gouttes','Autre'].map((e)=>DropdownMenuItem(value:e,child:Text(e))).toList(),
+        onChanged:(v)=>setState(()=>d['route']=v??'Voie orale'),
+      ),
+      const SizedBox(height:10),
+      TextFormField(
+        readOnly:true,
+        controller:TextEditingController(text:d['startDate']??''),
+        decoration:const InputDecoration(labelText:'Début du traitement *',suffixIcon:Icon(Icons.calendar_month)),
+        onTap:()=>pickDate('startDate'),
+      ),
+      const SizedBox(height:10),
+      TextFormField(
+        readOnly:true,
+        controller:TextEditingController(text:d['endDate']??''),
+        decoration:InputDecoration(
+          labelText:'Fin prévue (facultatif)',
+          suffixIcon:Row(mainAxisSize:MainAxisSize.min,children:[
+            if(((d['endDate']??'') as String).isNotEmpty)IconButton(onPressed:()=>setState(()=>d['endDate']=''),icon:const Icon(Icons.close)),
+            const Icon(Icons.calendar_month),
+          ]),
+        ),
+        onTap:()=>pickDate('endDate'),
+      ),
+      const SizedBox(height:14),
+      Row(children:[
+        const Expanded(child:Text('Horaires de prise',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink))),
+        OutlinedButton.icon(onPressed:addTime,icon:const Icon(Icons.add),label:const Text('Horaire')),
+      ]),
+      const SizedBox(height:6),
+      Wrap(spacing:7,runSpacing:7,children:[
+        for(final time in List<String>.from(d['times'] as List))
+          InputChip(
+            label:Text(time),
+            avatar:const Icon(Icons.schedule,size:17),
+            onDeleted:(d['times'] as List).length<=1?null:()=>setState(()=>(d['times'] as List).remove(time)),
+          ),
+      ]),
+      const SizedBox(height:10),
+      SwitchListTile(
+        contentPadding:EdgeInsets.zero,
+        title:const Text('Rappels de prise'),
+        subtitle:const Text('Une notification est programmée à chaque horaire enregistré.'),
+        value:d['notificationsEnabled'] as bool,
+        onChanged:(v)=>setState(()=>d['notificationsEnabled']=v),
+      ),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['vet']??'',decoration:const InputDecoration(labelText:'Vétérinaire / clinique'),onChanged:(v)=>d['vet']=v),
+      const SizedBox(height:10),
+      TextFormField(initialValue:d['notes']??'',minLines:3,maxLines:6,decoration:const InputDecoration(labelText:'Notes / observations'),onChanged:(v)=>d['notes']=v),
+      const SizedBox(height:14),
+      OutlinedButton.icon(onPressed:attachImage,icon:Icon(((d['photo']??'') as String).isEmpty?Icons.add_a_photo:Icons.check_circle),label:Text(((d['photo']??'') as String).isEmpty?'Ajouter une photo du produit':'Photo du produit ajoutée')),
+      const SizedBox(height:8),
+      OutlinedButton.icon(onPressed:attachPrescription,icon:Icon(((d['prescription']??'') as String).isEmpty?Icons.note_add_outlined:Icons.check_circle),label:Text(((d['prescription']??'') as String).isEmpty?'Ajouter ordonnance / document':'Ordonnance / document ajouté')),
+      const SizedBox(height:10),
+      SwitchListTile(
+        contentPadding:EdgeInsets.zero,
+        title:const Text('Traitement terminé'),
+        value:d['completed'] as bool,
+        onChanged:(v)=>setState(()=>d['completed']=v),
+      ),
+      const SizedBox(height:18),
+      FilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le traitement')),
+      const SizedBox(height:24),
+    ]),
+  ));
+
+  Future<void> save()async{
+    if(((d['name']??'') as String).trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Indiquez le nom du médicament.')));
+      return;
+    }
+    if(((d['startDate']??'') as String).trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date de début.')));
+      return;
+    }
+    final start=Notifications.parseDate(d['startDate'] as String?);
+    final end=Notifications.parseDate(d['endDate'] as String?);
+    if(start!=null&&end!=null&&end.isBefore(start)){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('La date de fin doit être postérieure au début.')));
+      return;
+    }
+    await widget.onSave(d);
+  }
 }
 
 class AppointmentDialog extends StatefulWidget{
