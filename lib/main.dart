@@ -29,7 +29,7 @@ const lapiGreen = Color(0xFF247A4B);
 const lapiGreenDark = Color(0xFF155A36);
 const paper = Color(0xFFF8F6EE);
 const mist = Color(0xFFF1F5EF);
-const premiumCard = Color(0xFFFFFEFA);
+const premiumCard = Color(0xF7FFFEFA);
 const lineSoft = Color(0xFFE4DDC8);
 const heroGreen = Color(0xFF0B3F2D);
 const heroGreen2 = Color(0xFF155C42);
@@ -51,7 +51,7 @@ class LapibreizhApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
-      scaffoldBackgroundColor: paper,
+      scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: const AppBarTheme(
         backgroundColor: lapiGreenDark,
         foregroundColor: Colors.white,
@@ -138,6 +138,16 @@ class LapibreizhApp extends StatelessWidget {
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         ),
       ),
+    ),
+    builder:(context,child)=>Container(
+      decoration:const BoxDecoration(
+        image:DecorationImage(
+          image:AssetImage('assets/images/lapigestion_background_pages.jpg'),
+          fit:BoxFit.cover,
+          alignment:Alignment.topCenter,
+        ),
+      ),
+      child:child??const SizedBox.shrink(),
     ),
     home: const LapiSplashPage(),
   );
@@ -869,17 +879,35 @@ class BackupService {
 }
 
 class Scenic extends StatelessWidget {
-  final Widget child; final bool compact;
-  const Scenic({super.key,required this.child,this.compact=false});
-  @override Widget build(BuildContext context)=>Container(
-    decoration:const BoxDecoration(
-      gradient:LinearGradient(
-        begin:Alignment.topCenter,
-        end:Alignment.bottomCenter,
-        colors:[Color(0xFFF7FBF7),Color(0xFFFBF6EC),Color(0xFFF1F6F1)],
+  final Widget child;
+  final bool compact;
+  final bool home;
+  const Scenic({super.key,required this.child,this.compact=false,this.home=false});
+
+  @override Widget build(BuildContext context)=>Stack(
+    fit:StackFit.expand,
+    children:[
+      Positioned.fill(
+        child:Image.asset(
+          home
+            ?'assets/images/lapigestion_background_home.jpg'
+            :'assets/images/lapigestion_background_pages.jpg',
+          fit:BoxFit.cover,
+          alignment:home?Alignment.topCenter:Alignment.center,
+          filterQuality:FilterQuality.high,
+        ),
       ),
-    ),
-    child:child,
+      Positioned.fill(
+        child:IgnorePointer(
+          child:Container(
+            color:home
+              ?const Color(0x16FFF8E8)
+              :const Color(0x24FFFDF5),
+          ),
+        ),
+      ),
+      child,
+    ],
   );
 }
 
@@ -2191,7 +2219,7 @@ class _HomePageState extends State<HomePage>{
   @override Widget build(BuildContext context){
     final visible=visibleHomeOrder;
     return Scaffold(
-      body:Scenic(child:SafeArea(child:loading
+      body:Scenic(home:true,child:SafeArea(child:loading
         ?const Center(child:CircularProgressIndicator())
         :CustomScrollView(slivers:[
           SliverToBoxAdapter(child:Column(
@@ -2199,79 +2227,73 @@ class _HomePageState extends State<HomePage>{
             crossAxisAlignment:CrossAxisAlignment.stretch,
             children:[
               Container(
-                height:148,
+                height:154,
                 margin:const EdgeInsets.fromLTRB(14,14,14,0),
-                clipBehavior:Clip.antiAlias,
+                padding:const EdgeInsets.symmetric(horizontal:18,vertical:13),
                 decoration:BoxDecoration(
-                  borderRadius:BorderRadius.circular(22),
-                  border:Border.all(color:gold.withValues(alpha:.55)),
-                  boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.13),blurRadius:20,offset:const Offset(0,9))],
-                ),
-                child:Stack(fit:StackFit.expand,children:[
-                  Image.asset(
-                    'assets/images/lapigestion_splash.png',
-                    fit:BoxFit.cover,
-                    alignment:const Alignment(0,.18),
-                    filterQuality:FilterQuality.high,
+                  gradient:LinearGradient(
+                    begin:Alignment.topLeft,
+                    end:Alignment.bottomRight,
+                    colors:[
+                      heroGreen.withValues(alpha:.88),
+                      heroGreen2.withValues(alpha:.74),
+                      heroGreen.withValues(alpha:.58),
+                    ],
                   ),
-                  Container(
-                    decoration:const BoxDecoration(
-                      gradient:LinearGradient(
-                        begin:Alignment.centerLeft,
-                        end:Alignment.centerRight,
-                        colors:[Color(0xE8123B27),Color(0xB9165036),Color(0x28184A31)],
+                  borderRadius:BorderRadius.circular(22),
+                  border:Border.all(color:gold.withValues(alpha:.90),width:1),
+                  boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.12),blurRadius:18,offset:const Offset(0,8))],
+                ),
+                child:Column(
+                  mainAxisAlignment:MainAxisAlignment.center,
+                  crossAxisAlignment:CrossAxisAlignment.center,
+                  children:[
+                    Container(
+                      width:48,height:48,
+                      padding:const EdgeInsets.all(4),
+                      decoration:BoxDecoration(
+                        color:const Color(0xB80B3F2D),
+                        borderRadius:BorderRadius.circular(14),
+                        border:Border.all(color:gold,width:1.15),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.14),blurRadius:8)],
+                      ),
+                      child:ClipRRect(
+                        borderRadius:BorderRadius.circular(10),
+                        child:Image.asset('assets/images/lapigestion_app_icon.png',fit:BoxFit.cover),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding:const EdgeInsets.fromLTRB(17,16,16,16),
-                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                      Row(children:[
-                        Container(
-                          width:50,height:50,
-                          padding:const EdgeInsets.all(5),
-                          decoration:BoxDecoration(
-                            color:const Color(0xB80F3D29),
-                            borderRadius:BorderRadius.circular(15),
-                            border:Border.all(color:gold,width:1.2),
-                            boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.16),blurRadius:8)],
-                          ),
-                          child:ClipRRect(
-                            borderRadius:BorderRadius.circular(11),
-                            child:Image.asset('assets/images/lapigestion_app_icon.png',fit:BoxFit.cover),
-                          ),
-                        ),
-                        const SizedBox(width:13),
-                        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(
-                            'LapiGestion',
-                            style:TextStyle(
-                              fontSize:29,
-                              fontWeight:FontWeight.w800,
-                              color:warmGoldText,
-                              fontFamily:'serif',
-                              height:1,
-                              shadows:[Shadow(color:Color(0x77000000),blurRadius:8,offset:Offset(0,2))],
-                            ),
-                          ),
-                          SizedBox(height:5),
-                          Text(
-                            'Développé par Les Lapibreizh',
-                            style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w600,color:Colors.white),
-                          ),
-                        ])),
-                      ]),
-                      const Spacer(),
-                      Row(children:[
-                        Container(width:64,height:1,color:gold.withValues(alpha:.85)),
+                    const SizedBox(height:7),
+                    const Text(
+                      'LapiGestion',
+                      textAlign:TextAlign.center,
+                      style:TextStyle(
+                        fontSize:29,
+                        fontWeight:FontWeight.w800,
+                        color:warmGoldText,
+                        fontFamily:'serif',
+                        height:1,
+                        shadows:[Shadow(color:Color(0x77000000),blurRadius:8,offset:Offset(0,2))],
+                      ),
+                    ),
+                    const SizedBox(height:4),
+                    const Text(
+                      'Développé par Les Lapibreizh',
+                      textAlign:TextAlign.center,
+                      style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w600,color:Colors.white),
+                    ),
+                    const SizedBox(height:8),
+                    Row(
+                      mainAxisAlignment:MainAxisAlignment.center,
+                      children:[
+                        Container(width:65,height:1,color:gold),
                         const SizedBox(width:8),
                         const Icon(Icons.spa_outlined,color:gold,size:18),
                         const SizedBox(width:8),
-                        Container(width:64,height:1,color:gold.withValues(alpha:.85)),
-                      ]),
-                    ]),
-                  ),
-                ]),
+                        Container(width:65,height:1,color:gold),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               Padding(
                 padding:const EdgeInsets.fromLTRB(14,12,14,10),
