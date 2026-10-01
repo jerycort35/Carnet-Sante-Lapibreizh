@@ -73,7 +73,52 @@ class LapibreizhApp extends StatelessWidget {
         ),
       ),
     ),
-    home: const HomePage(),
+    home: const LapiSplashPage(),
+  );
+}
+
+
+class LapiSplashPage extends StatefulWidget {
+  const LapiSplashPage({super.key});
+  @override State<LapiSplashPage> createState()=>_LapiSplashPageState();
+}
+
+class _LapiSplashPageState extends State<LapiSplashPage> {
+  bool leaving=false;
+
+  @override void initState(){
+    super.initState();
+    Future.delayed(const Duration(milliseconds:1800),_enterApp);
+  }
+
+  void _enterApp(){
+    if(leaving||!mounted)return;
+    leaving=true;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration:const Duration(milliseconds:450),
+        pageBuilder:(_,animation,secondaryAnimation)=>const HomePage(),
+        transitionsBuilder:(_,animation,secondaryAnimation,child)=>FadeTransition(
+          opacity:CurvedAnimation(parent:animation,curve:Curves.easeOut),
+          child:child,
+        ),
+      ),
+    );
+  }
+
+  @override Widget build(BuildContext context)=>Scaffold(
+    backgroundColor:const Color(0xFF10291B),
+    body:GestureDetector(
+      behavior:HitTestBehavior.opaque,
+      onTap:_enterApp,
+      child:SizedBox.expand(
+        child:Image.asset(
+          'assets/images/lapigestion_splash.png',
+          fit:BoxFit.cover,
+          filterQuality:FilterQuality.high,
+        ),
+      ),
+    ),
   );
 }
 
