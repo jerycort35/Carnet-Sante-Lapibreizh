@@ -1451,6 +1451,7 @@ class _HomePageState extends State<HomePage>{
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
     ),
+    ),
   );
 
   Widget homeSection(String id){
@@ -3971,6 +3972,8 @@ class _RabbitPageState extends State<RabbitPage>{
           Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(
               rr['name'].isEmpty?'Nom à renseigner':rr['name'],
+              maxLines:2,
+              overflow:TextOverflow.ellipsis,
               style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'serif'),
             ),
             const SizedBox(height:8),
@@ -4101,15 +4104,19 @@ class _RabbitPageState extends State<RabbitPage>{
             child:Padding(
               padding:const EdgeInsets.fromLTRB(10,10,10,4),
               child:LayoutBuilder(builder:(context,c){
-                final useTwoColumns=c.maxWidth>=390;
+                final useTwoColumns=c.maxWidth>=720;
                 if(!useTwoColumns){
                   return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
                     photoCard,
+                    const SizedBox(height:8),
                     modeBanner(),
                     rabbitOrganizeControl(),
                     if(visible.contains('health'))Padding(padding:const EdgeInsets.only(bottom:8),child:healthJourneySection()),
                     if(visible.contains('weight'))Padding(padding:const EdgeInsets.only(bottom:8),child:weightSection()),
-                    ...compactSections.map((id)=>Padding(padding:const EdgeInsets.only(bottom:8),child:rabbitSection(id,rr))),
+                    ...compactSections.map((id)=>Padding(
+                      padding:const EdgeInsets.only(bottom:8),
+                      child:SizedBox(width:double.infinity,child:rabbitSection(id,rr)),
+                    )),
                   ]);
                 }
                 return Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -4175,7 +4182,9 @@ class _RabbitPageState extends State<RabbitPage>{
     decoration:BoxDecoration(
       boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,6))],
     ),
-    child:Card(
+    child:SizedBox(
+      width:double.infinity,
+      child:Card(
       child:Stack(children:[
         Positioned(right:6,bottom:4,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.42),size:22))),
         Padding(
