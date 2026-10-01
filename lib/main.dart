@@ -27,6 +27,13 @@ const ivory = Color(0xFFF7F8F6);
 const brown = Color(0xFF405044);
 const lapiGreen = Color(0xFF247A4B);
 const lapiGreenDark = Color(0xFF155A36);
+const paper = Color(0xFFFAF8F2);
+const mist = Color(0xFFF2F5F0);
+const premiumCard = Color(0xFFFFFEFB);
+const lineSoft = Color(0xFFD8E0D8);
+const heroGreen = Color(0xFF103B27);
+const heroGreen2 = Color(0xFF1A5B3D);
+const warmGoldText = Color(0xFFF1E2B6);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,34 +49,58 @@ class LapibreizhApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
-      scaffoldBackgroundColor:const Color(0xFFF4F7F5),
+      scaffoldBackgroundColor: paper,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: lapiGreenDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: warmGoldText, letterSpacing: .2),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled:true,
-        fillColor:Colors.white,
-        contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:13),
-        border:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:Color(0xFFDCE3DE))),
-        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:Color(0xFFDCE3DE))),
-        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:lapiGreen,width:2)),
+        fillColor: premiumCard,
+        contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:15),
+        border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lineSoft)),
+        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lineSoft)),
+        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lapiGreen,width:2)),
       ),
       cardTheme:CardThemeData(
-        color:Colors.white,
-        elevation:0,
-        margin:EdgeInsets.zero,
-        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(6),side:const BorderSide(color:Color(0xFFDCE3DE))),
+        color: premiumCard,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shadowColor: const Color(0x140A1A10),
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20),side: const BorderSide(color: lineSoft)),
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
           backgroundColor:lapiGreen,
           foregroundColor:Colors.white,
-          padding:const EdgeInsets.symmetric(horizontal:18,vertical:14),
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:16),
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme:OutlinedButtonThemeData(
         style:OutlinedButton.styleFrom(
           foregroundColor:lapiGreenDark,
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
-          side:const BorderSide(color:Color(0xFFB8C8BD)),
+          backgroundColor: premiumCard,
+          padding: const EdgeInsets.symmetric(horizontal:18, vertical:16),
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+          side:const BorderSide(color:lineSoft),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFFE9F4EB) : premiumCard),
+          foregroundColor: const WidgetStatePropertyAll(ink),
+          side: const WidgetStatePropertyAll(BorderSide(color: lineSoft)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         ),
       ),
     ),
@@ -810,7 +841,7 @@ class Scenic extends StatelessWidget {
       gradient:LinearGradient(
         begin:Alignment.topCenter,
         end:Alignment.bottomCenter,
-        colors:[Color(0xFFF0F7F2),Color(0xFFF8F7F2),Color(0xFFF4F7F5)],
+        colors:[Color(0xFFF7FBF7),Color(0xFFFBF6EC),Color(0xFFF1F6F1)],
       ),
     ),
     child:child,
@@ -1175,8 +1206,15 @@ class _HomePageState extends State<HomePage>{
       child:Padding(
         padding:const EdgeInsets.symmetric(vertical:8),
         child:Column(mainAxisSize:MainAxisSize.min,children:[
-          Icon(icon,size:23,color:homeOrganizing?Colors.black26:lapiGreenDark),
-          const SizedBox(height:2),
+          Container(
+            width:40,height:32,
+            decoration:BoxDecoration(
+              color:homeOrganizing?Colors.black12:const Color(0xFFEAF4EC),
+              borderRadius:BorderRadius.circular(12),
+            ),
+            child:Icon(icon,size:20,color:homeOrganizing?Colors.black26:lapiGreenDark),
+          ),
+          const SizedBox(height:4),
           Text(label,style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:homeOrganizing?Colors.black26:ink)),
         ]),
       ),
@@ -1184,12 +1222,13 @@ class _HomePageState extends State<HomePage>{
   );
 
   Widget _bottomNavigation()=>Material(
-    color:Colors.white,
+    color:paper,
     elevation:12,
+    shadowColor: Colors.black.withValues(alpha:.10),
     child:SafeArea(
       top:false,
       child:Container(
-        decoration:const BoxDecoration(border:Border(top:BorderSide(color:Color(0xFFE2E7E3)))),
+        decoration:const BoxDecoration(border:Border(top:BorderSide(color:lineSoft))),
         child:Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
@@ -1305,11 +1344,12 @@ class _HomePageState extends State<HomePage>{
   Widget _dashStat(String label,String value,IconData icon,Color color){
     return Container(
       width:148,
-      padding:const EdgeInsets.symmetric(horizontal:12,vertical:12),
+      padding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
       decoration:BoxDecoration(
         color:color.withValues(alpha:.075),
-        borderRadius:BorderRadius.circular(6),
-        border:Border(left:BorderSide(color:color,width:4),top:const BorderSide(color:Color(0xFFE4E8E5)),right:const BorderSide(color:Color(0xFFE4E8E5)),bottom:const BorderSide(color:Color(0xFFE4E8E5))),
+        borderRadius:BorderRadius.circular(18),
+        border:Border(left:BorderSide(color:color,width:4),top:const BorderSide(color:lineSoft),right:const BorderSide(color:lineSoft),bottom:const BorderSide(color:lineSoft)),
+        boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 6))],
       ),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Row(children:[
@@ -1361,11 +1401,12 @@ class _HomePageState extends State<HomePage>{
   Widget homeOrganizeControl()=>Padding(
     padding:const EdgeInsets.fromLTRB(14,0,14,12),
     child:Container(
-      padding:const EdgeInsets.fromLTRB(12,9,10,9),
+      padding:const EdgeInsets.fromLTRB(12,10,10,10),
       decoration:BoxDecoration(
-        color:homeOrganizing?const Color(0xFFE8F3EC):Colors.white,
-        borderRadius:BorderRadius.circular(6),
-        border:Border.all(color:homeOrganizing?const Color(0xFF9FC6AA):const Color(0xFFDCE3DE)),
+        color:homeOrganizing?const Color(0xFFE8F3EC):premiumCard,
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:homeOrganizing?const Color(0xFF9FC6AA):lineSoft),
+        boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
       ),
       child:Row(children:[
         Container(
@@ -1782,7 +1823,7 @@ class _HomePageState extends State<HomePage>{
             const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink))),
             Container(
               padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
-              decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+              decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.28))),
               child:Text(appMode=='Éleveur'?'ÉLEVAGE':'ADOPTANT',style:const TextStyle(color:lapiGreenDark,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:.6)),
             ),
           ]),
@@ -1982,44 +2023,97 @@ class _HomePageState extends State<HomePage>{
             crossAxisAlignment:CrossAxisAlignment.stretch,
             children:[
               Container(
-                padding:const EdgeInsets.fromLTRB(18,18,18,17),
-                decoration:const BoxDecoration(
-                  color:lapiGreenDark,
-                  border:Border(bottom:BorderSide(color:Color(0xFF0F4B2D))),
+                height: 178,
+                margin: const EdgeInsets.fromLTRB(14,14,14,0),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.14), blurRadius: 20, offset: const Offset(0, 10))],
                 ),
-                child:Row(children:[
+                child: Stack(fit: StackFit.expand, children: [
+                  Image.asset('assets/images/lapigestion_splash.png', fit: BoxFit.cover, alignment: Alignment.center),
                   Container(
-                    width:48,height:48,
-                    alignment:Alignment.center,
-                    decoration:BoxDecoration(
-                      color:Colors.white.withValues(alpha:.13),
-                      border:Border.all(color:Colors.white24),
-                      borderRadius:BorderRadius.circular(6),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x660A2418), Color(0xAA0F3423), Color(0xD2144B31)],
+                      ),
                     ),
-                    child:const Icon(Icons.pets,color:Colors.white,size:27),
                   ),
-                  const SizedBox(width:13),
-                  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    Text('LapiGestion',style:TextStyle(fontSize:29,fontWeight:FontWeight.w900,color:Colors.white,height:1)),
-                    SizedBox(height:5),
-                    Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:Color(0xFFDDEBE2))),
-                  ])),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18,18,18,18),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children:[
+                        Container(
+                          width:60,height:60,
+                          padding:const EdgeInsets.all(6),
+                          decoration:BoxDecoration(
+                            color:Colors.white.withValues(alpha:.14),
+                            border:Border.all(color:Colors.white.withValues(alpha:.22)),
+                            borderRadius:BorderRadius.circular(16),
+                          ),
+                          child:ClipRRect(
+                            borderRadius:BorderRadius.circular(12),
+                            child:Image.asset('assets/images/lapigestion_app_icon.png',fit:BoxFit.cover),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: .22),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white.withValues(alpha: .16)),
+                          ),
+                          child: const Text('Version ultra premium', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                      ]),
+                      const Spacer(),
+                      const Text('LapiGestion',style:TextStyle(fontSize:34,fontWeight:FontWeight.w900,color:Colors.white,height:1,shadows:[Shadow(color:Color(0x66000000),blurRadius:8,offset:Offset(0,2))])),
+                      const SizedBox(height:6),
+                      const Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:warmGoldText,letterSpacing:.3)),
+                      const SizedBox(height:10),
+                      Row(children:[
+                        Container(
+                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+                          decoration:BoxDecoration(
+                            color:Colors.white.withValues(alpha:.12),
+                            borderRadius:BorderRadius.circular(999),
+                            border:Border.all(color:Colors.white.withValues(alpha:.16)),
+                          ),
+                          child:const Text('Suivi santé & élevage',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:Colors.white)),
+                        ),
+                        const SizedBox(width:8),
+                        Container(
+                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+                          decoration:BoxDecoration(
+                            color:Colors.black.withValues(alpha:.20),
+                            borderRadius:BorderRadius.circular(999),
+                            border:Border.all(color:Colors.white.withValues(alpha:.12)),
+                          ),
+                          child:const Text('Style harmonisé',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:Colors.white)),
+                        ),
+                      ]),
+                    ]),
+                  ),
                 ]),
               ),
               Padding(
-                padding:const EdgeInsets.fromLTRB(14,14,14,10),
+                padding:const EdgeInsets.fromLTRB(14,12,14,10),
                 child:Container(
-                  padding:const EdgeInsets.fromLTRB(14,12,12,12),
+                  padding:const EdgeInsets.fromLTRB(14,13,12,13),
                   decoration:BoxDecoration(
-                    color:Colors.white,
-                    borderRadius:BorderRadius.circular(6),
-                    border:Border.all(color:const Color(0xFFDCE3DE)),
+                    color:premiumCard,
+                    borderRadius:BorderRadius.circular(18),
+                    border:Border.all(color:lineSoft),
+                    boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
                   ),
                   child:Column(children:[
                     Row(children:[
                       Container(
                         width:36,height:36,
-                        decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+                        decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.28))),
                         child:Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:20),
                       ),
                       const SizedBox(width:10),
@@ -2320,7 +2414,7 @@ class _RabbitPageState extends State<RabbitPage>{
             padding:const EdgeInsets.all(11),
             decoration:BoxDecoration(
               color:lapiGreenDark,
-              borderRadius:BorderRadius.circular(6),
+              borderRadius:BorderRadius.circular(16),
             ),
             child:Row(children:[
               const Icon(Icons.insights,color:gold,size:20),
@@ -2338,8 +2432,8 @@ class _RabbitPageState extends State<RabbitPage>{
           padding:const EdgeInsets.fromLTRB(10,12,10,8),
           decoration:BoxDecoration(
             color:const Color(0xFFFBFCFB),
-            borderRadius:BorderRadius.circular(6),
-            border:Border.all(color:const Color(0xFFDCE3DE)),
+            borderRadius:BorderRadius.circular(16),
+            border:Border.all(color:lineSoft),
           ),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             const Text('Courbe du poids',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
@@ -3621,11 +3715,12 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget rabbitOrganizeControl()=>Container(
     margin:const EdgeInsets.only(bottom:8),
-    padding:const EdgeInsets.fromLTRB(12,9,10,9),
+    padding:const EdgeInsets.fromLTRB(12,10,10,10),
     decoration:BoxDecoration(
-      color:rabbitOrganizing?const Color(0xFFE8F3EC):Colors.white,
-      borderRadius:BorderRadius.circular(6),
-      border:Border.all(color:rabbitOrganizing?const Color(0xFF9FC6AA):const Color(0xFFDCE3DE)),
+      color:rabbitOrganizing?const Color(0xFFE8F3EC):premiumCard,
+      borderRadius:BorderRadius.circular(18),
+      border:Border.all(color:rabbitOrganizing?const Color(0xFF9FC6AA):lineSoft),
+      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
     ),
     child:Row(children:[
       Container(
@@ -3707,9 +3802,16 @@ class _RabbitPageState extends State<RabbitPage>{
     final rr=r!;
     final visible=visibleRabbitOrder;
 
-    final photoCard=Card(child:Padding(
-      padding:const EdgeInsets.all(14),
-      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    final photoCard=Container(
+      decoration:BoxDecoration(
+        gradient:const LinearGradient(colors:[premiumCard, Color(0xFFFFFCF4)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius:BorderRadius.circular(20),
+        border:Border.all(color:lineSoft),
+        boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.04), blurRadius: 14, offset: const Offset(0, 6))],
+      ),
+      child:Padding(
+        padding:const EdgeInsets.all(14),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Row(crossAxisAlignment:CrossAxisAlignment.center,children:[
           GestureDetector(
             onTap:rabbitOrganizing?null:showRabbitPhoto,
@@ -3718,9 +3820,10 @@ class _RabbitPageState extends State<RabbitPage>{
               child:Container(
                 width:112,height:112,
                 decoration:BoxDecoration(
-                  color:const Color(0xFFE7ECE8),
-                  borderRadius:BorderRadius.circular(6),
-                  border:Border.all(color:const Color(0xFFB9C8BE)),
+                  color:mist,
+                  borderRadius:BorderRadius.circular(18),
+                  border:Border.all(color:gold.withValues(alpha:.55)),
+                  boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.04), blurRadius: 12, offset: const Offset(0, 6))],
                 ),
                 clipBehavior:Clip.antiAlias,
                 child:rr['photo'].isEmpty
@@ -3777,7 +3880,15 @@ class _RabbitPageState extends State<RabbitPage>{
         SliverAppBar(
           backgroundColor:lapiGreenDark,
           foregroundColor:Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
           pinned:true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [heroGreen, heroGreen2]),
+              border: Border(bottom: BorderSide(color: Color(0x2AD4AF67))),
+            ),
+          ),
           title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),
           actions:[
             IconButton(tooltip:'PDF',onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf)),
@@ -3830,18 +3941,23 @@ class _RabbitPageState extends State<RabbitPage>{
     padding:const EdgeInsets.only(bottom:14),
     child:Row(children:[
       Container(
-        width:34,height:34,
-        decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
-        child:Icon(i,color:lapiGreenDark,size:20),
+        width:40,height:40,
+        decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFF3FAF4),Color(0xFFFFFBF3)]),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.35))),
+        child:Icon(i,color:lapiGreenDark,size:22),
       ),
       const SizedBox(width:10),
       Expanded(child:Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink,height:1.05))),
     ]),
   );
-  Widget section(String t,IconData i,List<Widget> ch)=>Card(
-    child:Padding(
-      padding:const EdgeInsets.all(16),
-      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
+  Widget section(String t,IconData i,List<Widget> ch)=>Container(
+    decoration:BoxDecoration(
+      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 6))],
+    ),
+    child:Card(
+      child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
+      ),
     ),
   );
   Widget info(String a,dynamic b){
@@ -3858,11 +3974,12 @@ class _RabbitPageState extends State<RabbitPage>{
   }
   Widget modeBanner()=>Container(
     margin:const EdgeInsets.only(bottom:8),
-    padding:const EdgeInsets.symmetric(horizontal:13,vertical:10),
+    padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
     decoration:BoxDecoration(
-      color:const Color(0xFFE8F3EC),
-      borderRadius:BorderRadius.circular(6),
-      border:Border.all(color:const Color(0xFFB9D2C0)),
+      gradient:const LinearGradient(colors:[Color(0xFFF4FAF5),Color(0xFFF8F3E8)]),
+      borderRadius:BorderRadius.circular(18),
+      border:Border.all(color:gold.withValues(alpha:.30)),
+      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
     ),
     child:Row(children:[
       Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark),
