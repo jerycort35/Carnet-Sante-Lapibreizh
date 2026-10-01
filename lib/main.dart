@@ -42,19 +42,20 @@ class LapibreizhApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
-      scaffoldBackgroundColor: ivory,
+      scaffoldBackgroundColor:const Color(0xFFF4F7F5),
       inputDecorationTheme: InputDecorationTheme(
         filled:true,
         fillColor:Colors.white,
-        border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:Color(0xFFD9DEDA))),
-        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:Color(0xFFD9DEDA))),
-        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:lapiGreen,width:2)),
+        contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:13),
+        border:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:Color(0xFFDCE3DE))),
+        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:Color(0xFFDCE3DE))),
+        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(6),borderSide:const BorderSide(color:lapiGreen,width:2)),
       ),
       cardTheme:CardThemeData(
         color:Colors.white,
-        elevation:1,
+        elevation:0,
         margin:EdgeInsets.zero,
-        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8),side:const BorderSide(color:Color(0xFFE0E5E1))),
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(6),side:const BorderSide(color:Color(0xFFDCE3DE))),
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
@@ -760,8 +761,14 @@ class Scenic extends StatelessWidget {
   final Widget child; final bool compact;
   const Scenic({super.key,required this.child,this.compact=false});
   @override Widget build(BuildContext context)=>Container(
-    decoration: const BoxDecoration(image:DecorationImage(image:AssetImage('assets/images/accueil.png'),fit:BoxFit.cover,alignment:Alignment.center)),
-    child: Container(decoration:BoxDecoration(color:Colors.white.withValues(alpha: compact ? .78 : .36)),child:child),
+    decoration:const BoxDecoration(
+      gradient:LinearGradient(
+        begin:Alignment.topCenter,
+        end:Alignment.bottomCenter,
+        colors:[Color(0xFFF0F7F2),Color(0xFFF8F7F2),Color(0xFFF4F7F5)],
+      ),
+    ),
+    child:child,
   );
 }
 
@@ -1252,18 +1259,21 @@ class _HomePageState extends State<HomePage>{
 
   Widget _dashStat(String label,String value,IconData icon,Color color){
     return Container(
-      width:142,
+      width:148,
       padding:const EdgeInsets.symmetric(horizontal:12,vertical:12),
       decoration:BoxDecoration(
-        color:color.withValues(alpha:.09),
-        borderRadius:BorderRadius.circular(17),
-        border:Border.all(color:color.withValues(alpha:.45)),
+        color:color.withValues(alpha:.075),
+        borderRadius:BorderRadius.circular(6),
+        border:Border(left:BorderSide(color:color,width:4),top:const BorderSide(color:Color(0xFFE4E8E5)),right:const BorderSide(color:Color(0xFFE4E8E5)),bottom:const BorderSide(color:Color(0xFFE4E8E5))),
       ),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Icon(icon,color:color,size:22),
-        const SizedBox(height:6),
-        Text(value,style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:color)),
-        Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:ink)),
+        Row(children:[
+          Icon(icon,color:color,size:19),
+          const Spacer(),
+          Text(value,style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:color,height:1)),
+        ]),
+        const SizedBox(height:8),
+        Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:ink)),
       ]),
     );
   }
@@ -1308,19 +1318,23 @@ class _HomePageState extends State<HomePage>{
     child:Container(
       padding:const EdgeInsets.fromLTRB(12,9,10,9),
       decoration:BoxDecoration(
-        color:homeOrganizing?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.88),
-        borderRadius:BorderRadius.circular(16),
-        border:Border.all(color:homeOrganizing?gold:Colors.black12),
+        color:homeOrganizing?const Color(0xFFE8F3EC):Colors.white,
+        borderRadius:BorderRadius.circular(6),
+        border:Border.all(color:homeOrganizing?const Color(0xFF9FC6AA):const Color(0xFFDCE3DE)),
       ),
       child:Row(children:[
-        Icon(homeOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
-        const SizedBox(width:8),
+        Container(
+          width:34,height:34,
+          decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+          child:Icon(homeOrganizing?Icons.drag_indicator:Icons.tune,color:lapiGreenDark,size:20),
+        ),
+        const SizedBox(width:10),
         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
           Text(
             homeOrganizing
-              ?'Maintenez un cadre appuyé pour le déplacer et organiser votre accueil.'
-              :'Activez Organiser pour déplacer vos cadres.',
+              ?'Maintenez un cadre appuyé pour le déplacer.'
+              :'Personnalisez l’ordre de vos cadres.',
             style:const TextStyle(fontSize:10,color:Colors.black54),
           ),
         ])),
@@ -1897,59 +1911,81 @@ class _HomePageState extends State<HomePage>{
       body:Scenic(child:SafeArea(child:loading
         ?const Center(child:CircularProgressIndicator())
         :CustomScrollView(slivers:[
-          SliverToBoxAdapter(child:Container(
+          SliverToBoxAdapter(child:Column(
             key:_homeTopKey,
-            padding:const EdgeInsets.fromLTRB(16,16,16,10),
-            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-              Row(children:[
-                Container(
-                  width:66,height:66,
-                  decoration:BoxDecoration(
-                    color:Colors.white,
-                    border:Border.all(color:const Color(0xFFDDE5DF)),
-                    borderRadius:BorderRadius.circular(8),
-                  ),
-                  clipBehavior:Clip.antiAlias,
-                  child:Image.asset('assets/images/logo.png',fit:BoxFit.cover),
-                ),
-                const SizedBox(width:13),
-                const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                  Text('LapiGestion',style:TextStyle(fontSize:30,fontWeight:FontWeight.w900,color:ink,height:1)),
-                  SizedBox(height:5),
-                  Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:brown)),
-                ])),
-              ]),
-              const SizedBox(height:13),
+            crossAxisAlignment:CrossAxisAlignment.stretch,
+            children:[
               Container(
-                padding:const EdgeInsets.fromLTRB(13,10,13,10),
-                decoration:BoxDecoration(
-                  color:Colors.white,
-                  borderRadius:BorderRadius.circular(8),
-                  border:Border.all(color:const Color(0xFFDDE5DF)),
+                padding:const EdgeInsets.fromLTRB(18,18,18,17),
+                decoration:const BoxDecoration(
+                  color:lapiGreenDark,
+                  border:Border(bottom:BorderSide(color:Color(0xFF0F4B2D))),
                 ),
-                child:Column(children:[
-                  Row(children:[
-                    Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:20),
-                    const SizedBox(width:7),
-                    Expanded(child:Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w900,color:ink))),
-                    Wrap(spacing:6,children:[
-                      ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:homeOrganizing?null:(_)=>setAppMode('Éleveur')),
-                      ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:homeOrganizing?null:(_)=>setAppMode('Adoptant')),
-                    ]),
-                  ]),
-                  const SizedBox(height:4),
-                  Align(
-                    alignment:Alignment.centerLeft,
-                    child:Text(
-                      appMode=='Éleveur'
-                        ?'Reproduction, préparation au départ et suivi santé.'
-                        :'Une vue simplifiée centrée sur la santé au quotidien.',
-                      style:const TextStyle(fontSize:11,color:Colors.black54),
+                child:Row(children:[
+                  Container(
+                    width:48,height:48,
+                    alignment:Alignment.center,
+                    decoration:BoxDecoration(
+                      color:Colors.white.withValues(alpha:.13),
+                      border:Border.all(color:Colors.white24),
+                      borderRadius:BorderRadius.circular(6),
                     ),
+                    child:const Icon(Icons.pets,color:Colors.white,size:27),
                   ),
+                  const SizedBox(width:13),
+                  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text('LapiGestion',style:TextStyle(fontSize:29,fontWeight:FontWeight.w900,color:Colors.white,height:1)),
+                    SizedBox(height:5),
+                    Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:Color(0xFFDDEBE2))),
+                  ])),
                 ]),
               ),
-            ]),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(14,14,14,10),
+                child:Container(
+                  padding:const EdgeInsets.fromLTRB(14,12,12,12),
+                  decoration:BoxDecoration(
+                    color:Colors.white,
+                    borderRadius:BorderRadius.circular(6),
+                    border:Border.all(color:const Color(0xFFDCE3DE)),
+                  ),
+                  child:Column(children:[
+                    Row(children:[
+                      Container(
+                        width:36,height:36,
+                        decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+                        child:Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:20),
+                      ),
+                      const SizedBox(width:10),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink)),
+                        const SizedBox(height:2),
+                        Text(
+                          appMode=='Éleveur'
+                            ?'Reproduction, départ et suivi santé.'
+                            :'Le suivi quotidien de votre lapin.',
+                          style:const TextStyle(fontSize:11,color:Colors.black54),
+                        ),
+                      ])),
+                      const SizedBox(width:8),
+                      SegmentedButton<String>(
+                        segments:const [
+                          ButtonSegment(value:'Éleveur',label:Text('Élevage')),
+                          ButtonSegment(value:'Adoptant',label:Text('Adoptant')),
+                        ],
+                        selected:{appMode},
+                        showSelectedIcon:false,
+                        onSelectionChanged:homeOrganizing?null:(v)=>setAppMode(v.first),
+                        style:ButtonStyle(
+                          visualDensity:VisualDensity.compact,
+                          shape:WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.circular(5))),
+                        ),
+                      ),
+                    ]),
+                  ]),
+                ),
+              ),
+            ],
           )),
           SliverToBoxAdapter(child:homeOrganizeControl()),
           if(homeOrganizing)
@@ -2153,18 +2189,19 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget _weightStat(String label,String value,IconData icon){
     return Container(
-      width:142,
+      width:146,
       padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
       decoration:BoxDecoration(
-        color:gold.withValues(alpha:.09),
-        borderRadius:BorderRadius.circular(16),
-        border:Border.all(color:gold.withValues(alpha:.55)),
+        color:const Color(0xFFF4F8F5),
+        borderRadius:BorderRadius.circular(6),
+        border:Border.all(color:const Color(0xFFD8E4DB)),
       ),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Icon(icon,color:brown,size:20),
-        const SizedBox(height:6),
-        Text(value,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink)),
-        Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:brown)),
+        Icon(icon,color:lapiGreenDark,size:19),
+        const SizedBox(height:7),
+        Text(value,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:2),
+        Text(label,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:Color(0xFF68736C))),
       ]),
     );
   }
@@ -2223,8 +2260,8 @@ class _RabbitPageState extends State<RabbitPage>{
           Container(
             padding:const EdgeInsets.all(11),
             decoration:BoxDecoration(
-              color:ink.withValues(alpha:.93),
-              borderRadius:BorderRadius.circular(15),
+              color:lapiGreenDark,
+              borderRadius:BorderRadius.circular(6),
             ),
             child:Row(children:[
               const Icon(Icons.insights,color:gold,size:20),
@@ -2241,9 +2278,9 @@ class _RabbitPageState extends State<RabbitPage>{
         Container(
           padding:const EdgeInsets.fromLTRB(10,12,10,8),
           decoration:BoxDecoration(
-            color:Colors.white.withValues(alpha:.72),
-            borderRadius:BorderRadius.circular(16),
-            border:Border.all(color:gold.withValues(alpha:.55)),
+            color:const Color(0xFFFBFCFB),
+            borderRadius:BorderRadius.circular(6),
+            border:Border.all(color:const Color(0xFFDCE3DE)),
           ),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             const Text('Courbe du poids',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
@@ -2283,9 +2320,9 @@ class _RabbitPageState extends State<RabbitPage>{
           return Container(
             margin:const EdgeInsets.only(bottom:7),
             decoration:BoxDecoration(
-              color:gold.withValues(alpha:.06),
-              borderRadius:BorderRadius.circular(14),
-              border:Border.all(color:gold.withValues(alpha:.38)),
+              color:const Color(0xFFF7FAF8),
+              borderRadius:BorderRadius.circular(6),
+              border:Border.all(color:const Color(0xFFDCE3DE)),
             ),
             child:ListTile(
               onTap:()=>editWeight(w),
@@ -3527,19 +3564,23 @@ class _RabbitPageState extends State<RabbitPage>{
     margin:const EdgeInsets.only(bottom:8),
     padding:const EdgeInsets.fromLTRB(12,9,10,9),
     decoration:BoxDecoration(
-      color:rabbitOrganizing?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.88),
-      borderRadius:BorderRadius.circular(16),
-      border:Border.all(color:rabbitOrganizing?gold:Colors.black12),
+      color:rabbitOrganizing?const Color(0xFFE8F3EC):Colors.white,
+      borderRadius:BorderRadius.circular(6),
+      border:Border.all(color:rabbitOrganizing?const Color(0xFF9FC6AA):const Color(0xFFDCE3DE)),
     ),
     child:Row(children:[
-      Icon(rabbitOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
-      const SizedBox(width:8),
+      Container(
+        width:34,height:34,
+        decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+        child:Icon(rabbitOrganizing?Icons.drag_indicator:Icons.tune,color:lapiGreenDark,size:20),
+      ),
+      const SizedBox(width:10),
       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
         Text(
           rabbitOrganizing
-            ?'Maintenez un cadre appuyé pour le déplacer et organiser cette fiche.'
-            :'Activez Organiser pour déplacer vos cadres.',
+            ?'Maintenez un cadre appuyé pour le déplacer.'
+            :'Personnalisez l’ordre de cette fiche.',
           style:const TextStyle(fontSize:10,color:Colors.black54),
         ),
       ])),
@@ -3586,9 +3627,12 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Widget rabbitFrame(String id,int index,Widget child){
-    final content=AbsorbPointer(
-      absorbing:rabbitOrganizing,
-      child:child,
+    final content=Padding(
+      padding:const EdgeInsets.only(bottom:10),
+      child:AbsorbPointer(
+        absorbing:rabbitOrganizing,
+        child:child,
+      ),
     );
     return rabbitOrganizing
         ?ReorderableDelayedDragStartListener(
@@ -3605,38 +3649,75 @@ class _RabbitPageState extends State<RabbitPage>{
     final visible=visibleRabbitOrder;
 
     final photoCard=Card(child:Padding(
-      padding:const EdgeInsets.all(16),
-      child:Column(children:[
-        GestureDetector(
-          onTap:rabbitOrganizing?null:showRabbitPhoto,
-          child:Hero(
-            tag:'rabbit${widget.index}',
-            child:Container(
-              width:180,height:180,
-              decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(22),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:14,color:Colors.black26)]),
-              clipBehavior:Clip.antiAlias,
-              child:rr['photo'].isEmpty?const Icon(Icons.add_a_photo,size:48,color:ink):Image.file(File(rr['photo']),fit:BoxFit.cover),
+      padding:const EdgeInsets.all(14),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(crossAxisAlignment:CrossAxisAlignment.center,children:[
+          GestureDetector(
+            onTap:rabbitOrganizing?null:showRabbitPhoto,
+            child:Hero(
+              tag:'rabbit${widget.index}',
+              child:Container(
+                width:112,height:112,
+                decoration:BoxDecoration(
+                  color:const Color(0xFFE7ECE8),
+                  borderRadius:BorderRadius.circular(6),
+                  border:Border.all(color:const Color(0xFFB9C8BE)),
+                ),
+                clipBehavior:Clip.antiAlias,
+                child:rr['photo'].isEmpty
+                  ?const Icon(Icons.add_a_photo_outlined,size:38,color:lapiGreenDark)
+                  :Image.file(File(rr['photo']),fit:BoxFit.cover),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height:8),
-        Wrap(alignment:WrapAlignment.center,spacing:8,children:[
-          OutlinedButton.icon(onPressed:rabbitOrganizing?null:replaceRabbitPhoto,icon:const Icon(Icons.crop),label:Text(rr['photo'].isEmpty?'Choisir et cadrer':'Remplacer / recadrer')),
-          if(rr['photo'].isNotEmpty)IconButton(tooltip:'Supprimer la photo',onPressed:rabbitOrganizing?null:removeRabbitPhoto,icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
+          const SizedBox(width:14),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(
+              rr['name'].isEmpty?'Nom à renseigner':rr['name'],
+              style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:ink,height:1.05),
+            ),
+            const SizedBox(height:8),
+            if(rr['breed'].isNotEmpty)
+              Text(rr['breed'],style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:brown)),
+            if(rr['sex'].isNotEmpty||rr['birth'].isNotEmpty)...[
+              const SizedBox(height:5),
+              Text(
+                [rr['sex'],rr['birth']].where((e)=>(e??'').toString().isNotEmpty).join('  •  '),
+                style:const TextStyle(fontSize:12,color:Colors.black54),
+              ),
+            ],
+            const SizedBox(height:12),
+            FilledButton.icon(
+              onPressed:rabbitOrganizing?null:editIdentity,
+              icon:const Icon(Icons.edit_outlined,size:18),
+              label:const Text('Modifier la fiche'),
+            ),
+          ])),
         ]),
-        const SizedBox(height:12),
-        Text(rr['name'].isEmpty?'Nom à renseigner':rr['name'],style:const TextStyle(fontSize:26,fontWeight:FontWeight.w800,color:ink)),
-        if(rr['breed'].isNotEmpty)Text(rr['breed'],style:const TextStyle(fontSize:16,color:brown)),
-        const SizedBox(height:12),
-        FilledButton.icon(onPressed:rabbitOrganizing?null:editIdentity,icon:const Icon(Icons.edit),label:const Text('Identité & filiation')),
+        const SizedBox(height:10),
+        Row(children:[
+          Expanded(child:OutlinedButton.icon(
+            onPressed:rabbitOrganizing?null:replaceRabbitPhoto,
+            icon:const Icon(Icons.photo_camera_outlined,size:18),
+            label:Text(rr['photo'].isEmpty?'Ajouter une photo':'Changer la photo'),
+          )),
+          if(rr['photo'].isNotEmpty)...[
+            const SizedBox(width:8),
+            IconButton(
+              tooltip:'Supprimer la photo',
+              onPressed:rabbitOrganizing?null:removeRabbitPhoto,
+              icon:const Icon(Icons.delete_outline,color:Colors.redAccent),
+            ),
+          ],
+        ]),
       ]),
     ));
 
     return Scaffold(
       body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
         SliverAppBar(
-          backgroundColor:ink.withValues(alpha:.94),
-          foregroundColor:gold,
+          backgroundColor:lapiGreenDark,
+          foregroundColor:Colors.white,
           pinned:true,
           title:Text(rr['name'].isEmpty?'Fiche du lapin':rr['name']),
           actions:[
@@ -3686,23 +3767,55 @@ class _RabbitPageState extends State<RabbitPage>{
       ]))),
     );
   }
-  Widget header(String t,IconData i)=>Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[Icon(i,color:brown),const SizedBox(width:8),Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:ink))]));
-  Widget section(String t,IconData i,List<Widget> ch)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch])));
-  Widget info(String a,dynamic b)=>Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:145,child:Text(a,style:const TextStyle(fontWeight:FontWeight.w600,color:brown))),Expanded(child:Text((b??'').toString().isEmpty?'—':b.toString()))]));
+  Widget header(String t,IconData i)=>Padding(
+    padding:const EdgeInsets.only(bottom:14),
+    child:Row(children:[
+      Container(
+        width:34,height:34,
+        decoration:BoxDecoration(color:const Color(0xFFE8F3EC),borderRadius:BorderRadius.circular(5)),
+        child:Icon(i,color:lapiGreenDark,size:20),
+      ),
+      const SizedBox(width:10),
+      Expanded(child:Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink,height:1.05))),
+    ]),
+  );
+  Widget section(String t,IconData i,List<Widget> ch)=>Card(
+    child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
+    ),
+  );
+  Widget info(String a,dynamic b){
+    final value=(b??'').toString().isEmpty?'—':b.toString();
+    return Container(
+      padding:const EdgeInsets.symmetric(vertical:8),
+      decoration:const BoxDecoration(border:Border(bottom:BorderSide(color:Color(0xFFF0F2F0)))),
+      child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Expanded(flex:5,child:Text(a,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:Color(0xFF68736C)))),
+        const SizedBox(width:12),
+        Expanded(flex:6,child:Text(value,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w800,color:ink))),
+      ]),
+    );
+  }
   Widget modeBanner()=>Container(
-    margin:const EdgeInsets.only(bottom:4),
+    margin:const EdgeInsets.only(bottom:8),
     padding:const EdgeInsets.symmetric(horizontal:13,vertical:10),
     decoration:BoxDecoration(
-      color:appMode=='Éleveur'?ink.withValues(alpha:.94):const Color(0xFF234C3D).withValues(alpha:.94),
-      borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:gold),
+      color:const Color(0xFFE8F3EC),
+      borderRadius:BorderRadius.circular(6),
+      border:Border.all(color:const Color(0xFFB9D2C0)),
     ),
     child:Row(children:[
-      Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:gold),
+      Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark),
       const SizedBox(width:10),
       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(color:gold,fontWeight:FontWeight.w900)),
-        Text(appMode=='Éleveur'?'Toutes les fonctions professionnelles sont visibles.':'Reproduction et gestion du départ sont masquées pour une fiche plus simple.',style:const TextStyle(color:Colors.white,fontSize:11)),
+        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(color:lapiGreenDark,fontWeight:FontWeight.w900)),
+        Text(
+          appMode=='Éleveur'
+            ?'Toutes les fonctions professionnelles sont visibles.'
+            :'Une fiche simplifiée centrée sur le suivi quotidien.',
+          style:const TextStyle(color:Color(0xFF506057),fontSize:11),
+        ),
       ])),
     ]),
   );
@@ -4814,14 +4927,14 @@ class WeightChartPainter extends CustomPainter{
     final totalDays=(lastDate.difference(firstDate).inDays).abs();
 
     final grid=Paint()..color=const Color(0x22000000)..strokeWidth=1;
-    final axis=Paint()..color=const Color(0x66463622)..strokeWidth=1.2;
+    final axis=Paint()..color=const Color(0x66506057)..strokeWidth=1.2;
     final line=Paint()
-      ..color=gold
+      ..color=lapiGreen
       ..strokeWidth=3
       ..style=PaintingStyle.stroke
       ..strokeCap=StrokeCap.round
       ..strokeJoin=StrokeJoin.round;
-    final dot=Paint()..color=ink;
+    final dot=Paint()..color=lapiGreenDark;
 
     canvas.drawLine(Offset(chart.left,chart.top),Offset(chart.left,chart.bottom),axis);
     canvas.drawLine(Offset(chart.left,chart.bottom),Offset(chart.right,chart.bottom),axis);
@@ -4865,7 +4978,7 @@ class WeightChartPainter extends CustomPainter{
     for(final p in points){
       final o=pointOffset(p);
       canvas.drawCircle(o,5,dot);
-      canvas.drawCircle(o,2.4,Paint()..color=gold);
+      canvas.drawCircle(o,2.4,Paint()..color=Colors.white);
     }
 
     String shortDate(DateTime d)=>'${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}';
