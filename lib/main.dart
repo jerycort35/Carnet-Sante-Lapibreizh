@@ -849,7 +849,6 @@ class _HomePageState extends State<HomePage>{
 
   Widget homeFrame(String id,int index,Widget child){
     final content=Column(
-      key:ValueKey('home_$id'),
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
         if(homeOrganizing)
@@ -864,7 +863,13 @@ class _HomePageState extends State<HomePage>{
         IgnorePointer(ignoring:homeOrganizing,child:child),
       ],
     );
-    return homeOrganizing?ReorderableDelayedDragStartListener(index:index,child:content):content;
+    return homeOrganizing
+        ?ReorderableDelayedDragStartListener(
+            key:ValueKey('home_$id'),
+            index:index,
+            child:content,
+          )
+        :KeyedSubtree(key:ValueKey('home_$id'),child:content);
   }
 
   Widget rabbitListSection(){
@@ -2241,7 +2246,6 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget rabbitFrame(String id,int index,Widget child){
     final content=Column(
-      key:ValueKey('rabbit_$id'),
       crossAxisAlignment:CrossAxisAlignment.stretch,
       children:[
         if(rabbitOrganizing)
@@ -2256,7 +2260,13 @@ class _RabbitPageState extends State<RabbitPage>{
         IgnorePointer(ignoring:rabbitOrganizing,child:child),
       ],
     );
-    return rabbitOrganizing?ReorderableDelayedDragStartListener(index:index,child:content):content;
+    return rabbitOrganizing
+        ?ReorderableDelayedDragStartListener(
+            key:ValueKey('rabbit_$id'),
+            index:index,
+            child:content,
+          )
+        :KeyedSubtree(key:ValueKey('rabbit_$id'),child:content);
   }
 
   @override Widget build(BuildContext context){
