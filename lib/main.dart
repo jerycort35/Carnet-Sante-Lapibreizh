@@ -33,7 +33,9 @@ const premiumCard = Color(0xFFFFFEFB);
 const lineSoft = Color(0xFFD8E0D8);
 const heroGreen = Color(0xFF103B27);
 const heroGreen2 = Color(0xFF1A5B3D);
-const warmGoldText = Color(0xFFF1E2B6);
+const warmGoldText = Color(0xFFF3E3B0);
+const cream = Color(0xFFFFFCF5);
+const softGoldLine = Color(0xFFE6D19A);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +58,13 @@ class LapibreizhApp extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: warmGoldText, letterSpacing: .2),
+        titleTextStyle: TextStyle(
+          fontSize:20,
+          fontWeight:FontWeight.w800,
+          color:warmGoldText,
+          letterSpacing:.2,
+          fontFamily:'serif',
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled:true,
@@ -72,7 +80,10 @@ class LapibreizhApp extends StatelessWidget {
         margin: EdgeInsets.zero,
         shadowColor: const Color(0x140A1A10),
         surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20),side: const BorderSide(color: lineSoft)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFE5E0D2)),
+        ),
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
@@ -1200,37 +1211,50 @@ class _HomePageState extends State<HomePage>{
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool selected=false,
   })=>Expanded(
     child:InkWell(
       onTap:homeOrganizing?null:onTap,
       child:Padding(
-        padding:const EdgeInsets.symmetric(vertical:8),
+        padding:const EdgeInsets.symmetric(vertical:7),
         child:Column(mainAxisSize:MainAxisSize.min,children:[
-          Container(
-            width:40,height:32,
-            decoration:BoxDecoration(
-              color:homeOrganizing?Colors.black12:const Color(0xFFEAF4EC),
-              borderRadius:BorderRadius.circular(12),
-            ),
-            child:Icon(icon,size:20,color:homeOrganizing?Colors.black26:lapiGreenDark),
+          Icon(
+            icon,
+            size:23,
+            color:homeOrganizing?Colors.white38:(selected?warmGoldText:Colors.white),
           ),
-          const SizedBox(height:4),
-          Text(label,style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:homeOrganizing?Colors.black26:ink)),
+          const SizedBox(height:2),
+          Text(
+            label,
+            style:TextStyle(
+              fontSize:11,
+              fontWeight:selected?FontWeight.w800:FontWeight.w600,
+              color:homeOrganizing?Colors.white38:(selected?warmGoldText:Colors.white),
+              fontFamily:selected?'serif':null,
+            ),
+          ),
+          if(selected)...[
+            const SizedBox(height:3),
+            Container(width:26,height:2,decoration:BoxDecoration(color:gold,borderRadius:BorderRadius.circular(99))),
+          ],
         ]),
       ),
     ),
   );
 
   Widget _bottomNavigation()=>Material(
-    color:paper,
-    elevation:12,
-    shadowColor: Colors.black.withValues(alpha:.10),
+    color:heroGreen,
+    elevation:16,
+    shadowColor:Colors.black.withValues(alpha:.18),
     child:SafeArea(
       top:false,
       child:Container(
-        decoration:const BoxDecoration(border:Border(top:BorderSide(color:lineSoft))),
+        decoration:const BoxDecoration(
+          gradient:LinearGradient(colors:[Color(0xFF0D3A26),Color(0xFF145438)]),
+          border:Border(top:BorderSide(color:Color(0x66D4AF67))),
+        ),
         child:Row(children:[
-          _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',onTap:()=>_jumpToHome('top')),
+          _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
           _bottomShortcut(icon:Icons.notifications_none,label:'Rappels',onTap:()=>_jumpToHome('dashboard')),
           _bottomShortcut(icon:Icons.more_horiz,label:'Plus',onTap:_showMoreMenu),
@@ -1347,7 +1371,7 @@ class _HomePageState extends State<HomePage>{
       padding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
       decoration:BoxDecoration(
         color:color.withValues(alpha:.075),
-        borderRadius:BorderRadius.circular(18),
+        borderRadius:BorderRadius.circular(16),
         border:Border(left:BorderSide(color:color,width:4),top:const BorderSide(color:lineSoft),right:const BorderSide(color:lineSoft),bottom:const BorderSide(color:lineSoft)),
         boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 6))],
       ),
@@ -1543,7 +1567,7 @@ class _HomePageState extends State<HomePage>{
             ),
             const SizedBox(width:10),
             const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text('Trouver un vétérinaire',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink)),
+              Text('Trouver un vétérinaire',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),
               Text('Recherche autour de votre position',style:TextStyle(fontSize:11,color:Colors.black54)),
             ])),
           ]),
@@ -1698,7 +1722,7 @@ class _HomePageState extends State<HomePage>{
             padding:const EdgeInsets.all(13),
             decoration:BoxDecoration(
               color:const Color(0xFFC62828).withValues(alpha:.06),
-              borderRadius:BorderRadius.circular(15),
+              borderRadius:BorderRadius.circular(18),
               border:Border.all(color:const Color(0xFFC62828).withValues(alpha:.35)),
             ),
             child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -1759,8 +1783,13 @@ class _HomePageState extends State<HomePage>{
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         FilledButton.icon(
           onPressed:homeOrganizing?null:addRabbit,
-          icon:const Icon(Icons.add),
+          icon:const Icon(Icons.add_circle,color:warmGoldText),
           label:const Text('Ajouter un lapin'),
+          style:FilledButton.styleFrom(
+            backgroundColor:heroGreen,
+            side:BorderSide(color:gold.withValues(alpha:.75)),
+            padding:const EdgeInsets.symmetric(vertical:15),
+          ),
         ),
         const SizedBox(height:10),
         if(filtered.isEmpty)
@@ -1778,32 +1807,47 @@ class _HomePageState extends State<HomePage>{
           final status=((rabbit['adoptionStatus']??'') as String);
           return Padding(
             padding:const EdgeInsets.only(bottom:12),
-            child:Card(child:ListTile(
-              contentPadding:const EdgeInsets.all(12),
-              leading:Hero(
-                tag:'rabbit$originalIndex',
-                child:Container(
-                  width:68,height:68,
-                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(8),border:Border.all(color:const Color(0xFFB8C8BD),width:1)),
-                  clipBehavior:Clip.antiAlias,
-                  child:(rabbit['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(rabbit['photo']),fit:BoxFit.cover),
-                ),
-              ),
-              title:Text((rabbit['name']??'').isEmpty?'Lapin sans nom':rabbit['name'],style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold)),
-              subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text('${rabbit['breed']?.isEmpty==false?rabbit['breed']:'Race à renseigner'}${rabbit['birth']?.isEmpty==false?'  •  ${rabbit['birth']}':''}'),
-                if(appMode=='Éleveur'&&status.isNotEmpty)
-                  Padding(
-                    padding:const EdgeInsets.only(top:4),
-                    child:Text(status,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:status=='Réservé'?const Color(0xFFEF6C00):brown)),
+            child:Card(child:Stack(children:[
+              Positioned(right:10,bottom:8,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.50),size:27))),
+              ListTile(
+                contentPadding:const EdgeInsets.all(12),
+                leading:Hero(
+                  tag:'rabbit$originalIndex',
+                  child:Container(
+                    width:72,height:72,
+                    decoration:BoxDecoration(
+                      color:gold.withValues(alpha:.14),
+                      borderRadius:BorderRadius.circular(12),
+                      border:Border.all(color:gold.withValues(alpha:.45)),
+                    ),
+                    clipBehavior:Clip.antiAlias,
+                    child:(rabbit['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(rabbit['photo']),fit:BoxFit.cover),
                   ),
-              ]),
-              trailing:const Icon(Icons.chevron_right,color:brown),
-              onTap:homeOrganizing?null:()async{
-                await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:originalIndex)));
-                await refresh();
-              },
-            )),
+                ),
+                title:Text(
+                  (rabbit['name']??'').isEmpty?'Lapin sans nom':rabbit['name'],
+                  style:const TextStyle(fontSize:19,fontWeight:FontWeight.w800,fontFamily:'serif'),
+                ),
+                subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text('${rabbit['breed']?.isEmpty==false?rabbit['breed']:'Race à renseigner'}${rabbit['birth']?.isEmpty==false?'  •  ${rabbit['birth']}':''}'),
+                  if(appMode=='Éleveur'&&status.isNotEmpty)
+                    Container(
+                      margin:const EdgeInsets.only(top:5),
+                      padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                      decoration:BoxDecoration(
+                        color:const Color(0xFFE9F5EA),
+                        borderRadius:BorderRadius.circular(999),
+                      ),
+                      child:Text(status,style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:status=='Réservé'?const Color(0xFFEF6C00):lapiGreenDark)),
+                    ),
+                ]),
+                trailing:const Icon(Icons.chevron_right,color:brown),
+                onTap:homeOrganizing?null:()async{
+                  await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:originalIndex)));
+                  await refresh();
+                },
+              ),
+            ])),
           );
         }),
       ]),
@@ -1820,7 +1864,7 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             const Icon(Icons.dashboard_rounded,color:brown),
             const SizedBox(width:8),
-            const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink))),
+            const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif'))),
             Container(
               padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
               decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.28))),
@@ -1930,7 +1974,7 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             const Icon(Icons.shield_outlined,color:brown),
             const SizedBox(width:8),
-            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:ink))),
+            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif'))),
             Container(
               padding:const EdgeInsets.symmetric(horizontal:9,vertical:4),
               decoration:BoxDecoration(color:gold.withValues(alpha:.15),borderRadius:BorderRadius.circular(12)),
@@ -1967,49 +2011,94 @@ class _HomePageState extends State<HomePage>{
 
   Widget searchAndFilters(){
     final results=_filteredRabbits();
+
+    Widget filterBlock({
+      required String title,
+      required List<String> values,
+      required String selected,
+      required void Function(String) onSelect,
+      required IconData Function(String) iconFor,
+    })=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(title,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:brown,fontFamily:'serif')),
+      const SizedBox(height:7),
+      Wrap(spacing:7,runSpacing:7,children:[
+        for(final f in values)
+          ChoiceChip(
+            avatar:Icon(iconFor(f),size:17),
+            label:Text(f),
+            selected:selected==f,
+            selectedColor:const Color(0xFF17633F),
+            checkmarkColor:Colors.white,
+            labelStyle:TextStyle(
+              color:selected==f?Colors.white:ink,
+              fontWeight:FontWeight.w700,
+            ),
+            side:BorderSide(color:selected==f?gold:const Color(0xFFD8D5CA)),
+            onSelected:(_)=>onSelect(f),
+          ),
+      ]),
+    ]);
+
     return Card(
       margin:const EdgeInsets.fromLTRB(14,0,14,14),
-      child:Padding(
-        padding:const EdgeInsets.all(14),
-        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-          TextField(
-            decoration:InputDecoration(
-              hintText:'Rechercher un lapin…',
-              prefixIcon:const Icon(Icons.search),
-              suffixIcon:searchQuery.isEmpty?null:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>searchQuery='')),
-            ),
-            onChanged:(v)=>setState(()=>searchQuery=v),
-          ),
-          const SizedBox(height:10),
-          const Text('Sexe',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
-          const SizedBox(height:5),
-          Wrap(spacing:7,runSpacing:7,children:[
-            for(final f in ['Tous','Mâle','Femelle'])
-              ChoiceChip(label:Text(f),selected:sexFilter==f,onSelected:(_)=>setState(()=>sexFilter=f)),
-          ]),
-          if(appMode=='Éleveur')...[
-            const SizedBox(height:10),
-            const Text('Statut adoption',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:brown)),
-            const SizedBox(height:5),
-            Wrap(spacing:7,runSpacing:7,children:[
-              for(final f in ['Tous','À l’élevage','Réservé','Adopté / parti'])
-                ChoiceChip(label:Text(f),selected:adoptionFilter==f,onSelected:(_)=>setState(()=>adoptionFilter=f)),
-            ]),
-          ],
-          const SizedBox(height:9),
-          Row(children:[
-            const Icon(Icons.filter_alt_outlined,size:17,color:brown),
-            const SizedBox(width:6),
-            Text('${results.length} résultat${results.length>1?'s':''}',style:const TextStyle(fontWeight:FontWeight.w700,color:brown)),
-            const Spacer(),
-            if(searchQuery.isNotEmpty||sexFilter!='Tous'||adoptionFilter!='Tous')
-              TextButton(
-                onPressed:()=>setState((){searchQuery='';sexFilter='Tous';adoptionFilter='Tous';}),
-                child:const Text('Réinitialiser'),
+      child:Stack(children:[
+        Positioned(right:12,top:10,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.55),size:30))),
+        Positioned(right:10,bottom:8,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.40),size:26))),
+        Padding(
+          padding:const EdgeInsets.all(14),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            TextField(
+              decoration:InputDecoration(
+                hintText:'Rechercher un lapin…',
+                prefixIcon:const Icon(Icons.search,color:lapiGreenDark),
+                suffixIcon:searchQuery.isEmpty?null:IconButton(icon:const Icon(Icons.close),onPressed:()=>setState(()=>searchQuery='')),
               ),
+              onChanged:(v)=>setState(()=>searchQuery=v),
+            ),
+            const SizedBox(height:12),
+            if(appMode=='Éleveur')
+              Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Expanded(child:filterBlock(
+                  title:'Sexe',
+                  values:const ['Tous','Mâle','Femelle'],
+                  selected:sexFilter,
+                  onSelect:(f)=>setState(()=>sexFilter=f),
+                  iconFor:(f)=>f=='Mâle'?Icons.male:f=='Femelle'?Icons.female:Icons.check,
+                )),
+                const SizedBox(width:12),
+                Container(width:1,height:96,color:const Color(0xFFE5E0D2)),
+                const SizedBox(width:12),
+                Expanded(child:filterBlock(
+                  title:'Statut adoption',
+                  values:const ['Tous','À l’élevage','Réservé','Adopté / parti'],
+                  selected:adoptionFilter,
+                  onSelect:(f)=>setState(()=>adoptionFilter=f),
+                  iconFor:(f)=>f=='À l’élevage'?Icons.home_outlined:f=='Réservé'?Icons.favorite_border:f=='Adopté / parti'?Icons.pets_outlined:Icons.check,
+                )),
+              ])
+            else
+              filterBlock(
+                title:'Sexe',
+                values:const ['Tous','Mâle','Femelle'],
+                selected:sexFilter,
+                onSelect:(f)=>setState(()=>sexFilter=f),
+                iconFor:(f)=>f=='Mâle'?Icons.male:f=='Femelle'?Icons.female:Icons.check,
+              ),
+            const SizedBox(height:10),
+            Row(children:[
+              const Icon(Icons.filter_alt_outlined,size:17,color:brown),
+              const SizedBox(width:6),
+              Text('${results.length} résultat${results.length>1?'s':''}',style:const TextStyle(fontWeight:FontWeight.w700,color:brown)),
+              const Spacer(),
+              if(searchQuery.isNotEmpty||sexFilter!='Tous'||adoptionFilter!='Tous')
+                TextButton(
+                  onPressed:()=>setState((){searchQuery='';sexFilter='Tous';adoptionFilter='Tous';}),
+                  child:const Text('Réinitialiser'),
+                ),
+            ]),
           ]),
-        ]),
-      ),
+        ),
+      ]),
     );
   }
   @override Widget build(BuildContext context){
@@ -2023,77 +2112,75 @@ class _HomePageState extends State<HomePage>{
             crossAxisAlignment:CrossAxisAlignment.stretch,
             children:[
               Container(
-                height: 178,
-                margin: const EdgeInsets.fromLTRB(14,14,14,0),
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.14), blurRadius: 20, offset: const Offset(0, 10))],
+                height:170,
+                margin:const EdgeInsets.fromLTRB(14,14,14,0),
+                clipBehavior:Clip.antiAlias,
+                decoration:BoxDecoration(
+                  borderRadius:BorderRadius.circular(22),
+                  border:Border.all(color:gold.withValues(alpha:.55)),
+                  boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.13),blurRadius:20,offset:const Offset(0,9))],
                 ),
-                child: Stack(fit: StackFit.expand, children: [
-                  Image.asset('assets/images/lapigestion_splash.png', fit: BoxFit.cover, alignment: Alignment.center),
+                child:Stack(fit:StackFit.expand,children:[
+                  Image.asset(
+                    'assets/images/lapigestion_splash.png',
+                    fit:BoxFit.cover,
+                    alignment:const Alignment(0,.18),
+                    filterQuality:FilterQuality.high,
+                  ),
                   Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x660A2418), Color(0xAA0F3423), Color(0xD2144B31)],
+                    decoration:const BoxDecoration(
+                      gradient:LinearGradient(
+                        begin:Alignment.centerLeft,
+                        end:Alignment.centerRight,
+                        colors:[Color(0xE8123B27),Color(0xB9165036),Color(0x28184A31)],
                       ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18,18,18,18),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    padding:const EdgeInsets.fromLTRB(17,16,16,16),
+                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                       Row(children:[
                         Container(
-                          width:60,height:60,
-                          padding:const EdgeInsets.all(6),
+                          width:56,height:56,
+                          padding:const EdgeInsets.all(5),
                           decoration:BoxDecoration(
-                            color:Colors.white.withValues(alpha:.14),
-                            border:Border.all(color:Colors.white.withValues(alpha:.22)),
-                            borderRadius:BorderRadius.circular(16),
+                            color:const Color(0xB80F3D29),
+                            borderRadius:BorderRadius.circular(15),
+                            border:Border.all(color:gold,width:1.2),
+                            boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.16),blurRadius:8)],
                           ),
                           child:ClipRRect(
-                            borderRadius:BorderRadius.circular(12),
+                            borderRadius:BorderRadius.circular(11),
                             child:Image.asset('assets/images/lapigestion_app_icon.png',fit:BoxFit.cover),
                           ),
                         ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: .22),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white.withValues(alpha: .16)),
+                        const SizedBox(width:13),
+                        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(
+                            'LapiGestion',
+                            style:TextStyle(
+                              fontSize:31,
+                              fontWeight:FontWeight.w800,
+                              color:warmGoldText,
+                              fontFamily:'serif',
+                              height:1,
+                              shadows:[Shadow(color:Color(0x77000000),blurRadius:8,offset:Offset(0,2))],
+                            ),
                           ),
-                          child: const Text('Version ultra premium', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-                        ),
+                          SizedBox(height:5),
+                          Text(
+                            'Développé par Les Lapibreizh',
+                            style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w600,color:Colors.white),
+                          ),
+                        ])),
                       ]),
                       const Spacer(),
-                      const Text('LapiGestion',style:TextStyle(fontSize:34,fontWeight:FontWeight.w900,color:Colors.white,height:1,shadows:[Shadow(color:Color(0x66000000),blurRadius:8,offset:Offset(0,2))])),
-                      const SizedBox(height:6),
-                      const Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:warmGoldText,letterSpacing:.3)),
-                      const SizedBox(height:10),
                       Row(children:[
-                        Container(
-                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-                          decoration:BoxDecoration(
-                            color:Colors.white.withValues(alpha:.12),
-                            borderRadius:BorderRadius.circular(999),
-                            border:Border.all(color:Colors.white.withValues(alpha:.16)),
-                          ),
-                          child:const Text('Suivi santé & élevage',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:Colors.white)),
-                        ),
+                        Container(width:64,height:1,color:gold.withValues(alpha:.85)),
                         const SizedBox(width:8),
-                        Container(
-                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-                          decoration:BoxDecoration(
-                            color:Colors.black.withValues(alpha:.20),
-                            borderRadius:BorderRadius.circular(999),
-                            border:Border.all(color:Colors.white.withValues(alpha:.12)),
-                          ),
-                          child:const Text('Style harmonisé',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:Colors.white)),
-                        ),
+                        const Icon(Icons.spa_outlined,color:gold,size:18),
+                        const SizedBox(width:8),
+                        Container(width:64,height:1,color:gold.withValues(alpha:.85)),
                       ]),
                     ]),
                   ),
@@ -2105,8 +2192,8 @@ class _HomePageState extends State<HomePage>{
                   padding:const EdgeInsets.fromLTRB(14,13,12,13),
                   decoration:BoxDecoration(
                     color:premiumCard,
-                    borderRadius:BorderRadius.circular(18),
-                    border:Border.all(color:lineSoft),
+                    borderRadius:BorderRadius.circular(20),
+                    border:Border.all(color:const Color(0xFFE4DDCC)),
                     boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
                   ),
                   child:Column(children:[
@@ -3836,7 +3923,7 @@ class _RabbitPageState extends State<RabbitPage>{
           Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(
               rr['name'].isEmpty?'Nom à renseigner':rr['name'],
-              style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:ink,height:1.05),
+              style:const TextStyle(fontSize:27,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'serif'),
             ),
             const SizedBox(height:8),
             if(rr['breed'].isNotEmpty)
@@ -3876,6 +3963,25 @@ class _RabbitPageState extends State<RabbitPage>{
     ));
 
     return Scaffold(
+      bottomNavigationBar:Material(
+        color:heroGreen,
+        elevation:16,
+        child:SafeArea(
+          top:false,
+          child:Container(
+            decoration:const BoxDecoration(
+              gradient:LinearGradient(colors:[Color(0xFF0D3A26),Color(0xFF145438)]),
+              border:Border(top:BorderSide(color:Color(0x66D4AF67))),
+            ),
+            child:Row(children:[
+              Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
+              Expanded(child:_rabbitBottomNavItem(Icons.pets_outlined,'Mes lapins',true,(){})),
+              Expanded(child:_rabbitBottomNavItem(Icons.notifications_none,'Rappels',false,(){})),
+              Expanded(child:_rabbitBottomNavItem(Icons.more_horiz,'Plus',false,(){})),
+            ]),
+          ),
+        ),
+      ),
       body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
         SliverAppBar(
           backgroundColor:lapiGreenDark,
@@ -3937,6 +4043,22 @@ class _RabbitPageState extends State<RabbitPage>{
       ]))),
     );
   }
+  Widget _rabbitBottomNavItem(IconData icon,String label,bool selected,VoidCallback onTap)=>InkWell(
+    onTap:onTap,
+    child:Padding(
+      padding:const EdgeInsets.symmetric(vertical:7),
+      child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Icon(icon,size:23,color:selected?warmGoldText:Colors.white),
+        const SizedBox(height:2),
+        Text(label,style:TextStyle(fontSize:11,fontWeight:selected?FontWeight.w800:FontWeight.w600,color:selected?warmGoldText:Colors.white,fontFamily:selected?'serif':null)),
+        if(selected)...[
+          const SizedBox(height:3),
+          Container(width:26,height:2,decoration:BoxDecoration(color:gold,borderRadius:BorderRadius.circular(99))),
+        ],
+      ]),
+    ),
+  );
+
   Widget header(String t,IconData i)=>Padding(
     padding:const EdgeInsets.only(bottom:14),
     child:Row(children:[
@@ -3946,18 +4068,21 @@ class _RabbitPageState extends State<RabbitPage>{
         child:Icon(i,color:lapiGreenDark,size:22),
       ),
       const SizedBox(width:10),
-      Expanded(child:Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink,height:1.05))),
+      Expanded(child:Text(t,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'serif'))),
     ]),
   );
   Widget section(String t,IconData i,List<Widget> ch)=>Container(
     decoration:BoxDecoration(
-      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 6))],
+      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,6))],
     ),
     child:Card(
-      child:Padding(
-        padding:const EdgeInsets.all(16),
-        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
-      ),
+      child:Stack(children:[
+        Positioned(right:8,bottom:6,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.42),size:27))),
+        Padding(
+          padding:const EdgeInsets.all(16),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
+        ),
+      ]),
     ),
   );
   Widget info(String a,dynamic b){
@@ -4035,7 +4160,7 @@ class _RabbitPageState extends State<RabbitPage>{
       Row(children:[
         Container(width:38,height:38,decoration:BoxDecoration(color:const Color(0xFFEF6C00).withValues(alpha:.12),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
         const SizedBox(width:9),
-        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink)),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
       ]),
       const SizedBox(height:10),
       ...alerts.take(5).map((a)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.circle,size:7,color:Color(0xFFEF6C00)),const SizedBox(width:8),Expanded(child:Text(a,style:const TextStyle(fontSize:13)))]))),
