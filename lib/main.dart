@@ -23,19 +23,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 const gold = Color(0xFFD4AF67);
 const ink = Color(0xFF171512);
-const ivory = Color(0xFFF7F8F6);
+const ivory = Color(0xFFFFFCF5);
 const brown = Color(0xFF405044);
 const lapiGreen = Color(0xFF247A4B);
 const lapiGreenDark = Color(0xFF155A36);
-const paper = Color(0xFFFAF8F2);
-const mist = Color(0xFFF2F5F0);
-const premiumCard = Color(0xFFFFFEFB);
-const lineSoft = Color(0xFFD8E0D8);
-const heroGreen = Color(0xFF103B27);
-const heroGreen2 = Color(0xFF1A5B3D);
-const warmGoldText = Color(0xFFF3E3B0);
+const paper = Color(0xFFF8F6EE);
+const mist = Color(0xFFF1F5EF);
+const premiumCard = Color(0xFFFFFEFA);
+const lineSoft = Color(0xFFE4DDC8);
+const heroGreen = Color(0xFF0B3F2D);
+const heroGreen2 = Color(0xFF155C42);
+const warmGoldText = Color(0xFFF2D88D);
 const cream = Color(0xFFFFFCF5);
-const softGoldLine = Color(0xFFE6D19A);
+const softGoldLine = Color(0xFFDCC47B);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,7 +61,7 @@ class LapibreizhApp extends StatelessWidget {
         titleTextStyle: TextStyle(
           fontSize:20,
           fontWeight:FontWeight.w800,
-          color:warmGoldText,
+          color:Colors.white,
           letterSpacing:.2,
           fontFamily:'serif',
         ),
@@ -82,12 +82,12 @@ class LapibreizhApp extends StatelessWidget {
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: softGoldLine, width: .9),
+          side: const BorderSide(color: softGoldLine, width: 1.0),
         ),
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
-          backgroundColor:heroGreen2,
+          backgroundColor:heroGreen,
           foregroundColor:Colors.white,
           padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
@@ -103,6 +103,17 @@ class LapibreizhApp extends StatelessWidget {
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
           side:const BorderSide(color:softGoldLine,width:.9),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states)=>states.contains(WidgetState.selected)?gold:Colors.white,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states)=>states.contains(WidgetState.selected)?heroGreen2:const Color(0xFFB8C5BC),
+        ),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states)=>states.contains(WidgetState.selected)?gold:lapiGreenDark,
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -1096,7 +1107,7 @@ class VeterinaryResultsPage extends StatelessWidget {
                         Container(
                           padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                           decoration:BoxDecoration(
-                            color:const Color(0xFF2E7D32).withValues(alpha:.12),
+                            color:const Color(0xFF2E7A55).withValues(alpha:.12),
                             borderRadius:BorderRadius.circular(10),
                           ),
                           child:const Text(
@@ -1647,17 +1658,17 @@ class _HomePageState extends State<HomePage>{
             Container(
               padding:const EdgeInsets.all(12),
               decoration:BoxDecoration(
-                color:const Color(0xFFFFF4F3),
+                color:gold.withValues(alpha:.07),
                 borderRadius:BorderRadius.circular(6),
-                border:Border.all(color:const Color(0xFFF1C4C0)),
+                border:Border.all(color:softGoldLine),
               ),
               child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                const Icon(Icons.wifi_off_outlined,color:Color(0xFFB3261E),size:20),
+                const Icon(Icons.wifi_off_outlined,color:lapiGreenDark,size:20),
                 const SizedBox(width:9),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                  const Text('Recherche momentanément indisponible',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:Color(0xFF8C1D18))),
+                  const Text('Recherche momentanément indisponible',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:lapiGreenDark)),
                   const SizedBox(height:3),
-                  Text(vetError,style:const TextStyle(fontSize:11,color:Color(0xFF7A4743))),
+                  Text(vetError,style:const TextStyle(fontSize:11,color:brown)),
                   const SizedBox(height:5),
                   TextButton.icon(
                     onPressed:vetLoading?null:_searchVeterinarians,
@@ -1746,33 +1757,39 @@ class _HomePageState extends State<HomePage>{
           Container(
             padding:const EdgeInsets.all(13),
             decoration:BoxDecoration(
-              color:const Color(0xFFC62828).withValues(alpha:.06),
+              gradient:const LinearGradient(colors:[heroGreen,heroGreen2]),
               borderRadius:BorderRadius.circular(12),
-              border:Border.all(color:const Color(0xFFC62828).withValues(alpha:.35)),
+              border:Border.all(color:gold,width:1),
+              boxShadow:[BoxShadow(color:heroGreen.withValues(alpha:.12),blurRadius:10,offset:const Offset(0,4))],
             ),
             child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
               const Row(children:[
-                Icon(Icons.emergency,color:Color(0xFFC62828)),
+                Icon(Icons.emergency,color:gold),
                 SizedBox(width:7),
-                Text('URGENCE VÉTÉRINAIRE',style:TextStyle(fontWeight:FontWeight.w900,color:Color(0xFFC62828))),
+                Text('URGENCE VÉTÉRINAIRE',style:TextStyle(fontWeight:FontWeight.w900,color:warmGoldText)),
               ]),
               const SizedBox(height:5),
               const Text(
                 'En cas d’urgence, si vous ne trouvez pas de vétérinaire disponible, composez le 3115.',
-                style:TextStyle(fontSize:12,fontWeight:FontWeight.w700),
+                style:TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:Colors.white),
               ),
               const SizedBox(height:4),
               const Text(
                 'Demandez un vétérinaire spécialisé dans les NAC.',
-                style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:brown),
+                style:TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:warmGoldText),
               ),
               const SizedBox(height:5),
               const Text(
                 'Le 3115 vous oriente selon votre secteur ; lorsque celui-ci n’est pas couvert, le service indique la procédure pour trouver un vétérinaire de garde.',
-                style:TextStyle(fontSize:10,color:Colors.black54),
+                style:TextStyle(fontSize:10,color:Color(0xFFE7EEE9)),
               ),
               const SizedBox(height:9),
               OutlinedButton.icon(
+                style:OutlinedButton.styleFrom(
+                  backgroundColor:premiumCard,
+                  foregroundColor:lapiGreenDark,
+                  side:const BorderSide(color:gold),
+                ),
                 onPressed:()=>VeterinaryService.call('3115'),
                 icon:const Icon(Icons.call),
                 label:const Text('Appeler le 3115'),
@@ -1812,7 +1829,7 @@ class _HomePageState extends State<HomePage>{
           label:const Text('Ajouter un lapin'),
           style:FilledButton.styleFrom(
             backgroundColor:heroGreen,
-            side:BorderSide(color:gold.withValues(alpha:.75)),
+            side:const BorderSide(color:gold,width:1.1),
             padding:const EdgeInsets.symmetric(vertical:12),
           ),
         ),
@@ -1863,7 +1880,7 @@ class _HomePageState extends State<HomePage>{
                         color:const Color(0xFFE9F5EA),
                         borderRadius:BorderRadius.circular(999),
                       ),
-                      child:Text(status,style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:status=='Réservé'?const Color(0xFFEF6C00):lapiGreenDark)),
+                      child:Text(status,style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:status=='Réservé'?const Color(0xFF9A762A):lapiGreenDark)),
                     ),
                 ]),
                 trailing:const Icon(Icons.chevron_right,color:brown),
@@ -1884,13 +1901,13 @@ class _HomePageState extends State<HomePage>{
       constraints:const BoxConstraints(minHeight:82),
       padding:const EdgeInsets.fromLTRB(9,9,8,8),
       decoration:BoxDecoration(
-        color:color.withValues(alpha:.075),
+        color:premiumCard,
         borderRadius:BorderRadius.circular(12),
-        border:Border.all(color:color.withValues(alpha:.20)),
+        border:Border.all(color:softGoldLine,width:.8),
         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.025),blurRadius:6,offset:const Offset(0,3))],
       ),
       child:Stack(children:[
-        Positioned(right:-4,bottom:-5,child:Icon(icon,size:35,color:color.withValues(alpha:.08))),
+        Positioned(right:-4,bottom:-5,child:Icon(icon,size:35,color:gold.withValues(alpha:.12))),
         Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Row(children:[
             Icon(icon,color:color,size:18),
@@ -1925,13 +1942,13 @@ class _HomePageState extends State<HomePage>{
             ]),
             const SizedBox(height:9),
             Row(children:[
-              _premiumDashTile('Lapins','${rabbits.length}',Icons.pets,const Color(0xFF765244)),
+              _premiumDashTile('Lapins','${rabbits.length}',Icons.pets,const Color(0xFF315B49)),
               const SizedBox(width:6),
-              _premiumDashTile('RDV à venir','${_upcomingAppointments()}',Icons.event_available,const Color(0xFF1565C0)),
+              _premiumDashTile('RDV à venir','${_upcomingAppointments()}',Icons.event_available,const Color(0xFF1F6548)),
               const SizedBox(width:6),
-              _premiumDashTile('Rappels ≤ 30 j','${_healthRemindersSoon()}',Icons.notifications_active,const Color(0xFF2E7D32)),
+              _premiumDashTile('Rappels ≤ 30 j','${_healthRemindersSoon()}',Icons.notifications_active,const Color(0xFF2D7654)),
               const SizedBox(width:6),
-              _premiumDashTile(appMode=='Éleveur'?'Réservés':'À compléter',appMode=='Éleveur'?'${_reservedCount()}':'${_incompleteCount()}',appMode=='Éleveur'?Icons.favorite:Icons.fact_check,const Color(0xFFEF6C00)),
+              _premiumDashTile(appMode=='Éleveur'?'Réservés':'À compléter',appMode=='Éleveur'?'${_reservedCount()}':'${_incompleteCount()}',appMode=='Éleveur'?Icons.favorite:Icons.fact_check,const Color(0xFF426D57)),
             ]),
             if(next!=null)...[
               const SizedBox(height:9),
@@ -2077,13 +2094,13 @@ class _HomePageState extends State<HomePage>{
         boxShadow:selected?[BoxShadow(color:gold.withValues(alpha:.16),blurRadius:8,offset:const Offset(0,3))]:null,
       ),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
-        Icon(icon,size:16,color:selected?gold:Colors.white),
+        Icon(icon,size:16,color:selected?warmGoldText:Colors.white),
         const SizedBox(width:5),
         Flexible(child:Text(
           label,
           maxLines:1,
           overflow:TextOverflow.ellipsis,
-          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?gold:Colors.white),
+          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?warmGoldText:Colors.white),
         )),
       ]),
     ),
@@ -2146,7 +2163,7 @@ class _HomePageState extends State<HomePage>{
               return Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Expanded(child:sexBlock()),
                 const SizedBox(width:9),
-                Container(width:1,height:106,color:const Color(0xFFE5E0D2)),
+                Container(width:1,height:106,color:softGoldLine.withValues(alpha:.65)),
                 const SizedBox(width:9),
                 Expanded(child:adoptionBlock()),
               ]);
@@ -2263,7 +2280,7 @@ class _HomePageState extends State<HomePage>{
                   decoration:BoxDecoration(
                     color:premiumCard,
                     borderRadius:BorderRadius.circular(20),
-                    border:Border.all(color:const Color(0xFFE4DDCC)),
+                    border:Border.all(color:softGoldLine,width:.85),
                     boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
                   ),
                   child:Column(children:[
@@ -2767,16 +2784,16 @@ class _RabbitPageState extends State<RabbitPage>{
       return Container(
         margin:const EdgeInsets.only(bottom:8),
         decoration:BoxDecoration(
-          color:(on?const Color(0xFF1565C0):Colors.black54).withValues(alpha:.07),
+          color:(on?const Color(0xFF1E6A49):Colors.black54).withValues(alpha:.07),
           borderRadius:BorderRadius.circular(15),
-          border:Border.all(color:(on?const Color(0xFF1565C0):Colors.black38).withValues(alpha:.35)),
+          border:Border.all(color:(on?const Color(0xFF1E6A49):Colors.black38).withValues(alpha:.35)),
         ),
         child:Column(children:[
           ListTile(
             onTap:()=>editMedication(item),
             leading:CircleAvatar(
-              backgroundColor:(on?const Color(0xFF1565C0):Colors.black45).withValues(alpha:.12),
-              child:Icon(on?Icons.medication_liquid_outlined:Icons.task_alt,color:on?const Color(0xFF1565C0):Colors.black54),
+              backgroundColor:(on?const Color(0xFF1E6A49):Colors.black45).withValues(alpha:.12),
+              child:Icon(on?Icons.medication_liquid_outlined:Icons.task_alt,color:on?const Color(0xFF1E6A49):Colors.black54),
             ),
             title:Text(((item['name']??'') as String).trim().isEmpty?'Médicament':item['name'],style:const TextStyle(fontWeight:FontWeight.w900)),
             subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -2827,7 +2844,7 @@ class _RabbitPageState extends State<RabbitPage>{
           )
         else...[
           Row(children:[
-            Expanded(child:Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFF1565C0).withValues(alpha:.08),borderRadius:BorderRadius.circular(14)),child:Column(children:[
+            Expanded(child:Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFF1E6A49).withValues(alpha:.08),borderRadius:BorderRadius.circular(14)),child:Column(children:[
               Text('${active.length}',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:Color(0xFF1565C0))),
               const Text('En cours',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700)),
             ]))),
@@ -3155,10 +3172,10 @@ class _RabbitPageState extends State<RabbitPage>{
           IconButton(tooltip:'Ajouter',onPressed:addCompetition,icon:const Icon(Icons.add_circle_outline,color:brown)),
         ]),
         Wrap(spacing:8,runSpacing:8,children:[
-          competitionStat('Engagements','${items.length}',Icons.event_note,const Color(0xFF6D4C41)),
-          competitionStat('À venir','$upcoming',Icons.calendar_month,const Color(0xFF1565C0)),
-          competitionStat('Distinctions','$distinctions',Icons.emoji_events,const Color(0xFFEF6C00)),
-          competitionStat('Meilleure note',best==null?'—':best.toStringAsFixed(best%1==0?0:1).replaceAll('.',','),Icons.stars,const Color(0xFF2E7D32)),
+          competitionStat('Engagements','${items.length}',Icons.event_note,const Color(0xFF3E6553)),
+          competitionStat('À venir','$upcoming',Icons.calendar_month,const Color(0xFF1E6A49)),
+          competitionStat('Distinctions','$distinctions',Icons.emoji_events,const Color(0xFF9A762A)),
+          competitionStat('Meilleure note',best==null?'—':best.toStringAsFixed(best%1==0?0:1).replaceAll('.',','),Icons.stars,const Color(0xFF2E7A55)),
         ]),
         const SizedBox(height:8),
         FilledButton.icon(onPressed:exportCompetitionPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Exporter le palmarès PDF')),
@@ -3176,22 +3193,22 @@ class _RabbitPageState extends State<RabbitPage>{
             margin:const EdgeInsets.only(bottom:10),
             padding:const EdgeInsets.all(12),
             decoration:BoxDecoration(
-              color:isUpcoming?const Color(0xFF1565C0).withValues(alpha:.06):gold.withValues(alpha:.06),
+              color:isUpcoming?const Color(0xFF1E6A49).withValues(alpha:.06):gold.withValues(alpha:.06),
               borderRadius:BorderRadius.circular(16),
-              border:Border.all(color:isUpcoming?const Color(0xFF1565C0).withValues(alpha:.35):gold.withValues(alpha:.45)),
+              border:Border.all(color:isUpcoming?const Color(0xFF1E6A49).withValues(alpha:.35):gold.withValues(alpha:.45)),
             ),
             child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
               Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Container(
                   width:42,height:42,
-                  decoration:BoxDecoration(color:(award.isNotEmpty&&award!='Aucune'?const Color(0xFFEF6C00):brown).withValues(alpha:.10),shape:BoxShape.circle),
-                  child:Icon(award.isNotEmpty&&award!='Aucune'?Icons.emoji_events:Icons.event,color:award.isNotEmpty&&award!='Aucune'?const Color(0xFFEF6C00):brown),
+                  decoration:BoxDecoration(color:(award.isNotEmpty&&award!='Aucune'?const Color(0xFF9A762A):brown).withValues(alpha:.10),shape:BoxShape.circle),
+                  child:Icon(award.isNotEmpty&&award!='Aucune'?Icons.emoji_events:Icons.event,color:award.isNotEmpty&&award!='Aucune'?const Color(0xFF9A762A):brown),
                 ),
                 const SizedBox(width:9),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Row(children:[
                     Expanded(child:Text(((item['name']??'') as String).trim().isEmpty?'Concours / exposition':item['name'],style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16,color:ink))),
-                    if(isUpcoming)Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),decoration:BoxDecoration(color:const Color(0xFF1565C0).withValues(alpha:.10),borderRadius:BorderRadius.circular(10)),child:const Text('À VENIR',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:Color(0xFF1565C0)))),
+                    if(isUpcoming)Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),decoration:BoxDecoration(color:const Color(0xFF1E6A49).withValues(alpha:.10),borderRadius:BorderRadius.circular(10)),child:const Text('À VENIR',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:Color(0xFF1565C0)))),
                   ]),
                   Text('${item['date']??''}${((item['location']??'') as String).trim().isEmpty?'':' • ${item['location']}'}',style:const TextStyle(fontSize:12,color:Colors.black54)),
                 ])),
@@ -3216,7 +3233,7 @@ class _RabbitPageState extends State<RabbitPage>{
                 padding:const EdgeInsets.only(top:7),
                 child:Container(
                   padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
-                  decoration:BoxDecoration(color:const Color(0xFFEF6C00).withValues(alpha:.09),borderRadius:BorderRadius.circular(12)),
+                  decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(12)),
                   child:Row(children:[const Icon(Icons.emoji_events,color:Color(0xFFEF6C00),size:19),const SizedBox(width:7),Expanded(child:Text(award,style:const TextStyle(fontWeight:FontWeight.w900,color:ink)))]),
                 ),
               ),
@@ -4287,13 +4304,13 @@ class _RabbitPageState extends State<RabbitPage>{
       return Container(
         margin:const EdgeInsets.symmetric(vertical:4),
         padding:const EdgeInsets.all(13),
-        decoration:BoxDecoration(color:const Color(0xFF2E7D32).withValues(alpha:.08),borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFF2E7D32).withValues(alpha:.45))),
+        decoration:BoxDecoration(color:const Color(0xFF2E7A55).withValues(alpha:.08),borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFF2E7A55).withValues(alpha:.45))),
         child:const Row(children:[Icon(Icons.check_circle_outline,color:Color(0xFF2E7D32)),SizedBox(width:9),Expanded(child:Text('Les informations essentielles de cette fiche sont complètes.',style:TextStyle(fontWeight:FontWeight.w700,color:ink)))]),
       );
     }
     return Card(child:Padding(padding:const EdgeInsets.all(15),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       Row(children:[
-        Container(width:38,height:38,decoration:BoxDecoration(color:const Color(0xFFEF6C00).withValues(alpha:.12),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
+        Container(width:38,height:38,decoration:BoxDecoration(color:gold.withValues(alpha:.14),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
         const SizedBox(width:9),
         const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
       ]),
@@ -4321,12 +4338,12 @@ class _RabbitPageState extends State<RabbitPage>{
     final earliest=engagementEarliestDeparture();
     final departure=Notifications.parseDate(r!['departureDate'] as String?);
     final delayOk=earliest==null||departure==null||!departure.isBefore(earliest);
-    Color statusColor=status=='Adopté / parti'?const Color(0xFF2E7D32):status=='Réservé'?const Color(0xFF1565C0):brown;
+    Color statusColor=status=='Adopté / parti'?const Color(0xFF2D7654):status=='Réservé'?const Color(0xFF9A762A):lapiGreenDark;
 
     Widget step(String label,bool ok)=>Padding(
       padding:const EdgeInsets.only(bottom:6),
       child:Row(children:[
-        Icon(ok?Icons.check_circle:Icons.radio_button_unchecked,color:ok?const Color(0xFF2E7D32):Colors.black38,size:19),
+        Icon(ok?Icons.check_circle:Icons.radio_button_unchecked,color:ok?const Color(0xFF2E7A55):Colors.black38,size:19),
         const SizedBox(width:8),
         Expanded(child:Text(label,style:TextStyle(fontSize:13,fontWeight:ok?FontWeight.w700:FontWeight.w500,color:ok?ink:Colors.black54))),
       ]),
@@ -4370,13 +4387,13 @@ class _RabbitPageState extends State<RabbitPage>{
         Container(
           padding:const EdgeInsets.all(12),
           decoration:BoxDecoration(
-            color:(engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)).withValues(alpha:.08),
+            color:engagementOk?const Color(0xFFEAF4EC):gold.withValues(alpha:.07),
             borderRadius:BorderRadius.circular(16),
-            border:Border.all(color:(engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)).withValues(alpha:.45)),
+            border:Border.all(color:engagementOk?const Color(0xFF9BC7AA):softGoldLine),
           ),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             Row(children:[
-              Icon(engagementOk?Icons.verified_outlined:Icons.draw_outlined,color:engagementOk?const Color(0xFF2E7D32):const Color(0xFF1565C0)),
+              Icon(engagementOk?Icons.verified_outlined:Icons.draw_outlined,color:engagementOk?lapiGreenDark:gold),
               const SizedBox(width:8),
               const Expanded(child:Text('Certificat d’engagement et de connaissance',style:TextStyle(fontWeight:FontWeight.w900,color:ink))),
             ]),
@@ -4464,9 +4481,9 @@ class _RabbitPageState extends State<RabbitPage>{
       const Text('Profil cumulé de toutes les portées liées',style:TextStyle(fontWeight:FontWeight.w800,color:brown)),
       const SizedBox(height:9),
       Wrap(spacing:8,runSpacing:8,children:[
-        _profileBubble('Femelles',female,const Color(0xFF2E7D32)),
-        _profileBubble('Équilibre',balance,const Color(0xFF1565C0)),
-        _profileBubble('Mâles',male,const Color(0xFFEF6C00)),
+        _profileBubble('Femelles',female,const Color(0xFF2E7A55)),
+        _profileBubble('Équilibre',balance,const Color(0xFF1E6A49)),
+        _profileBubble('Mâles',male,const Color(0xFF9A762A)),
       ]),
       const SizedBox(height:7),
       Text('$sexed lapereaux sexés pris en compte • ${records.length} ${records.length>1?'portées liées':'portée liée'}',style:const TextStyle(fontSize:12,color:Colors.black54)),
@@ -4524,9 +4541,9 @@ class _RabbitPageState extends State<RabbitPage>{
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Text(cumulative?'Graphique cumulé':'Résultats de la portée',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
         const SizedBox(height:7),
-        _chartRow(label:'Vivants à la naissance',male:liveMale,female:liveFemale,color:const Color(0xFF2E7D32),maxValue:maxValue),
-        _chartRow(label:'Morts à la naissance',male:deadMale,female:deadFemale,color:const Color(0xFFEF6C00),maxValue:maxValue),
-        _chartRow(label:'Vivants au sevrage',male:weanedMale,female:weanedFemale,color:const Color(0xFF1565C0),maxValue:maxValue),
+        _chartRow(label:'Vivants à la naissance',male:liveMale,female:liveFemale,color:const Color(0xFF2E7A55),maxValue:maxValue),
+        _chartRow(label:'Morts à la naissance',male:deadMale,female:deadFemale,color:gold,maxValue:maxValue),
+        _chartRow(label:'Vivants au sevrage',male:weanedMale,female:weanedFemale,color:const Color(0xFF1E6A49),maxValue:maxValue),
         _chartRow(label:'Pertes avant sevrage',male:lossMale,female:lossFemale,color:const Color(0xFF8D6E63),maxValue:maxValue),
       ]),
     );
@@ -4629,9 +4646,9 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Color _healthColor(String kind){
-    if(kind=='Vaccin')return const Color(0xFF2E7D32);
-    if(kind=='Vermifuge')return const Color(0xFFEF6C00);
-    return const Color(0xFF1565C0);
+    if(kind=='Vaccin')return const Color(0xFF2D7654);
+    if(kind=='Vermifuge')return const Color(0xFF3C674F);
+    return const Color(0xFF1D6044);
   }
 
   IconData _healthIcon(String kind){
@@ -4645,9 +4662,9 @@ class _RabbitPageState extends State<RabbitPage>{
       width:108,
       padding:const EdgeInsets.symmetric(horizontal:8,vertical:8),
       decoration:BoxDecoration(
-        color:color.withValues(alpha:.09),
+        color:premiumCard,
         borderRadius:BorderRadius.circular(17),
-        border:Border.all(color:color.withValues(alpha:.48)),
+        border:Border.all(color:softGoldLine,width:.85),
       ),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Icon(icon,color:color,size:21),
@@ -4752,9 +4769,9 @@ class _RabbitPageState extends State<RabbitPage>{
             margin:const EdgeInsets.only(bottom:7),
             padding:const EdgeInsets.fromLTRB(12,10,10,10),
             decoration:BoxDecoration(
-              color:Colors.white.withValues(alpha:.72),
+              color:premiumCard,
               borderRadius:BorderRadius.circular(15),
-              border:Border.all(color:color.withValues(alpha:.34)),
+              border:Border.all(color:softGoldLine,width:.8),
             ),
             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Row(children:[
@@ -4814,17 +4831,17 @@ class _RabbitPageState extends State<RabbitPage>{
         const SizedBox(height:9),
 
         Wrap(spacing:8,runSpacing:8,children:[
-          _healthStat('Événements',past.length,Icons.monitor_heart,const Color(0xFF6D4C41)),
-          _healthStat('Vaccins',vaccines,Icons.vaccines,const Color(0xFF2E7D32)),
-          _healthStat('Vermifuges',dewormings,Icons.medication,const Color(0xFFEF6C00)),
-          _healthStat('Visites véto',vetVisits,Icons.local_hospital,const Color(0xFF1565C0)),
+          _healthStat('Événements',past.length,Icons.monitor_heart,const Color(0xFF315B49)),
+          _healthStat('Vaccins',vaccines,Icons.vaccines,const Color(0xFF2D7654)),
+          _healthStat('Vermifuges',dewormings,Icons.medication,const Color(0xFF3C674F)),
+          _healthStat('Visites véto',vetVisits,Icons.local_hospital,const Color(0xFF1D6044)),
         ]),
 
         const SizedBox(height:11),
         Container(
           padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
           decoration:BoxDecoration(
-            color:ink.withValues(alpha:.92),
+            gradient:const LinearGradient(colors:[heroGreen,heroGreen2]),
             borderRadius:BorderRadius.circular(15),
           ),
           child:Row(children:[
@@ -4879,8 +4896,18 @@ class _RabbitPageState extends State<RabbitPage>{
           Wrap(spacing:7,runSpacing:7,children:[
             for(final f in ['Tout','Vaccins','Vermifuges','Véto'])
               ChoiceChip(
-                label:Text(f),
+                label:Text(
+                  f,
+                  style:TextStyle(
+                    color:healthFilter==f?warmGoldText:Colors.white,
+                    fontWeight:FontWeight.w800,
+                  ),
+                ),
                 selected:healthFilter==f,
+                backgroundColor:heroGreen2,
+                selectedColor:heroGreen,
+                checkmarkColor:warmGoldText,
+                side:BorderSide(color:healthFilter==f?gold:Colors.white24,width:healthFilter==f?1.15:.7),
                 onSelected:(_)=>setState((){healthFilter=f;healthExpanded=false;}),
               ),
           ]),
@@ -5219,7 +5246,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
           decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(16)),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             Row(children:[
-              Icon(hasPhoto?Icons.check_circle:Icons.photo_outlined,color:hasPhoto?const Color(0xFF2E7D32):brown),
+              Icon(hasPhoto?Icons.check_circle:Icons.photo_outlined,color:hasPhoto?const Color(0xFF2E7A55):brown),
               const SizedBox(width:8),
               const Expanded(child:Text('Photo du concours',style:TextStyle(fontWeight:FontWeight.w800))),
               TextButton(onPressed:choosePhoto,child:Text(hasPhoto?'Remplacer':'Choisir')),
@@ -5227,7 +5254,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
             ]),
             const Divider(),
             Row(children:[
-              Icon(hasSheet?Icons.check_circle:Icons.description_outlined,color:hasSheet?const Color(0xFF2E7D32):brown),
+              Icon(hasSheet?Icons.check_circle:Icons.description_outlined,color:hasSheet?const Color(0xFF2E7A55):brown),
               const SizedBox(width:8),
               const Expanded(child:Text('Carte / fiche de jugement',style:TextStyle(fontWeight:FontWeight.w800))),              TextButton(onPressed:chooseSheet,child:Text(hasSheet?'Remplacer':'Joindre')),
               if(hasSheet)IconButton(tooltip:'Retirer',onPressed:()=>setState((){newSheetSource=null;removeSheet=true;}),icon:const Icon(Icons.close)),
