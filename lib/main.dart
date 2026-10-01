@@ -278,6 +278,7 @@ class Store {
       if(r['adoptionInfoGiven']==null){r['adoptionInfoGiven']=false;changed=true;}
       if(r['appointments']==null){r['appointments']=[];changed=true;}
       if(r['weights']==null){r['weights']=[];changed=true;}
+      if(r['competitions']==null){r['competitions']=[];changed=true;}
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((r[key] as List?)??[])){
           final item=raw as Map<String,dynamic>;
@@ -473,6 +474,14 @@ class PrivateFiles {
           if(moved!=old){item['photo']=moved;changed=true;}
         }
       }
+      for(final raw in ((r['competitions'] as List?)??[])){
+        final item=raw as Map<String,dynamic>;
+        for(final entry in {'photo':'competitions','judgingSheet':'competitions'}.entries){
+          final old=((item[entry.key]??'') as String);
+          final moved=await _migratePath(old,entry.value);
+          if(moved!=old){item[entry.key]=moved;changed=true;}
+        }
+      }
     }
     try{
       final legacy=await _legacyRoot();
@@ -545,6 +554,13 @@ class BackupService {
         final item=raw as Map<String,dynamic>;
         final p=((item['photo']??'') as String);
         if(p.isNotEmpty)yield MapEntry(p,'treatments');
+      }
+    }
+    for(final raw in ((rabbit['competitions'] as List?)??[])){
+      final item=raw as Map<String,dynamic>;
+      for(final key in ['photo','judgingSheet']){
+        final p=((item[key]??'') as String);
+        if(p.isNotEmpty)yield MapEntry(p,'competitions');
       }
     }
   }
@@ -634,6 +650,11 @@ class BackupService {
           final item=raw as Map<String,dynamic>;
           item['photo']=await restorePath(((item['photo']??'') as String),'treatments');
         }
+      }
+      for(final raw in ((rabbit['competitions'] as List?)??[])){
+        final item=raw as Map<String,dynamic>;
+        item['photo']=await restorePath(((item['photo']??'') as String),'competitions');
+        item['judgingSheet']=await restorePath(((item['judgingSheet']??'') as String),'competitions');
       }
     }
 
@@ -1208,7 +1229,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -1216,7 +1237,7 @@ class _RabbitPageState extends State<RabbitPage>{
   String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
   bool rabbitOrganizing=false;
   List<String> rabbitOrder=[];
-  static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','weight','adoption','reproduction','vaccines','dewormings','appointments','documents'];
+  static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','weight','adoption','reproduction','competitions','vaccines','dewormings','appointments','documents'];
   static const rabbitDefaultsAdoptant=['identity','filiation','alerts','health','weight','vaccines','dewormings','appointments','documents'];
 
   @override void initState(){super.initState();load();}
@@ -1672,6 +1693,308 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
 
+  List<Map<String,dynamic>> sortedCompetitions(){
+    final items=((r!['competitions'] as List?)??[])
+        .map((e)=>Map<String,dynamic>.from(e as Map))
+        .toList();
+    final today=DateTime.now();
+    DateTime dateOf(Map<String,dynamic> e)=>Notifications.parseDate(e['date'] as String?)??DateTime(1900);
+    final upcoming=items.where((e)=>dateOf(e).isAfter(DateTime(today.year,today.month,today.day))).toList()
+      ..sort((a,b)=>dateOf(a).compareTo(dateOf(b)));
+    final past=items.where((e)=>!dateOf(e).isAfter(DateTime(today.year,today.month,today.day))).toList()
+      ..sort((a,b)=>dateOf(b).compareTo(dateOf(a)));
+    return [...upcoming,...past];
+  }
+
+  String competitionAwardLabel(Map<String,dynamic> item){
+    final award=((item['award']??'') as String).trim();
+    if(award=='Autre récompense')return ((item['customAward']??'') as String).trim();
+    return award;
+  }
+
+  double? competitionScore(Map<String,dynamic> item){
+    final raw=((item['score']??'') as String).trim().replaceAll(',','.');
+    return double.tryParse(raw);
+  }
+
+  Future<void> addCompetition()async{
+    final item=<String,dynamic>{
+      'id':'c_${DateTime.now().microsecondsSinceEpoch}',
+      'date':Notifications.formatDate(DateTime.now()),
+      'name':'','location':'','category':'','cageNumber':'','judge':'',
+      'tattoo':((r!['tattoo']??'') as String),'weightGrams':0,
+      'score':'','qualification':'Non renseigné','ranking':'',
+      'award':'Aucune','customAward':'','comments':'',
+      'photo':'','judgingSheet':'',
+    };
+    await showDialog(
+      context:context,
+      builder:(ctx)=>CompetitionDialog(
+        item:item,
+        onSave:(v)async{
+          (r!['competitions'] as List).add(v);
+          await persist();
+          if(ctx.mounted)Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> editCompetition(Map<String,dynamic> competition)async{
+    final list=r!['competitions'] as List;
+    final id=(competition['id']??'') as String;
+    final index=list.indexWhere((e)=>(e as Map)['id']==id);
+    if(index<0)return;
+    final current=Map<String,dynamic>.from(list[index] as Map);
+    await showDialog(
+      context:context,
+      builder:(ctx)=>CompetitionDialog(
+        item:current,
+        onSave:(v)async{
+          list[index]=v;
+          await persist();
+          if(ctx.mounted)Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  Future<void> deleteCompetition(Map<String,dynamic> competition)async{
+    final ok=await showDialog<bool>(
+      context:context,
+      builder:(c)=>AlertDialog(
+        title:const Text('Supprimer ce concours ?'),
+        content:const Text('La participation, sa photo et sa carte de jugement enregistrées dans l’application seront supprimées.'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
+          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+        ],
+      ),
+    )??false;
+    if(!ok)return;
+    final list=r!['competitions'] as List;
+    final id=(competition['id']??'') as String;
+    final match=list.where((e)=>(e as Map)['id']==id).cast<Map>().toList();
+    if(match.isNotEmpty){
+      await PrivateFiles.deleteFile((match.first['photo']??'') as String);
+      await PrivateFiles.deleteFile((match.first['judgingSheet']??'') as String);
+    }
+    list.removeWhere((e)=>(e as Map)['id']==id);
+    await persist();
+  }
+
+  Future<void> openCompetitionFile(String path,String title)async{
+    if(path.isEmpty||!File(path).existsSync())return;
+    if(PrivateFiles.isImage(path)){
+      if(!mounted)return;
+      await showDialog(context:context,builder:(c)=>Dialog.fullscreen(child:Scaffold(
+        backgroundColor:Colors.black,
+        appBar:AppBar(backgroundColor:ink,foregroundColor:gold,title:Text(title)),
+        body:Center(child:InteractiveViewer(minScale:.5,maxScale:6,child:Image.file(File(path),fit:BoxFit.contain))),
+      )));
+    }else{
+      await OpenFilex.open(path);
+    }
+  }
+
+  Widget competitionStat(String label,String value,IconData icon,Color color)=>Container(
+    width:142,
+    padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+    decoration:BoxDecoration(
+      color:color.withValues(alpha:.09),
+      borderRadius:BorderRadius.circular(16),
+      border:Border.all(color:color.withValues(alpha:.45)),
+    ),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Icon(icon,color:color,size:20),
+      const SizedBox(height:5),
+      Text(value,style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:color)),
+      Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:ink)),
+    ]),
+  );
+
+  Widget competitionsSection(){
+    final items=sortedCompetitions();
+    final today=DateTime.now();
+    final upcoming=items.where((e){
+      final d=Notifications.parseDate(e['date'] as String?);
+      return d!=null&&d.isAfter(DateTime(today.year,today.month,today.day));
+    }).length;
+    final distinctions=items.where((e){
+      final a=competitionAwardLabel(e);
+      return a.isNotEmpty&&a!='Aucune';
+    }).length;
+    final scores=items.map(competitionScore).whereType<double>().toList();
+    final best=scores.isEmpty?null:scores.reduce((a,b)=>a>b?a:b);
+
+    if(items.isEmpty){
+      return Card(child:Padding(
+        padding:const EdgeInsets.all(16),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          header('Concours & Expositions',Icons.emoji_events_outlined),
+          const Text('Enregistrez les expositions, cartes de jugement, notes, classements et distinctions de ce lapin.',style:TextStyle(color:Colors.black54)),
+          const SizedBox(height:12),
+          FilledButton.icon(onPressed:addCompetition,icon:const Icon(Icons.add),label:const Text('Ajouter un concours')),
+        ]),
+      ));
+    }
+
+    return Card(child:Padding(
+      padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          Expanded(child:header('Concours & Expositions',Icons.emoji_events_outlined)),
+          IconButton(tooltip:'Ajouter',onPressed:addCompetition,icon:const Icon(Icons.add_circle_outline,color:brown)),
+        ]),
+        Wrap(spacing:8,runSpacing:8,children:[
+          competitionStat('Engagements','${items.length}',Icons.event_note,const Color(0xFF6D4C41)),
+          competitionStat('À venir','$upcoming',Icons.calendar_month,const Color(0xFF1565C0)),
+          competitionStat('Distinctions','$distinctions',Icons.emoji_events,const Color(0xFFEF6C00)),
+          competitionStat('Meilleure note',best==null?'—':best.toStringAsFixed(best%1==0?0:1).replaceAll('.',','),Icons.stars,const Color(0xFF2E7D32)),
+        ]),
+        const SizedBox(height:12),
+        FilledButton.icon(onPressed:exportCompetitionPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Exporter le palmarès PDF')),
+        const SizedBox(height:12),
+        ...items.map((item){
+          final date=Notifications.parseDate(item['date'] as String?);
+          final isUpcoming=date!=null&&date.isAfter(DateTime(today.year,today.month,today.day));
+          final award=competitionAwardLabel(item);
+          final score=((item['score']??'') as String).trim();
+          final qualification=((item['qualification']??'') as String).trim();
+          final ranking=((item['ranking']??'') as String).trim();
+          final photo=((item['photo']??'') as String);
+          final sheet=((item['judgingSheet']??'') as String);
+          return Container(
+            margin:const EdgeInsets.only(bottom:10),
+            padding:const EdgeInsets.all(12),
+            decoration:BoxDecoration(
+              color:isUpcoming?const Color(0xFF1565C0).withValues(alpha:.06):gold.withValues(alpha:.06),
+              borderRadius:BorderRadius.circular(16),
+              border:Border.all(color:isUpcoming?const Color(0xFF1565C0).withValues(alpha:.35):gold.withValues(alpha:.45)),
+            ),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Container(
+                  width:42,height:42,
+                  decoration:BoxDecoration(color:(award.isNotEmpty&&award!='Aucune'?const Color(0xFFEF6C00):brown).withValues(alpha:.10),shape:BoxShape.circle),
+                  child:Icon(award.isNotEmpty&&award!='Aucune'?Icons.emoji_events:Icons.event,color:award.isNotEmpty&&award!='Aucune'?const Color(0xFFEF6C00):brown),
+                ),
+                const SizedBox(width:9),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Row(children:[
+                    Expanded(child:Text(((item['name']??'') as String).trim().isEmpty?'Concours / exposition':item['name'],style:const TextStyle(fontWeight:FontWeight.w900,fontSize:16,color:ink))),
+                    if(isUpcoming)Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),decoration:BoxDecoration(color:const Color(0xFF1565C0).withValues(alpha:.10),borderRadius:BorderRadius.circular(10)),child:const Text('À VENIR',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:Color(0xFF1565C0)))),
+                  ]),
+                  Text('${item['date']??''}${((item['location']??'') as String).trim().isEmpty?'':' • ${item['location']}'}',style:const TextStyle(fontSize:12,color:Colors.black54)),
+                ])),
+                PopupMenuButton<String>(
+                  onSelected:(v){if(v=='edit')editCompetition(item);if(v=='delete')deleteCompetition(item);},
+                  itemBuilder:(_)=>const [
+                    PopupMenuItem(value:'edit',child:Text('Modifier')),
+                    PopupMenuItem(value:'delete',child:Text('Supprimer')),
+                  ],
+                ),
+              ]),
+              if(((item['category']??'') as String).trim().isNotEmpty)Padding(padding:const EdgeInsets.only(top:6),child:Text('Classe / catégorie : ${item['category']}',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700))),
+              if(score.isNotEmpty||qualification!='Non renseigné'||ranking.isNotEmpty)Padding(
+                padding:const EdgeInsets.only(top:7),
+                child:Wrap(spacing:7,runSpacing:6,children:[
+                  if(score.isNotEmpty)Chip(label:Text('$score pts')),
+                  if(qualification.isNotEmpty&&qualification!='Non renseigné')Chip(label:Text(qualification)),
+                  if(ranking.isNotEmpty)Chip(label:Text('Classement : $ranking')),
+                ]),
+              ),
+              if(award.isNotEmpty&&award!='Aucune')Padding(
+                padding:const EdgeInsets.only(top:7),
+                child:Container(
+                  padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
+                  decoration:BoxDecoration(color:const Color(0xFFEF6C00).withValues(alpha:.09),borderRadius:BorderRadius.circular(12)),
+                  child:Row(children:[const Icon(Icons.emoji_events,color:Color(0xFFEF6C00),size:19),const SizedBox(width:7),Expanded(child:Text(award,style:const TextStyle(fontWeight:FontWeight.w900,color:ink)))]),
+                ),
+              ),
+              if(((item['judge']??'') as String).trim().isNotEmpty||((item['cageNumber']??'') as String).trim().isNotEmpty||((item['tattoo']??'') as String).trim().isNotEmpty)Padding(
+                padding:const EdgeInsets.only(top:7),
+                child:Text([
+                  if(((item['judge']??'') as String).trim().isNotEmpty)'Juge : ${item['judge']}',
+                  if(((item['cageNumber']??'') as String).trim().isNotEmpty)'Cage : ${item['cageNumber']}',
+                  if(((item['tattoo']??'') as String).trim().isNotEmpty)'Tatouage : ${item['tattoo']}',
+                ].join(' • '),style:const TextStyle(fontSize:11,color:Colors.black54)),
+              ),
+              if(((item['comments']??'') as String).trim().isNotEmpty)Padding(padding:const EdgeInsets.only(top:7),child:Text(item['comments'],style:const TextStyle(fontSize:12,fontStyle:FontStyle.italic,color:Colors.black54))),
+              if(photo.isNotEmpty||sheet.isNotEmpty)Padding(
+                padding:const EdgeInsets.only(top:7),
+                child:Wrap(spacing:6,runSpacing:6,children:[
+                  if(photo.isNotEmpty)OutlinedButton.icon(onPressed:()=>openCompetitionFile(photo,'Photo du concours'),icon:const Icon(Icons.photo_outlined),label:const Text('Photo')),
+                  if(sheet.isNotEmpty)OutlinedButton.icon(onPressed:()=>openCompetitionFile(sheet,'Carte de jugement'),icon:const Icon(Icons.description_outlined),label:const Text('Carte de jugement')),
+                ]),
+              ),
+            ]),
+          );
+        }),
+      ]),
+    ));
+  }
+
+  Future<void> exportCompetitionPdf()async{
+    final items=sortedCompetitions();
+    if(items.isEmpty)return;
+    final rr=r!;
+    final pdf=pw.Document(title:'Palmarès concours ${rr['name']}',author:'Les Lapibreizh',creator:'Carnet Santé Lapibreizh');
+    pdf.addPage(pw.MultiPage(
+      pageFormat:PdfPageFormat.a4,
+      margin:const pw.EdgeInsets.all(28),
+      header:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+        pw.Text('LES LAPIBREIZH',style:pw.TextStyle(fontSize:9,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#463622'))),
+        pw.Text('Concours & Expositions',style:pw.TextStyle(fontSize:9,color:PdfColors.grey700)),
+      ]),
+      footer:(ctx)=>pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[
+        pw.Text('Palmarès généré par Carnet Santé Lapibreizh',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+        pw.Text('${ctx.pageNumber} / ${ctx.pagesCount}',style:const pw.TextStyle(fontSize:8,color:PdfColors.grey600)),
+      ]),
+      build:(ctx)=>[
+        pw.Container(
+          padding:const pw.EdgeInsets.all(14),
+          decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromHex('#D4AF67'),width:1.5),borderRadius:pw.BorderRadius.circular(10)),
+          child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.stretch,children:[
+            pw.Text('PALMARÈS CONCOURS & EXPOSITIONS',textAlign:pw.TextAlign.center,style:pw.TextStyle(fontSize:18,fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#171512'))),
+            pw.SizedBox(height:7),
+            pw.Text(((rr['name']??'') as String).trim().isEmpty?'Lapin sans nom':rr['name'],textAlign:pw.TextAlign.center,style:pw.TextStyle(fontSize:15,fontWeight:pw.FontWeight.bold)),
+            pw.Text('${((rr['breed']??'') as String).trim().isEmpty?'Race non renseignée':rr['breed']} • Tatouage : ${((rr['tattoo']??'') as String).trim().isEmpty?'—':rr['tattoo']}',textAlign:pw.TextAlign.center,style:const pw.TextStyle(fontSize:9,color:PdfColors.grey700)),
+          ]),
+        ),
+        pw.SizedBox(height:12),
+        ...items.map((item){
+          final award=competitionAwardLabel(item);
+          final grams=item['weightGrams'] is int?item['weightGrams'] as int:int.tryParse('${item['weightGrams']}')??0;
+          return pw.Container(
+            margin:const pw.EdgeInsets.only(bottom:8),
+            padding:const pw.EdgeInsets.all(9),
+            decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromHex('#D4AF67')),borderRadius:pw.BorderRadius.circular(7)),
+            child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+              pw.Text('${item['date']??''} • ${((item['name']??'') as String).trim().isEmpty?'Concours / exposition':item['name']}',style:pw.TextStyle(fontWeight:pw.FontWeight.bold,fontSize:12)),
+              if(((item['location']??'') as String).trim().isNotEmpty)pw.Text('Lieu : ${item['location']}'),
+              if(((item['category']??'') as String).trim().isNotEmpty)pw.Text('Classe / catégorie : ${item['category']}'),
+              if(((item['judge']??'') as String).trim().isNotEmpty)pw.Text('Juge : ${item['judge']}'),
+              if(((item['score']??'') as String).trim().isNotEmpty)pw.Text('Note : ${item['score']} points'),
+              if(((item['qualification']??'') as String).trim().isNotEmpty&&item['qualification']!='Non renseigné')pw.Text('Qualificatif : ${item['qualification']}'),
+              if(((item['ranking']??'') as String).trim().isNotEmpty)pw.Text('Classement : ${item['ranking']}'),
+              if(award.isNotEmpty&&award!='Aucune')pw.Text('Récompense : $award',style:pw.TextStyle(fontWeight:pw.FontWeight.bold,color:PdfColor.fromHex('#B35C00'))),
+              if(grams>0)pw.Text('Poids du jour : $grams g'),
+              if(((item['cageNumber']??'') as String).trim().isNotEmpty)pw.Text('N° cage / passage : ${item['cageNumber']}'),
+              if(((item['comments']??'') as String).trim().isNotEmpty)pw.Text('Appréciations : ${item['comments']}'),
+            ]),
+          );
+        }),
+      ],
+    ));
+    final dir=await getTemporaryDirectory();
+    final name=((rr['name']??'Lapin') as String).trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');
+    final file=File('${dir.path}/Palmares-Concours-${name.isEmpty?'Lapin':name}.pdf');
+    await file.writeAsBytes(await pdf.save(),flush:true);
+    if(!mounted)return;
+    await Share.shareXFiles([XFile(file.path)],subject:'Palmarès concours de ${rr['name']}',text:'Historique Concours & Expositions généré par Carnet Santé Lapibreizh.');
+  }
+
   DateTime? engagementEarliestDeparture(){
     final d=Notifications.parseDate(r!['engagementDeliveryDate'] as String?);
     return d?.add(const Duration(days:7));
@@ -2068,6 +2391,25 @@ class _RabbitPageState extends State<RabbitPage>{
                 );
               }),
 
+            if(appMode=='Éleveur'&&((rr['competitions'] as List?)??[]).isNotEmpty)...[
+              _pdfTitle('Concours & Expositions'),
+              ...sortedCompetitions().map((item){
+                final award=competitionAwardLabel(item);
+                return pw.Container(
+                  margin:const pw.EdgeInsets.only(bottom:6),
+                  padding:const pw.EdgeInsets.all(7),
+                  decoration:pw.BoxDecoration(color:PdfColors.grey100,borderRadius:pw.BorderRadius.circular(6)),
+                  child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
+                    pw.Text('${item['date']??''} • ${((item['name']??'') as String).trim().isEmpty?'Concours / exposition':item['name']}',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
+                    if(((item['location']??'') as String).trim().isNotEmpty)pw.Text('Lieu : ${item['location']}'),
+                    if(((item['score']??'') as String).trim().isNotEmpty)pw.Text('Note : ${item['score']} pts'),
+                    if(((item['ranking']??'') as String).trim().isNotEmpty)pw.Text('Classement : ${item['ranking']}'),
+                    if(award.isNotEmpty&&award!='Aucune')pw.Text('Récompense : $award'),
+                  ]),
+                );
+              }),
+            ],
+
             if(appMode=='Éleveur')...[
               _pdfTitle('Adoption / départ'),
               _pdfLine('Statut',rr['adoptionStatus']),
@@ -2144,6 +2486,10 @@ class _RabbitPageState extends State<RabbitPage>{
     await ReproductionStore.removeRabbit((doomed['id']??'') as String);
     for(final k in ['photo','healthBook','passport','engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
+    for(final x in ((doomed['competitions'] as List?)??[])){
+      await PrivateFiles.deleteFile(((x as Map)['photo']??'') as String);
+      await PrivateFiles.deleteFile((x['judgingSheet']??'') as String);
+    }
     all.removeAt(widget.index);await Store.save(all);if(mounted)Navigator.pop(context);
   }}
 
@@ -2227,6 +2573,7 @@ class _RabbitPageState extends State<RabbitPage>{
       case 'weight': return weightSection();
       case 'adoption': return adoptionSection();
       case 'reproduction': return reproductionSection();
+      case 'competitions': return competitionsSection();
       case 'vaccines': return treatmentSection('Vaccins','vaccines',Icons.vaccines);
       case 'dewormings': return treatmentSection('Vermifuges','dewormings',Icons.medication);
       case 'appointments': return appointmentSection();
@@ -3183,6 +3530,188 @@ class _RabbitPageState extends State<RabbitPage>{
 }
 
 
+
+class CompetitionDialog extends StatefulWidget{
+  final Map<String,dynamic> item;
+  final Future<void> Function(Map<String,dynamic>) onSave;
+  const CompetitionDialog({super.key,required this.item,required this.onSave});
+  @override State<CompetitionDialog> createState()=>_CompetitionDialogState();
+}
+
+class _CompetitionDialogState extends State<CompetitionDialog>{
+  late Map<String,dynamic>d;
+  final picker=ImagePicker();
+  String? newPhotoSource;
+  String? newSheetSource;
+  bool removePhoto=false;
+  bool removeSheet=false;
+
+  static const awards=[
+    'Aucune','GPE – Grand Prix d’Exposition','GPH – Grand Prix d’Honneur',
+    'PH – Prix d’Honneur','PS – Prix Spécial','Meilleur de Race',
+    'Meilleur Mâle','Meilleure Femelle','Champion de France','Champion Régional',
+    'Champion Interrégional','Coupe de France','Grand Prix d’Élevage',
+    'Prix d’Élevage','Challenge','Trophée','Super GPE','Autre récompense',
+  ];
+  static const qualifications=['Non renseigné','Excellent','Très bon','Bon','Passable','Disqualifié'];
+
+  @override void initState(){
+    super.initState();
+    d=Map<String,dynamic>.from(widget.item);
+    d['id']??='c_${DateTime.now().microsecondsSinceEpoch}';
+    for(final key in ['date','name','location','category','cageNumber','judge','tattoo','score','ranking','customAward','comments','photo','judgingSheet']){d[key]??='';}
+    d['weightGrams']??=0;
+    d['qualification']??='Non renseigné';
+    d['award']??='Aucune';
+  }
+
+  Future<void> pickDate()async{
+    final current=Notifications.parseDate(d['date'] as String?)??DateTime.now();
+    final x=await showDatePicker(context:context,firstDate:DateTime(2000),lastDate:DateTime.now().add(const Duration(days:3650)),initialDate:current);
+    if(x!=null)setState(()=>d['date']=Notifications.formatDate(x));
+  }
+
+  Future<void> choosePhoto()async{
+    final x=await picker.pickImage(source:ImageSource.gallery,imageQuality:95);
+    if(x!=null)setState((){newPhotoSource=x.path;removePhoto=false;});
+  }
+
+  Future<void> chooseSheet()async{
+    final x=await FilePicker.platform.pickFiles(type:FileType.any);
+    final path=x?.files.single.path;
+    if(path!=null)setState((){newSheetSource=path;removeSheet=false;});
+  }
+
+  Future<void> save()async{
+    if(((d['date']??'') as String).trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date du concours.')));
+      return;
+    }
+    final oldPhoto=((widget.item['photo']??'') as String);
+    final oldSheet=((widget.item['judgingSheet']??'') as String);
+
+    if(removePhoto){d['photo']='';}
+    if(removeSheet){d['judgingSheet']='';}
+    if(newPhotoSource!=null){
+      final saved=await PrivateFiles.importFile(newPhotoSource!,'competitions');
+      if(saved.isNotEmpty)d['photo']=saved;
+    }
+    if(newSheetSource!=null){
+      final saved=await PrivateFiles.importFile(newSheetSource!,'competitions');
+      if(saved.isNotEmpty)d['judgingSheet']=saved;
+    }
+
+    await widget.onSave(d);
+    if((removePhoto||newPhotoSource!=null)&&oldPhoto.isNotEmpty&&oldPhoto!=d['photo'])await PrivateFiles.deleteFile(oldPhoto);
+    if((removeSheet||newSheetSource!=null)&&oldSheet.isNotEmpty&&oldSheet!=d['judgingSheet'])await PrivateFiles.deleteFile(oldSheet);
+  }
+
+  Widget field(String label,String key,{TextInputType? keyboardType,int maxLines=1,String? hint})=>Padding(
+    padding:const EdgeInsets.only(top:10),
+    child:TextFormField(
+      initialValue:(d[key]??'').toString(),
+      keyboardType:keyboardType,
+      maxLines:maxLines,
+      decoration:InputDecoration(labelText:label,hintText:hint),
+      onChanged:(v)=>d[key]=v,
+    ),
+  );
+
+  @override Widget build(BuildContext context){
+    final grams=d['weightGrams'] is int?d['weightGrams'] as int:int.tryParse('${d['weightGrams']}')??0;
+    final hasPhoto=newPhotoSource!=null||(!removePhoto&&((d['photo']??'') as String).isNotEmpty);
+    final hasSheet=newSheetSource!=null||(!removeSheet&&((d['judgingSheet']??'') as String).isNotEmpty);
+    return Dialog.fullscreen(child:Scaffold(
+      appBar:AppBar(title:const Text('Concours & Exposition'),actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))]),
+      body:ListView(padding:const EdgeInsets.all(16),children:[
+        Container(
+          padding:const EdgeInsets.all(14),
+          decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
+          child:const Row(children:[
+            Icon(Icons.emoji_events,color:gold,size:30),SizedBox(width:10),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text('CARNET DE CONCOURS',style:TextStyle(color:gold,fontWeight:FontWeight.w900,fontSize:12,letterSpacing:.8)),
+              Text('Jugement, classement et palmarès',style:TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:18)),
+            ])),
+          ]),
+        ),
+        const SizedBox(height:16),
+        const Text('Événement',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:8),
+        TextFormField(readOnly:true,controller:TextEditingController(text:d['date']??''),decoration:const InputDecoration(labelText:'Date',suffixIcon:Icon(Icons.calendar_month)),onTap:pickDate),
+        field('Nom du concours / exposition','name',hint:'Ex. Exposition nationale de…'),
+        field('Lieu','location'),
+        field('Classe / catégorie','category',hint:'Ex. Géant Papillon Français'),
+        field('N° de cage / passage','cageNumber'),
+        field('Juge','judge'),
+        const SizedBox(height:18),
+        const Text('Lapin présenté',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+        field('Tatouage au concours','tattoo',hint:'Facultatif'),
+        Padding(
+          padding:const EdgeInsets.only(top:10),
+          child:TextFormField(
+            initialValue:grams>0?'$grams':'',
+            keyboardType:TextInputType.number,
+            decoration:const InputDecoration(labelText:'Poids le jour du concours',suffixText:'g'),
+            onChanged:(v)=>d['weightGrams']=int.tryParse(v.trim())??0,
+          ),
+        ),
+        const SizedBox(height:18),
+        const Text('Jugement',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+        field('Note / points','score',keyboardType:const TextInputType.numberWithOptions(decimal:true),hint:'Ex. 95,5'),
+        Padding(
+          padding:const EdgeInsets.only(top:10),
+          child:DropdownButtonFormField<String>(
+            value:qualifications.contains(d['qualification'])?d['qualification']:'Non renseigné',
+            decoration:const InputDecoration(labelText:'Qualificatif'),
+            items:qualifications.map((q)=>DropdownMenuItem(value:q,child:Text(q))).toList(),
+            onChanged:(v)=>setState(()=>d['qualification']=v??'Non renseigné'),
+          ),
+        ),
+        field('Classement','ranking',hint:'Ex. 1er / 12'),
+        Padding(
+          padding:const EdgeInsets.only(top:10),
+          child:DropdownButtonFormField<String>(
+            value:awards.contains(d['award'])?d['award']:'Autre récompense',
+            isExpanded:true,
+            decoration:const InputDecoration(labelText:'Récompense obtenue'),
+            items:awards.map((a)=>DropdownMenuItem(value:a,child:Text(a,overflow:TextOverflow.ellipsis))).toList(),
+            onChanged:(v)=>setState(()=>d['award']=v??'Aucune'),
+          ),
+        ),
+        if(d['award']=='Autre récompense')field('Nom de la récompense','customAward'),
+        field('Appréciations / remarques du juge','comments',maxLines:4),
+        const SizedBox(height:18),
+        const Text('Pièces du concours',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
+        const SizedBox(height:8),
+        Container(
+          padding:const EdgeInsets.all(12),
+          decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(16)),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Row(children:[
+              Icon(hasPhoto?Icons.check_circle:Icons.photo_outlined,color:hasPhoto?const Color(0xFF2E7D32):brown),
+              const SizedBox(width:8),
+              const Expanded(child:Text('Photo du concours',style:TextStyle(fontWeight:FontWeight.w800))),
+              TextButton(onPressed:choosePhoto,child:Text(hasPhoto?'Remplacer':'Choisir')),
+              if(hasPhoto)IconButton(tooltip:'Retirer',onPressed:()=>setState((){newPhotoSource=null;removePhoto=true;}),icon:const Icon(Icons.close)),
+            ]),
+            const Divider(),
+            Row(children:[
+              Icon(hasSheet?Icons.check_circle:Icons.description_outlined,color:hasSheet?const Color(0xFF2E7D32):brown),
+              const SizedBox(width:8),
+              const Expanded(child:Text('Carte / fiche de jugement',style:TextStyle(fontWeight:FontWeight.w800))),
+              TextButton(onPressed:chooseSheet,child:Text(hasSheet?'Remplacer':'Joindre')),
+              if(hasSheet)IconButton(tooltip:'Retirer',onPressed:()=>setState((){newSheetSource=null;removeSheet=true;}),icon:const Icon(Icons.close)),
+            ]),
+          ]),
+        ),
+        const SizedBox(height:18),
+        FilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le concours')),
+        const SizedBox(height:24),
+      ]),
+    ));
+  }
+}
 
 class WeightDialog extends StatefulWidget{
   final Map<String,dynamic> item;
