@@ -70,9 +70,9 @@ class LapibreizhApp extends StatelessWidget {
         filled:true,
         fillColor: premiumCard,
         contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:15),
-        border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lineSoft)),
-        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lineSoft)),
-        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:lapiGreen,width:2)),
+        border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:softGoldLine)),
+        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:softGoldLine)),
+        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:gold,width:1.6)),
       ),
       cardTheme:CardThemeData(
         color: premiumCard,
@@ -82,15 +82,16 @@ class LapibreizhApp extends StatelessWidget {
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFE5E0D2)),
+          side: const BorderSide(color: softGoldLine, width: .9),
         ),
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
-          backgroundColor:lapiGreen,
+          backgroundColor:heroGreen2,
           foregroundColor:Colors.white,
           padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+          side:const BorderSide(color:gold,width:.8),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
@@ -100,17 +101,29 @@ class LapibreizhApp extends StatelessWidget {
           backgroundColor: premiumCard,
           padding: const EdgeInsets.symmetric(horizontal:18, vertical:16),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-          side:const BorderSide(color:lineSoft),
+          side:const BorderSide(color:softGoldLine,width:.9),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFFE9F4EB) : premiumCard),
-          foregroundColor: const WidgetStatePropertyAll(ink),
-          side: const WidgetStatePropertyAll(BorderSide(color: lineSoft)),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?heroGreen:heroGreen2,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?warmGoldText:Colors.white,
+          ),
+          iconColor: WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?warmGoldText:Colors.white,
+          ),
+          side: WidgetStateProperty.resolveWith(
+            (states)=>BorderSide(
+              color:states.contains(WidgetState.selected)?gold:Colors.white24,
+              width:states.contains(WidgetState.selected)?1.2:.7,
+            ),
+          ),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         ),
       ),
@@ -1221,7 +1234,7 @@ class _HomePageState extends State<HomePage>{
           Icon(
             icon,
             size:23,
-            color:homeOrganizing?Colors.white38:(selected?warmGoldText:Colors.white),
+            color:homeOrganizing?Colors.white38:(selected?gold:Colors.white),
           ),
           const SizedBox(height:2),
           Text(
@@ -1229,7 +1242,7 @@ class _HomePageState extends State<HomePage>{
             style:TextStyle(
               fontSize:11,
               fontWeight:selected?FontWeight.w800:FontWeight.w600,
-              color:homeOrganizing?Colors.white38:(selected?warmGoldText:Colors.white),
+              color:homeOrganizing?Colors.white38:(selected?gold:Colors.white),
               fontFamily:selected?'serif':null,
             ),
           ),
@@ -1250,8 +1263,8 @@ class _HomePageState extends State<HomePage>{
       top:false,
       child:Container(
         decoration:const BoxDecoration(
-          gradient:LinearGradient(colors:[Color(0xFF0D3A26),Color(0xFF145438)]),
-          border:Border(top:BorderSide(color:Color(0x66D4AF67))),
+          gradient:LinearGradient(colors:[Color(0xFF083521),Color(0xFF12583A)]),
+          border:Border(top:BorderSide(color:gold,width:1.1)),
         ),
         child:Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
@@ -1429,7 +1442,7 @@ class _HomePageState extends State<HomePage>{
       decoration:BoxDecoration(
         color:homeOrganizing?const Color(0xFFE8F3EC):premiumCard,
         borderRadius:BorderRadius.circular(14),
-        border:Border.all(color:homeOrganizing?const Color(0xFF9FC6AA):const Color(0xFFE5E0D2)),
+        border:Border.all(color:homeOrganizing?gold:softGoldLine,width:homeOrganizing?1.15:.9),
         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.025),blurRadius:9,offset:const Offset(0,4))],
       ),
       child:Row(children:[
@@ -1596,13 +1609,25 @@ class _HomePageState extends State<HomePage>{
             children:[
               for(final km in const [10,20,30,50,100])
                 ChoiceChip(
-                  label:Text('$km km'),
+                  label:Text(
+                    '$km km',
+                    style:TextStyle(
+                      color:vetRadiusKm==km?warmGoldText:Colors.white,
+                      fontWeight:FontWeight.w800,
+                    ),
+                  ),
                   selected:vetRadiusKm==km,
+                  backgroundColor:heroGreen2,
+                  selectedColor:heroGreen,
+                  checkmarkColor:warmGoldText,
+                  side:BorderSide(color:vetRadiusKm==km?gold:Colors.white24),
                   onSelected:(_)=>setState(()=>vetRadiusKm=km),
                 ),
               ActionChip(
-                avatar:const Icon(Icons.edit,size:17),
-                label:const Text('Autre'),
+                avatar:const Icon(Icons.edit,size:17,color:Colors.white),
+                label:const Text('Autre',style:TextStyle(color:Colors.white,fontWeight:FontWeight.w800)),
+                backgroundColor:heroGreen2,
+                side:const BorderSide(color:Colors.white24),
                 onPressed:_chooseCustomVetRadius,
               ),
             ],
@@ -2046,22 +2071,19 @@ class _HomePageState extends State<HomePage>{
       duration:const Duration(milliseconds:160),
       padding:const EdgeInsets.symmetric(horizontal:9,vertical:9),
       decoration:BoxDecoration(
-        gradient:selected
-          ?const LinearGradient(colors:[Color(0xFF0E4B31),Color(0xFF1C7148)])
-          :null,
-        color:selected?null:const Color(0xFFFFFEFB),
+        gradient:const LinearGradient(colors:[Color(0xFF0E4B31),Color(0xFF1A613E)]),
         borderRadius:BorderRadius.circular(10),
-        border:Border.all(color:selected?gold:const Color(0xFFD8D5CA),width:selected?1.2:1),
-        boxShadow:selected?[BoxShadow(color:lapiGreenDark.withValues(alpha:.18),blurRadius:8,offset:const Offset(0,3))]:null,
+        border:Border.all(color:selected?gold:Colors.white24,width:selected?1.25:.75),
+        boxShadow:selected?[BoxShadow(color:gold.withValues(alpha:.16),blurRadius:8,offset:const Offset(0,3))]:null,
       ),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
-        Icon(icon,size:16,color:selected?Colors.white:lapiGreenDark),
+        Icon(icon,size:16,color:selected?gold:Colors.white),
         const SizedBox(width:5),
         Flexible(child:Text(
           label,
           maxLines:1,
           overflow:TextOverflow.ellipsis,
-          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?Colors.white:ink),
+          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?gold:Colors.white),
         )),
       ]),
     ),
@@ -3854,7 +3876,7 @@ class _RabbitPageState extends State<RabbitPage>{
     decoration:BoxDecoration(
       color:rabbitOrganizing?const Color(0xFFE8F3EC):premiumCard,
       borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:rabbitOrganizing?const Color(0xFF9FC6AA):lineSoft),
+      border:Border.all(color:rabbitOrganizing?gold:softGoldLine,width:rabbitOrganizing?1.15:.9),
       boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
     ),
     child:Row(children:[
@@ -4066,7 +4088,7 @@ class _RabbitPageState extends State<RabbitPage>{
           ),
           title:Text(
             rr['name'].isEmpty?'Fiche du lapin':rr['name'],
-            style:const TextStyle(fontFamily:'serif',fontSize:20,fontWeight:FontWeight.w800,color:warmGoldText),
+            style:const TextStyle(fontFamily:'serif',fontSize:20,fontWeight:FontWeight.w800,color:Colors.white),
           ),
           actions:[
             IconButton(tooltip:'PDF',onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf,size:22)),
@@ -4184,6 +4206,10 @@ class _RabbitPageState extends State<RabbitPage>{
     child:SizedBox(
       width:double.infinity,
       child:Card(
+      shape:RoundedRectangleBorder(
+        borderRadius:BorderRadius.circular(14),
+        side:const BorderSide(color:softGoldLine,width:.9),
+      ),
       child:Stack(children:[
         Positioned(right:6,bottom:4,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.42),size:22))),
         Padding(
