@@ -23,8 +23,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 const gold = Color(0xFFD4AF67);
 const ink = Color(0xFF171512);
-const ivory = Color(0xFFFFFBF2);
-const brown = Color(0xFF463622);
+const ivory = Color(0xFFF7F8F6);
+const brown = Color(0xFF405044);
+const lapiGreen = Color(0xFF247A4B);
+const lapiGreenDark = Color(0xFF155A36);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,14 +38,39 @@ class LapibreizhApp extends StatelessWidget {
   const LapibreizhApp({super.key});
   @override Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Carnet de Santé Lapibreizh',
+    title: 'LapiGestion',
     theme: ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: gold, brightness: Brightness.light),
+      colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
       scaffoldBackgroundColor: ivory,
-      inputDecorationTheme: InputDecorationTheme(filled:true, fillColor: Colors.white.withValues(alpha:.94), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color:gold,width:2))),
-      cardTheme: CardThemeData(color: Colors.white.withValues(alpha:.94), elevation: 3, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: const BorderSide(color:gold,width:1))),
-      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(backgroundColor: ink, foregroundColor: gold, padding: const EdgeInsets.symmetric(horizontal:18,vertical:14), shape: RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)))),
+      inputDecorationTheme: InputDecorationTheme(
+        filled:true,
+        fillColor:Colors.white,
+        border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:Color(0xFFD9DEDA))),
+        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:Color(0xFFD9DEDA))),
+        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:const BorderSide(color:lapiGreen,width:2)),
+      ),
+      cardTheme:CardThemeData(
+        color:Colors.white,
+        elevation:1,
+        margin:EdgeInsets.zero,
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8),side:const BorderSide(color:Color(0xFFE0E5E1))),
+      ),
+      filledButtonTheme:FilledButtonThemeData(
+        style:FilledButton.styleFrom(
+          backgroundColor:lapiGreen,
+          foregroundColor:Colors.white,
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:14),
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+        ),
+      ),
+      outlinedButtonTheme:OutlinedButtonThemeData(
+        style:OutlinedButton.styleFrom(
+          foregroundColor:lapiGreenDark,
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+          side:const BorderSide(color:Color(0xFFB8C8BD)),
+        ),
+      ),
     ),
     home: const HomePage(),
   );
@@ -1024,6 +1051,102 @@ class _HomePageState extends State<HomePage>{
   List<Map<String,dynamic>> nearbyVets=[];
   List<String> homeOrder=['dashboard','vets','backup','filters','rabbits'];
   static const homeDefaults=['dashboard','vets','backup','filters','rabbits'];
+
+  final GlobalKey _homeTopKey=GlobalKey();
+  final GlobalKey _dashboardKey=GlobalKey();
+  final GlobalKey _vetsKey=GlobalKey();
+  final GlobalKey _backupKey=GlobalKey();
+  final GlobalKey _rabbitsKey=GlobalKey();
+
+  GlobalKey? _homeKeyFor(String id){
+    switch(id){
+      case 'dashboard': return _dashboardKey;
+      case 'vets': return _vetsKey;
+      case 'backup': return _backupKey;
+      case 'rabbits': return _rabbitsKey;
+      default: return null;
+    }
+  }
+
+  Future<void> _jumpToHome(String id) async {
+    if(homeOrganizing)return;
+    final key=id=='top'?_homeTopKey:_homeKeyFor(id);
+    final context=key?.currentContext;
+    if(context==null)return;
+    await Scrollable.ensureVisible(
+      context,
+      duration:const Duration(milliseconds:420),
+      curve:Curves.easeOutCubic,
+      alignment:.02,
+    );
+  }
+
+  void _showMoreMenu(){
+    if(homeOrganizing)return;
+    showModalBottomSheet(
+      context:context,
+      showDragHandle:true,
+      builder:(sheetContext)=>SafeArea(
+        child:Column(mainAxisSize:MainAxisSize.min,children:[
+          const ListTile(
+            title:Text('Plus',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+            subtitle:Text('Accès rapide aux fonctions moins utilisées au quotidien.'),
+          ),
+          ListTile(
+            leading:const Icon(Icons.location_on_outlined,color:lapiGreen),
+            title:const Text('Vétérinaires & urgence'),
+            onTap:(){Navigator.pop(sheetContext);Future.delayed(const Duration(milliseconds:120),()=>_jumpToHome('vets'));},
+          ),
+          ListTile(
+            leading:const Icon(Icons.shield_outlined,color:lapiGreen),
+            title:const Text('Sauvegarde & restauration'),
+            onTap:(){Navigator.pop(sheetContext);Future.delayed(const Duration(milliseconds:120),()=>_jumpToHome('backup'));},
+          ),
+          ListTile(
+            leading:const Icon(Icons.tune,color:lapiGreen),
+            title:const Text('Organiser l’accueil'),
+            onTap:(){Navigator.pop(sheetContext);setState(()=>homeOrganizing=true);},
+          ),
+          const SizedBox(height:8),
+        ]),
+      ),
+    );
+  }
+
+  Widget _bottomShortcut({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  })=>Expanded(
+    child:InkWell(
+      onTap:homeOrganizing?null:onTap,
+      child:Padding(
+        padding:const EdgeInsets.symmetric(vertical:8),
+        child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Icon(icon,size:23,color:homeOrganizing?Colors.black26:lapiGreenDark),
+          const SizedBox(height:2),
+          Text(label,style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:homeOrganizing?Colors.black26:ink)),
+        ]),
+      ),
+    ),
+  );
+
+  Widget _bottomNavigation()=>Material(
+    color:Colors.white,
+    elevation:12,
+    child:SafeArea(
+      top:false,
+      child:Container(
+        decoration:const BoxDecoration(border:Border(top:BorderSide(color:Color(0xFFE2E7E3)))),
+        child:Row(children:[
+          _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',onTap:()=>_jumpToHome('top')),
+          _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
+          _bottomShortcut(icon:Icons.notifications_none,label:'Rappels',onTap:()=>_jumpToHome('dashboard')),
+          _bottomShortcut(icon:Icons.more_horiz,label:'Plus',onTap:_showMoreMenu),
+        ]),
+      ),
+    ),
+  );
   @override void initState(){super.initState();refresh();}
   Future<void> refresh() async {
     rabbits=await Store.load();
@@ -1207,14 +1330,17 @@ class _HomePageState extends State<HomePage>{
   );
 
   Widget homeSection(String id){
+    Widget section;
     switch(id){
-      case 'dashboard': return dashboard();
-      case 'vets': return veterinarySearchSection();
-      case 'backup': return backupSection();
-      case 'filters': return searchAndFilters();
-      case 'rabbits': return rabbitListSection();
-      default: return const SizedBox.shrink();
+      case 'dashboard': section=dashboard(); break;
+      case 'vets': section=veterinarySearchSection(); break;
+      case 'backup': section=backupSection(); break;
+      case 'filters': section=searchAndFilters(); break;
+      case 'rabbits': section=rabbitListSection(); break;
+      default: section=const SizedBox.shrink();
     }
+    final anchor=_homeKeyFor(id);
+    return anchor==null?section:KeyedSubtree(key:anchor,child:section);
   }
 
   Widget homeFrame(String id,int index,Widget child){
@@ -1537,7 +1663,7 @@ class _HomePageState extends State<HomePage>{
                 tag:'rabbit$originalIndex',
                 child:Container(
                   width:68,height:68,
-                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold,width:2)),
+                  decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(8),border:Border.all(color:const Color(0xFFB8C8BD),width:1)),
                   clipBehavior:Clip.antiAlias,
                   child:(rabbit['photo']??'').isEmpty?const Icon(Icons.pets,color:ink,size:32):Image.file(File(rabbit['photo']),fit:BoxFit.cover),
                 ),
@@ -1771,35 +1897,58 @@ class _HomePageState extends State<HomePage>{
       body:Scenic(child:SafeArea(child:loading
         ?const Center(child:CircularProgressIndicator())
         :CustomScrollView(slivers:[
-          SliverToBoxAdapter(child:Padding(
-            padding:const EdgeInsets.fromLTRB(18,18,18,8),
-            child:Column(children:[
-              Container(width:150,height:150,decoration:BoxDecoration(borderRadius:BorderRadius.circular(30),border:Border.all(color:gold,width:3),boxShadow:const [BoxShadow(blurRadius:18,color:Colors.black38)]),clipBehavior:Clip.antiAlias,child:Image.asset('assets/images/logo.png',fit:BoxFit.cover)),
-              const SizedBox(height:10),
-              Container(padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),decoration:BoxDecoration(color:ink.withValues(alpha:.90),borderRadius:BorderRadius.circular(20),border:Border.all(color:gold)),child:const Column(children:[
-                Text('CARNET DE SANTÉ',style:TextStyle(color:gold,fontWeight:FontWeight.w800,fontSize:22,letterSpacing:1.2)),
-                Text('Les Lapibreizh',style:TextStyle(color:Colors.white,fontSize:16)),
-              ])),
-              const SizedBox(height:12),
+          SliverToBoxAdapter(child:Container(
+            key:_homeTopKey,
+            padding:const EdgeInsets.fromLTRB(16,16,16,10),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              Row(children:[
+                Container(
+                  width:66,height:66,
+                  decoration:BoxDecoration(
+                    color:Colors.white,
+                    border:Border.all(color:const Color(0xFFDDE5DF)),
+                    borderRadius:BorderRadius.circular(8),
+                  ),
+                  clipBehavior:Clip.antiAlias,
+                  child:Image.asset('assets/images/logo.png',fit:BoxFit.cover),
+                ),
+                const SizedBox(width:13),
+                const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text('LapiGestion',style:TextStyle(fontSize:30,fontWeight:FontWeight.w900,color:ink,height:1)),
+                  SizedBox(height:5),
+                  Text('Développé par Les Lapibreizh',style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:brown)),
+                ])),
+              ]),
+              const SizedBox(height:13),
               Container(
-                padding:const EdgeInsets.fromLTRB(14,10,14,10),
-                decoration:BoxDecoration(color:Colors.white.withValues(alpha:.91),borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
+                padding:const EdgeInsets.fromLTRB(13,10,13,10),
+                decoration:BoxDecoration(
+                  color:Colors.white,
+                  borderRadius:BorderRadius.circular(8),
+                  border:Border.all(color:const Color(0xFFDDE5DF)),
+                ),
                 child:Column(children:[
-                  Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-                    Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:brown,size:20),
+                  Row(children:[
+                    Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:20),
                     const SizedBox(width:7),
-                    Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w800,color:ink)),
-                  ]),
-                  const SizedBox(height:8),
-                  Wrap(alignment:WrapAlignment.center,spacing:8,children:[
-                    ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:homeOrganizing?null:(_)=>setAppMode('Éleveur')),
-                    ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:homeOrganizing?null:(_)=>setAppMode('Adoptant')),
+                    Expanded(child:Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontWeight:FontWeight.w900,color:ink))),
+                    Wrap(spacing:6,children:[
+                      ChoiceChip(label:const Text('Élevage'),selected:appMode=='Éleveur',onSelected:homeOrganizing?null:(_)=>setAppMode('Éleveur')),
+                      ChoiceChip(label:const Text('Adoptant'),selected:appMode=='Adoptant',onSelected:homeOrganizing?null:(_)=>setAppMode('Adoptant')),
+                    ]),
                   ]),
                   const SizedBox(height:4),
-                  Text(appMode=='Éleveur'?'Reproduction, préparation au départ et suivi santé.':'Une vue simplifiée centrée sur la santé au quotidien.',textAlign:TextAlign.center,style:const TextStyle(fontSize:11,color:Colors.black54)),
+                  Align(
+                    alignment:Alignment.centerLeft,
+                    child:Text(
+                      appMode=='Éleveur'
+                        ?'Reproduction, préparation au départ et suivi santé.'
+                        :'Une vue simplifiée centrée sur la santé au quotidien.',
+                      style:const TextStyle(fontSize:11,color:Colors.black54),
+                    ),
+                  ),
                 ]),
               ),
-              const SizedBox(height:10),
             ]),
           )),
           SliverToBoxAdapter(child:homeOrganizeControl()),
@@ -1822,8 +1971,13 @@ class _HomePageState extends State<HomePage>{
             ),
           const SliverToBoxAdapter(child:SizedBox(height:105)),
         ]))),
+      bottomNavigationBar:_bottomNavigation(),
       floatingActionButton:rabbits.isEmpty||homeOrganizing?null:FloatingActionButton.extended(
-        onPressed:addRabbit,backgroundColor:ink,foregroundColor:gold,icon:const Icon(Icons.add),label:const Text('Nouveau lapin'),
+        onPressed:addRabbit,
+        backgroundColor:lapiGreen,
+        foregroundColor:Colors.white,
+        icon:const Icon(Icons.add),
+        label:const Text('Nouveau lapin'),
       ),
     );
   }
