@@ -1218,8 +1218,8 @@ class _HomePageState extends State<HomePage>{
   }
 
   Widget homeFrame(String id,int index,Widget child){
-    final content=IgnorePointer(
-      ignoring:homeOrganizing,
+    final content=AbsorbPointer(
+      absorbing:homeOrganizing,
       child:child,
     );
     return homeOrganizing
@@ -3432,8 +3432,8 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Widget rabbitFrame(String id,int index,Widget child){
-    final content=IgnorePointer(
-      ignoring:rabbitOrganizing,
+    final content=AbsorbPointer(
+      absorbing:rabbitOrganizing,
       child:child,
     );
     return rabbitOrganizing
