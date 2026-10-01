@@ -1192,9 +1192,14 @@ class _HomePageState extends State<HomePage>{
       child:Row(children:[
         Icon(homeOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
         const SizedBox(width:8),
-        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
-          Text('Activez Organiser puis maintenez un cadre pour le déplacer.',style:TextStyle(fontSize:10,color:Colors.black54)),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
+          Text(
+            homeOrganizing
+              ?'Maintenez un cadre appuyé pour le déplacer et organiser votre accueil.'
+              :'Activez Organiser pour déplacer vos cadres.',
+            style:const TextStyle(fontSize:10,color:Colors.black54),
+          ),
         ])),
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
@@ -1213,20 +1218,9 @@ class _HomePageState extends State<HomePage>{
   }
 
   Widget homeFrame(String id,int index,Widget child){
-    final content=Column(
-      crossAxisAlignment:CrossAxisAlignment.stretch,
-      children:[
-        if(homeOrganizing)
-          const Padding(
-            padding:EdgeInsets.fromLTRB(14,0,14,4),
-            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.drag_handle,color:brown,size:21),
-              SizedBox(width:5),
-              Text('Maintenir pour déplacer',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:brown)),
-            ]),
-          ),
-        IgnorePointer(ignoring:homeOrganizing,child:child),
-      ],
+    final content=IgnorePointer(
+      ignoring:homeOrganizing,
+      child:child,
     );
     return homeOrganizing
         ?ReorderableDelayedDragStartListener(
@@ -3386,9 +3380,14 @@ class _RabbitPageState extends State<RabbitPage>{
     child:Row(children:[
       Icon(rabbitOrganizing?Icons.drag_indicator:Icons.lock_outline,color:brown),
       const SizedBox(width:8),
-      const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
-        Text('Activez Organiser puis maintenez un cadre pour le déplacer.',style:TextStyle(fontSize:10,color:Colors.black54)),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Organiser',style:TextStyle(fontWeight:FontWeight.w900,color:ink)),
+        Text(
+          rabbitOrganizing
+            ?'Maintenez un cadre appuyé pour le déplacer et organiser cette fiche.'
+            :'Activez Organiser pour déplacer vos cadres.',
+          style:const TextStyle(fontSize:10,color:Colors.black54),
+        ),
       ])),
       Switch(value:rabbitOrganizing,onChanged:toggleRabbitOrganizing),
     ]),
@@ -3433,20 +3432,9 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Widget rabbitFrame(String id,int index,Widget child){
-    final content=Column(
-      crossAxisAlignment:CrossAxisAlignment.stretch,
-      children:[
-        if(rabbitOrganizing)
-          const Padding(
-            padding:EdgeInsets.only(bottom:4),
-            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.drag_handle,color:brown,size:21),
-              SizedBox(width:5),
-              Text('Maintenir pour déplacer',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:brown)),
-            ]),
-          ),
-        IgnorePointer(ignoring:rabbitOrganizing,child:child),
-      ],
+    final content=IgnorePointer(
+      ignoring:rabbitOrganizing,
+      child:child,
     );
     return rabbitOrganizing
         ?ReorderableDelayedDragStartListener(
