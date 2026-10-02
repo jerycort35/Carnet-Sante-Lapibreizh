@@ -1,14 +1,40 @@
-LapiGestion V3-1.20b — correction visuelle premium
+LapiGestion V3-1.21 — Gestion couleurs & croisements
 
-À extraire directement à la racine du dépôt Gitling.
+BASE VERIFIEE AVANT MODIFICATION
+- GitHub main : jerycort35/Carnet-Sante-Lapibreizh
+- Commit : 4297d2d749b0ca5c0d2c9993d889cb21a88cf4b5
+- lib/main.dart source : blob ef42951c10816db2e9c035eb0194d70af4a9f682
+- Version de départ : 1.0.0+19
 
-Contenu :
-- lib/main.dart basé exactement sur le main GitHub a4c9dea / blob 996a056
-- pubspec.yaml : version 1.0.0+20
-- 6 assets premium haute définition vert marbré / or brillant
+A EXTRAIRE DIRECTEMENT A LA RACINE DU DEPOT GITLING
+- lib/main.dart
+- pubspec.yaml
+- LISEZ-MOI.txt
 
-Cette correction :
-- applique le marbre vert profond veiné or aux boutons primaires
-- applique le marbre aux sélecteurs segmentés
-- ajoute les ornements dorés brillants aux cartes principales
-- conserve le moteur, les données, la signature, Gradle, AndroidManifest et le workflow GitHub
+NOUVEAUTES
+- Couleurs par portée avec mâles/femelles par couleur
+- Liste prédéfinie des couleurs + variantes unies
+- Un seul graphique commun pour toutes les couleurs
+- Barres bleues mâles / roses femelles avec valeurs exactes
+- Défilement horizontal du graphique
+- Modification d'une couleur en touchant sa colonne
+- Croix rouge par couleur + suppression générale de toutes les couleurs
+- Vérification automatique des totaux mâles/femelles avant enregistrement
+- Historique portée par portée conservé et supprimable individuellement
+- Recherche des portées par partenaire/date/année
+- Cumul automatique par couple mâle × femelle
+- Miniatures + noms des deux reproducteurs dans le résumé de croisement
+- Fonction d'accueil « Je recherche une couleur » basée sur les résultats enregistrés
+- Réglage 1 à 6 portées maximum par femelle sur 12 mois
+- Réglage du délai minimum de repos entre portées
+- Femelles sous traitement médical actif exclues automatiquement des suggestions
+- Fréquence observée affichée sans promesse de résultat génétique
+
+VERSION
+- 1.0.0+20
+
+NON MODIFIE
+- .github/workflows/
+- android/
+- signature Android
+- assets visuels premium

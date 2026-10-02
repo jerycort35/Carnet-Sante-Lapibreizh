@@ -511,6 +511,25 @@ class AppModeStore {
   }
 }
 
+class ReproductionSettingsStore {
+  static const _maxKey='lapibreizh_repro_max_litters_v1';
+  static const _restKey='lapibreizh_repro_rest_days_v1';
+
+  static Future<Map<String,int>> load() async {
+    final p=await SharedPreferences.getInstance();
+    return {
+      'maxLitters':(p.getInt(_maxKey)??4).clamp(1,6) as int,
+      'restDays':p.getInt(_restKey)??90,
+    };
+  }
+
+  static Future<void> save({required int maxLitters,required int restDays}) async {
+    final p=await SharedPreferences.getInstance();
+    await p.setInt(_maxKey,maxLitters.clamp(1,6) as int);
+    await p.setInt(_restKey,restDays<0 ? 0 : restDays);
+  }
+}
+
 class ReproductionStore {
   static const key='lapibreizh_reproduction_v1';
 
@@ -544,6 +563,72 @@ class ReproductionStore {
     final all=await load();
     all.removeWhere((e)=>e['maleId']==rabbitId||e['femaleId']==rabbitId);
     await save(all);
+  }
+
+  static const colorOptions=<String>[
+    'Noir','Noir uni',
+    'Bleu','Bleu uni',
+    'Havane','Havane uni',
+    'Feh','Feh uni',
+    'Garenne','Garenne uni',
+    'Gris fer','Gris fer uni',
+    'Gris brun','Gris brun uni',
+    'Gris bleu / Perlfeh','Gris bleu / Perlfeh uni',
+    'Lynx','Lynx uni',
+    'Jaune / Fauve','Jaune / Fauve uni',
+    'Madagascar / Chamois','Madagascar / Chamois uni',
+    'Isabelle','Isabelle uni',
+    'Tricolore / Japonais noir',
+    'Tricolore / Japonais bleu',
+    'Tricolore / Japonais havane',
+    'Tricolore / Japonais feh',
+    'Non déterminé',
+  ];
+
+  static List<Map<String,dynamic>> colorsOf(Map<String,dynamic> record){
+    final out=<Map<String,dynamic>>[];
+    for(final raw in ((record['colors'] as List?)??[])){
+      if(raw is! Map)continue;
+      final e=Map<String,dynamic>.from(raw);
+      final color=(e['color']??'').toString().trim();
+      if(color.isEmpty)continue;
+      out.add({'color':color,'male':n(e['male']),'female':n(e['female'])});
+    }
+    return out;
+  }
+
+  static List<Map<String,dynamic>> aggregateColors(Iterable<Map<String,dynamic>> records){
+    final totals=<String,Map<String,int>>{};
+    for(final record in records){
+      for(final item in colorsOf(record)){
+        final color=item['color'] as String;
+        final entry=totals.putIfAbsent(color,()=>{'male':0,'female':0});
+        entry['male']=(entry['male']??0)+n(item['male']);
+        entry['female']=(entry['female']??0)+n(item['female']);
+      }
+    }
+    final ordered=<Map<String,dynamic>>[];
+    for(final color in colorOptions){
+      final entry=totals.remove(color);
+      if(entry!=null&&(entry['male']!+entry['female']!)>0){
+        ordered.add({'color':color,'male':entry['male'],'female':entry['female']});
+      }
+    }
+    for(final entry in totals.entries){
+      if((entry.value['male']!+entry.value['female']!)>0){
+        ordered.add({'color':entry.key,'male':entry.value['male'],'female':entry.value['female']});
+      }
+    }
+    return ordered;
+  }
+
+  static Map<String,int> colorSexTotals(Iterable<Map<String,dynamic>> colors){
+    var male=0,female=0;
+    for(final item in colors){
+      male+=n(item['male']);
+      female+=n(item['female']);
+    }
+    return {'male':male,'female':female,'total':male+female};
   }
 
   static int n(dynamic value)=>value is int?value:int.tryParse('$value')??0;
@@ -1494,16 +1579,18 @@ class VeterinaryResultsPage extends StatelessWidget {
 
 class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
 class _HomePageState extends State<HomePage>{
-  List<Map<String,dynamic>> rabbits=[]; bool loading=true; String appMode='Éleveur';
+  List<Map<String,dynamic>> rabbits=[]; List<Map<String,dynamic>> breedings=[]; bool loading=true; String appMode='Éleveur';
   String searchQuery=''; String sexFilter='Tous'; String adoptionFilter='Tous';
+  String desiredColor='Noir'; int reproMaxLitters=4; int reproRestDays=90;
   bool homeOrganizing=false; bool homeLayoutLoaded=false;
   bool vetLoading=false; String vetError=''; int vetRadiusKm=20; String vetFilter='Tous';
   List<Map<String,dynamic>> nearbyVets=[];
-  List<String> homeOrder=['dashboard','vets','backup','filters','rabbits'];
-  static const homeDefaults=['dashboard','vets','backup','filters','rabbits'];
+  List<String> homeOrder=['dashboard','colors','vets','backup','filters','rabbits'];
+  static const homeDefaults=['dashboard','colors','vets','backup','filters','rabbits'];
 
   final GlobalKey _homeTopKey=GlobalKey();
   final GlobalKey _dashboardKey=GlobalKey();
+  final GlobalKey _colorsKey=GlobalKey();
   final GlobalKey _vetsKey=GlobalKey();
   final GlobalKey _backupKey=GlobalKey();
   final GlobalKey _rabbitsKey=GlobalKey();
@@ -1511,6 +1598,7 @@ class _HomePageState extends State<HomePage>{
   GlobalKey? _homeKeyFor(String id){
     switch(id){
       case 'dashboard': return _dashboardKey;
+      case 'colors': return _colorsKey;
       case 'vets': return _vetsKey;
       case 'backup': return _backupKey;
       case 'rabbits': return _rabbitsKey;
@@ -1632,7 +1720,12 @@ class _HomePageState extends State<HomePage>{
   @override void initState(){super.initState();refresh();}
   Future<void> refresh() async {
     rabbits=await Store.load();
+    breedings=await ReproductionStore.load();
     appMode=await AppModeStore.load();
+    final reproSettings=await ReproductionSettingsStore.load();
+    reproMaxLitters=reproSettings['maxLitters']??4;
+    reproRestDays=reproSettings['restDays']??90;
+    if(!ReproductionStore.colorOptions.contains(desiredColor))desiredColor=ReproductionStore.colorOptions.first;
     if(!homeLayoutLoaded){
       homeOrder=await LayoutStore.load('home',homeDefaults);
       homeLayoutLoaded=true;
@@ -1755,7 +1848,195 @@ class _HomePageState extends State<HomePage>{
   }
 
 
+  Map<String,dynamic>? _rabbitById(String id){
+    final m=rabbits.where((r)=>r['id']==id);
+    return m.isEmpty ? null : m.first;
+  }
+
+  String _homeRabbitName(String id){
+    final r=_rabbitById(id);
+    final n=(r?['name']??'').toString().trim();
+    return n.isEmpty?'Lapin sans nom':n;
+  }
+
+  Widget _homeRabbitMini(String id){
+    final rabbit=_rabbitById(id);
+    final provider=fileImage(rabbit?['photo']);
+    return Column(mainAxisSize:MainAxisSize.min,children:[
+      Container(
+        width:44,height:44,
+        decoration:BoxDecoration(
+          shape:BoxShape.circle,
+          color:gold.withValues(alpha:.12),
+          border:Border.all(color:gold.withValues(alpha:.72)),
+          image:provider==null ? null : DecorationImage(image:provider,fit:BoxFit.cover),
+        ),
+        child:provider==null ? const Icon(Icons.pets,color:lapiGreenDark,size:20):null,
+      ),
+      const SizedBox(height:3),
+      SizedBox(width:92,child:Text(_homeRabbitName(id),maxLines:2,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))),
+    ]);
+  }
+
+  bool _femaleHasActiveTreatment(Map<String,dynamic> female){
+    final today=DateTime.now();
+    for(final raw in ((female['medications'] as List?)??[])){
+      final med=Map<String,dynamic>.from(raw as Map);
+      final start=Notifications.parseDate(med['startDate'] as String?);
+      final end=Notifications.parseDate(med['endDate'] as String?);
+      if(start==null)continue;
+      final startDay=DateTime(start.year,start.month,start.day);
+      final endDay=end==null?null:DateTime(end.year,end.month,end.day,23,59);
+      if(!startDay.isAfter(today)&&(endDay==null||!endDay.isBefore(today)))return true;
+    }
+    return false;
+  }
+
+  bool _femaleAvailableForReproduction(String femaleId){
+    final female=_rabbitById(femaleId);
+    if(female==null)return false;
+    if(_femaleHasActiveTreatment(female))return false;
+    final now=DateTime.now();
+    final cutoff=now.subtract(const Duration(days:365));
+    final femaleRecords=breedings.where((b)=>b['femaleId']==femaleId).toList();
+    final births=femaleRecords.map((b)=>Notifications.parseDate(b['birthDate'] as String?)).whereType<DateTime>().toList();
+    final count12m=births.where((d)=>!d.isBefore(cutoff)).length;
+    if(count12m>=reproMaxLitters)return false;
+    if(reproRestDays>0&&births.isNotEmpty){
+      births.sort();
+      final last=births.last;
+      if(now.difference(last).inDays<reproRestDays)return false;
+    }
+    return true;
+  }
+
+  List<Map<String,dynamic>> _colorRecommendations(){
+    final groups=<String,List<Map<String,dynamic>>>{};
+    for(final b in breedings){
+      final maleId=(b['maleId']??'').toString();
+      final femaleId=(b['femaleId']??'').toString();
+      if(maleId.isEmpty||femaleId.isEmpty)continue;
+      groups.putIfAbsent('$maleId|$femaleId',()=>[]).add(b);
+    }
+    final out=<Map<String,dynamic>>[];
+    for(final entry in groups.entries){
+      final ids=entry.key.split('|');
+      final maleId=ids[0],femaleId=ids[1];
+      if(!_femaleAvailableForReproduction(femaleId))continue;
+      final colors=ReproductionStore.aggregateColors(entry.value);
+      final selected=colors.where((c)=>c['color']==desiredColor);
+      if(selected.isEmpty)continue;
+      final hit=selected.first;
+      final colorCount=ReproductionStore.n(hit['male'])+ReproductionStore.n(hit['female']);
+      if(colorCount<=0)continue;
+      final total=entry.value.fold<int>(0,(sum,b)=>sum+ReproductionStore.n(ReproductionStore.totals(b)['born']));
+      if(total<=0)continue;
+      out.add({
+        'maleId':maleId,
+        'femaleId':femaleId,
+        'count':colorCount,
+        'male':ReproductionStore.n(hit['male']),
+        'female':ReproductionStore.n(hit['female']),
+        'total':total,
+        'litters':entry.value.length,
+        'rate':colorCount/total,
+      });
+    }
+    out.sort((a,b){
+      final rate=(b['rate'] as double).compareTo(a['rate'] as double);
+      if(rate!=0)return rate;
+      return ReproductionStore.n(b['count']).compareTo(ReproductionStore.n(a['count']));
+    });
+    return out;
+  }
+
+  Future<void> _saveReproSettings({int? maxLitters,int? restDays}) async {
+    final newMax=maxLitters??reproMaxLitters;
+    final newRest=restDays??reproRestDays;
+    await ReproductionSettingsStore.save(maxLitters:newMax,restDays:newRest);
+    if(!mounted)return;
+    setState((){reproMaxLitters=newMax;reproRestDays=newRest;});
+  }
+
+  Widget colorPlannerSection(){
+    final results=_colorRecommendations();
+    return Padding(
+      padding:const EdgeInsets.fromLTRB(14,0,14,10),
+      child:PremiumCard(child:Padding(
+        padding:const EdgeInsets.all(12),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[
+            const Icon(Icons.palette_outlined,color:lapiGreenDark),
+            const SizedBox(width:8),
+            const Expanded(child:Text('Je recherche une couleur',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink,fontFamily:'serif'))),
+          ]),
+          const SizedBox(height:4),
+          const Text('LapiGestion compare uniquement vos résultats réellement enregistrés. Il ne garantit pas la couleur d’une future portée.',style:TextStyle(fontSize:10.5,color:Colors.black54)),
+          const SizedBox(height:10),
+          DropdownButtonFormField<String>(
+            value:desiredColor,
+            isExpanded:true,
+            decoration:const InputDecoration(labelText:'Couleur recherchée'),
+            items:ReproductionStore.colorOptions.where((c)=>c!='Non déterminé').map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
+            onChanged:(v){if(v!=null)setState(()=>desiredColor=v);},
+          ),
+          const SizedBox(height:10),
+          Row(children:[
+            Expanded(child:DropdownButtonFormField<int>(
+              value:reproMaxLitters,
+              decoration:const InputDecoration(labelText:'Portées max / 12 mois'),
+              items:List.generate(6,(i)=>DropdownMenuItem(value:i+1,child:Text('${i+1}'))),
+              onChanged:(v){if(v!=null)_saveReproSettings(maxLitters:v);},
+            )),
+            const SizedBox(width:8),
+            Expanded(child:DropdownButtonFormField<int>(
+              value:[30,45,60,90,120,180].contains(reproRestDays)?reproRestDays:90,
+              decoration:const InputDecoration(labelText:'Repos minimum'),
+              items:const [
+                DropdownMenuItem(value:30,child:Text('30 j')),
+                DropdownMenuItem(value:45,child:Text('45 j')),
+                DropdownMenuItem(value:60,child:Text('60 j')),
+                DropdownMenuItem(value:90,child:Text('90 j')),
+                DropdownMenuItem(value:120,child:Text('120 j')),
+                DropdownMenuItem(value:180,child:Text('180 j')),
+              ],
+              onChanged:(v){if(v!=null)_saveReproSettings(restDays:v);},
+            )),
+          ]),
+          const SizedBox(height:9),
+          const Text('Les femelles sous traitement actif, au repos ou ayant atteint le quota annuel sont automatiquement écartées.',style:TextStyle(fontSize:10.5,color:Colors.black54,fontWeight:FontWeight.w700)),
+          const SizedBox(height:12),
+          if(results.isEmpty)
+            Container(
+              padding:const EdgeInsets.all(12),
+              decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(13)),
+              child:Text('Aucun croisement actuellement disponible n’a encore produit « $desiredColor » dans les données enregistrées.',textAlign:TextAlign.center,style:const TextStyle(color:Colors.black54)),
+            )
+          else...results.take(5).map((item){
+            final rate=((item['rate'] as double)*100).round();
+            return Container(
+              margin:const EdgeInsets.only(bottom:9),
+              padding:const EdgeInsets.all(9),
+              decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold.withValues(alpha:.45))),
+              child:Column(children:[
+                Row(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  _homeRabbitMini(item['maleId'] as String),
+                  const Padding(padding:EdgeInsets.fromLTRB(7,14,7,0),child:Text('×',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gold))),
+                  _homeRabbitMini(item['femaleId'] as String),
+                ]),
+                const SizedBox(height:5),
+                Text('${item['count']} $desiredColor sur ${item['total']} lapereaux • $rate % observés',textAlign:TextAlign.center,style:const TextStyle(fontSize:11.5,fontWeight:FontWeight.w900,color:brown)),
+                Text('♂ ${item['male']} • ♀ ${item['female']} • ${item['litters']} portée${item['litters']==1 ? '' : 's'}',style:const TextStyle(fontSize:10.5,color:Colors.black54)),
+              ]),
+            );
+          }),
+        ]),
+      )),
+    );
+  }
+
   List<String> get visibleHomeOrder=>homeOrder.where((id){
+    if(id=='colors'&&appMode!='Éleveur')return false;
     if(id=='dashboard'||id=='filters')return rabbits.isNotEmpty;
     return true;
   }).toList();
@@ -1827,6 +2108,7 @@ class _HomePageState extends State<HomePage>{
     Widget section;
     switch(id){
       case 'dashboard': section=dashboard(); break;
+      case 'colors': section=colorPlannerSection(); break;
       case 'vets': section=veterinarySearchSection(); break;
       case 'backup': section=backupSection(); break;
       case 'filters': section=searchAndFilters(); break;
@@ -2692,6 +2974,7 @@ class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.
 class _RabbitPageState extends State<RabbitPage>{
   List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
   String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
+  String reproSearch='';
   bool rabbitOrganizing=false;
   List<String> rabbitOrder=[];
   static const rabbitDefaultsEleveur=['identity','filiation','alerts','health','medications','weight','adoption','reproduction','competitions','vaccines','dewormings','appointments','documents'];
@@ -3322,6 +3605,7 @@ class _RabbitPageState extends State<RabbitPage>{
       'matingDate':'','birthDate':'','weaningDate':'',
       'liveMaleBirth':0,'liveFemaleBirth':0,'deadMaleBirth':0,'deadFemaleBirth':0,
       'liveMaleWeaning':0,'liveFemaleWeaning':0,
+      'colors':<Map<String,dynamic>>[],
     };
     await showDialog(context:context,builder:(ctx)=>BreedingDialog(
       currentRabbit:r!,allRabbits:all,record:rec,
@@ -4888,27 +5172,248 @@ class _RabbitPageState extends State<RabbitPage>{
     );
   }
 
+  Widget _rabbitMini(String rabbitId,{double size=46}){
+    final match=all.where((x)=>x['id']==rabbitId);
+    final rabbit=match.isEmpty ? <String,dynamic>{} : match.first;
+    final provider=fileImage(rabbit['photo']);
+    return Column(mainAxisSize:MainAxisSize.min,children:[
+      Container(
+        width:size,height:size,
+        decoration:BoxDecoration(
+          color:gold.withValues(alpha:.12),
+          shape:BoxShape.circle,
+          border:Border.all(color:gold.withValues(alpha:.75)),
+          image:provider==null ? null : DecorationImage(image:provider,fit:BoxFit.cover),
+        ),
+        child:provider==null?Icon(Icons.pets,color:lapiGreenDark,size:size*.45):null,
+      ),
+      const SizedBox(height:4),
+      SizedBox(width:92,child:Text(rabbitNameById(rabbitId),maxLines:2,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w800))),
+    ]);
+  }
+
+  Widget _colorBarsGraph(
+    List<Map<String,dynamic>> colors,{
+    void Function(int index)? onEdit,
+    void Function(int index)? onDelete,
+    VoidCallback? onClearAll,
+  }){
+    if(colors.isEmpty)return const SizedBox.shrink();
+    final maxRaw=colors.fold<int>(1,(m,e){
+      final a=ReproductionStore.n(e['male']);
+      final b=ReproductionStore.n(e['female']);
+      final local=a>b?a:b;
+      return local>m?local:m;
+    });
+    final maxValue=maxRaw<=5?5:maxRaw<=10?10:maxRaw<=15?15:((maxRaw+4)~/5)*5;
+    const chartHeight=150.0;
+    const maleColor=Color(0xFF2F80ED);
+    const femaleColor=Color(0xFFE86A9B);
+    final totals=ReproductionStore.colorSexTotals(colors);
+
+    Widget bar(int value,Color color){
+      final h=value==0 ? 2.0 : (chartHeight-34)*(value/maxValue);
+      return Column(mainAxisAlignment:MainAxisAlignment.end,children:[
+        Text('$value',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:color)),
+        const SizedBox(height:3),
+        Container(width:22,height:h,decoration:BoxDecoration(color:color,borderRadius:const BorderRadius.vertical(top:Radius.circular(7)))),
+      ]);
+    }
+
+    return Container(
+      padding:const EdgeInsets.fromLTRB(10,10,10,10),
+      decoration:BoxDecoration(color:Colors.white.withValues(alpha:.76),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold.withValues(alpha:.42))),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Row(children:[
+          const Icon(Icons.bar_chart,color:lapiGreenDark,size:19),
+          const SizedBox(width:6),
+          const Expanded(child:Text('Répartition des couleurs',style:TextStyle(fontWeight:FontWeight.w900,color:ink))),
+          if(onClearAll!=null)IconButton(tooltip:'Tout supprimer',visualDensity:VisualDensity.compact,onPressed:onClearAll,icon:const Icon(Icons.close,color:Colors.red,size:21)),
+        ]),
+        Wrap(spacing:12,runSpacing:4,children:[
+          Text('♂ ${totals['male']} mâle${totals['male']==1 ? '' : 's'}',style:const TextStyle(color:maleColor,fontWeight:FontWeight.w900)),
+          Text('♀ ${totals['female']} femelle${totals['female']==1 ? '' : 's'}',style:const TextStyle(color:femaleColor,fontWeight:FontWeight.w900)),
+          Text('Total ${totals['total']}',style:const TextStyle(fontWeight:FontWeight.w900,color:brown)),
+        ]),
+        const SizedBox(height:8),
+        Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
+          SizedBox(
+            width:30,height:chartHeight,
+            child:Column(mainAxisAlignment:MainAxisAlignment.spaceBetween,crossAxisAlignment:CrossAxisAlignment.end,children:[
+              Text('$maxValue',style:const TextStyle(fontSize:9,color:Colors.black54)),
+              Text('${(maxValue*.75).round()}',style:const TextStyle(fontSize:9,color:Colors.black54)),
+              Text('${(maxValue*.50).round()}',style:const TextStyle(fontSize:9,color:Colors.black54)),
+              Text('${(maxValue*.25).round()}',style:const TextStyle(fontSize:9,color:Colors.black54)),
+              const Text('0',style:TextStyle(fontSize:9,color:Colors.black54)),
+            ]),
+          ),
+          const SizedBox(width:5),
+          Expanded(child:SingleChildScrollView(
+            scrollDirection:Axis.horizontal,
+            child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:colors.asMap().entries.map((entry){
+              final i=entry.key;
+              final item=entry.value;
+              final label=(item['color']??'').toString();
+              final m=ReproductionStore.n(item['male']);
+              final f=ReproductionStore.n(item['female']);
+              return InkWell(
+                onTap:onEdit==null?null:()=>onEdit(i),
+                borderRadius:BorderRadius.circular(10),
+                child:SizedBox(
+                  width:88,
+                  child:Column(mainAxisSize:MainAxisSize.min,children:[
+                    SizedBox(
+                      height:chartHeight,
+                      child:Stack(children:[
+                        Positioned.fill(child:Row(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[bar(m,maleColor),const SizedBox(width:6),bar(f,femaleColor)])),
+                        if(onDelete!=null)Positioned(right:3,top:0,child:InkWell(onTap:()=>onDelete(i),child:const Icon(Icons.close,color:Colors.red,size:18))),
+                      ]),
+                    ),
+                    const SizedBox(height:5),
+                    SizedBox(height:32,child:Text(label,maxLines:2,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))),
+                  ]),
+                ),
+              );
+            }).toList()),
+          )),
+        ]),
+        const SizedBox(height:5),
+        const Row(mainAxisAlignment:MainAxisAlignment.end,children:[
+          Icon(Icons.swipe_left,size:15,color:Colors.black45),
+          SizedBox(width:4),
+          Text('Faites défiler horizontalement pour voir toutes les couleurs',style:TextStyle(fontSize:9.5,color:Colors.black45)),
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _editRecordColor(Map<String,dynamic> record,int index)async{
+    final colors=ReproductionStore.colorsOf(record);
+    if(index<0||index>=colors.length)return;
+    final used=colors.asMap().entries.where((e)=>e.key!=index).map((e)=>(e.value['color']??'').toString()).toSet();
+    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(initial:colors[index],unavailable:used));
+    if(result==null)return;
+    colors[index]=result;
+    final updated=Map<String,dynamic>.from(record)..['colors']=colors;
+    await ReproductionStore.upsert(updated);
+    await refreshBreedings();
+  }
+
+  Future<void> _deleteRecordColor(Map<String,dynamic> record,int index)async{
+    final colors=ReproductionStore.colorsOf(record);
+    if(index<0||index>=colors.length)return;
+    final label=(colors[index]['color']??'cette couleur').toString();
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:Text('Supprimer $label ?'),
+      content:const Text('La colonne sera supprimée de cette portée et les statistiques seront recalculées.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+    ))??false;
+    if(!ok)return;
+    colors.removeAt(index);
+    final updated=Map<String,dynamic>.from(record)..['colors']=colors;
+    await ReproductionStore.upsert(updated);
+    await refreshBreedings();
+  }
+
+  Future<void> _clearRecordColors(Map<String,dynamic> record)async{
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer toutes les couleurs ?'),
+      content:const Text('Toutes les colonnes de couleurs de cette portée seront supprimées.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Tout supprimer'))],
+    ))??false;
+    if(!ok)return;
+    final updated=Map<String,dynamic>.from(record)..['colors']=<Map<String,dynamic>>[];
+    await ReproductionStore.upsert(updated);
+    await refreshBreedings();
+  }
+
+  Widget _coupleColorSummaries(List<Map<String,dynamic>> records,String currentSex){
+    final groups=<String,List<Map<String,dynamic>>>{};
+    for(final record in records){
+      final partnerId=(record[currentSex=='Mâle'?'femaleId':'maleId']??'').toString();
+      if(partnerId.isEmpty)continue;
+      groups.putIfAbsent(partnerId,()=>[]).add(record);
+    }
+    if(groups.isEmpty)return const SizedBox.shrink();
+    return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      const Text('Croisements & couleurs obtenues',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink)),
+      const SizedBox(height:4),
+      const Text('Les portées d’un même couple sont additionnées automatiquement.',style:TextStyle(fontSize:11,color:Colors.black54)),
+      const SizedBox(height:9),
+      ...groups.entries.map((entry){
+        final partnerId=entry.key;
+        final coupleRecords=entry.value;
+        final colors=ReproductionStore.aggregateColors(coupleRecords);
+        final births=coupleRecords.fold<int>(0,(sum,e)=>sum+ReproductionStore.n(ReproductionStore.totals(e)['born']));
+        final maleId=currentSex=='Mâle'?(r!['id']??'').toString():partnerId;
+        final femaleId=currentSex=='Femelle'?(r!['id']??'').toString():partnerId;
+        return Container(
+          margin:const EdgeInsets.only(bottom:12),
+          padding:const EdgeInsets.all(10),
+          decoration:BoxDecoration(color:gold.withValues(alpha:.065),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.55))),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Row(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
+              _rabbitMini(maleId),
+              const Padding(padding:EdgeInsets.fromLTRB(8,16,8,0),child:Text('×',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gold))),
+              _rabbitMini(femaleId),
+            ]),
+            const SizedBox(height:5),
+            Text('${coupleRecords.length} ${coupleRecords.length>1 ? 'portées' : 'portée'} • $births lapereau${births>1 ? 'x' : ''}',textAlign:TextAlign.center,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:brown)),
+            if(colors.isNotEmpty)...[
+              const SizedBox(height:8),
+              _colorBarsGraph(colors),
+            ]else
+              const Padding(padding:EdgeInsets.only(top:8),child:Text('Aucune couleur renseignée pour ce croisement.',textAlign:TextAlign.center,style:TextStyle(fontSize:11,color:Colors.black54))),
+          ]),
+        );
+      }),
+    ]);
+  }
+
   Widget reproductionSection(){
     final id=(r!['id']??'') as String;
-    final records=breedings.where((b)=>b['maleId']==id||b['femaleId']==id).toList();
-    records.sort((a,b){
+    final allRecords=breedings.where((b)=>b['maleId']==id||b['femaleId']==id).toList();
+    allRecords.sort((a,b){
       final ad=_reproDate(a['matingDate'] as String?)??DateTime(1900);
       final bd=_reproDate(b['matingDate'] as String?)??DateTime(1900);
       return bd.compareTo(ad);
     });
     final sex=(r!['sex']??'') as String;
-    final cumulative=ReproductionStore.aggregate(records);
+    final q=reproSearch.trim().toLowerCase();
+    final records=allRecords.where((b){
+      if(q.isEmpty)return true;
+      final partnerId=sex=='Mâle'?(b['femaleId']??'').toString():(b['maleId']??'').toString();
+      final partner=rabbitNameById(partnerId).toLowerCase();
+      final date=(b['matingDate']??'').toString().toLowerCase();
+      final birth=(b['birthDate']??'').toString().toLowerCase();
+      return partner.contains(q)||date.contains(q)||birth.contains(q);
+    }).toList();
+    final cumulative=ReproductionStore.aggregate(allRecords);
     return PremiumCard(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       header(sex=='Mâle'?'Reproduction / Saillies':'Reproduction / Portées',Icons.favorite),
-      _reproductionProfile(records),
-      if(records.isNotEmpty)...[
+      _reproductionProfile(allRecords),
+      if(allRecords.isNotEmpty)...[
         const SizedBox(height:9),
         _breedingChart(cumulative,cumulative:true),
         const SizedBox(height:16),
+        _coupleColorSummaries(allRecords,sex),
+        const SizedBox(height:8),
+        TextField(
+          decoration:InputDecoration(
+            labelText:'Rechercher une portée / un croisement',
+            hintText:'Ex. Perle ou 2026',
+            prefixIcon:const Icon(Icons.search),
+            suffixIcon:reproSearch.isEmpty?null:IconButton(onPressed:()=>setState(()=>reproSearch=''),icon:const Icon(Icons.close)),
+          ),
+          onChanged:(v)=>setState(()=>reproSearch=v),
+        ),
+        const SizedBox(height:12),
       ],
-      if(records.isEmpty)Padding(padding:const EdgeInsets.only(top:12,bottom:10),child:Text(sex=='Mâle'?'Aucune saillie enregistrée.':'Aucune portée enregistrée.',style:const TextStyle(color:Colors.black54))),
+      if(allRecords.isEmpty)Padding(padding:const EdgeInsets.only(top:12,bottom:10),child:Text(sex=='Mâle'?'Aucune saillie enregistrée.':'Aucune portée enregistrée.',style:const TextStyle(color:Colors.black54))),
+      if(allRecords.isNotEmpty&&records.isEmpty)const Padding(padding:EdgeInsets.symmetric(vertical:16),child:Text('Aucune portée ne correspond à cette recherche.',textAlign:TextAlign.center,style:TextStyle(color:Colors.black54))),
       ...records.map((b){
         final t=ReproductionStore.totals(b);
+        final colors=ReproductionStore.colorsOf(b);
         final partner=sex=='Mâle'?rabbitNameById((b['femaleId']??'') as String):rabbitNameById((b['maleId']??'') as String);
         return Container(
           margin:const EdgeInsets.only(bottom:12),
@@ -4926,6 +5431,15 @@ class _RabbitPageState extends State<RabbitPage>{
               trailing:IconButton(icon:const Icon(Icons.delete_outline),onPressed:()=>deleteBreeding(b)),
             ),
             Padding(padding:const EdgeInsets.fromLTRB(10,0,10,10),child:_breedingChart(b)),
+            if(colors.isNotEmpty)Padding(
+              padding:const EdgeInsets.fromLTRB(10,0,10,10),
+              child:_colorBarsGraph(
+                colors,
+                onEdit:(i)=>_editRecordColor(b,i),
+                onDelete:(i)=>_deleteRecordColor(b,i),
+                onClearAll:()=>_clearRecordColors(b),
+              ),
+            ),
           ]),
         );
       }),
@@ -6271,6 +6785,67 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
   ));
 }
 
+class ColorCountDialog extends StatefulWidget{
+  final Map<String,dynamic>? initial;
+  final Set<String> unavailable;
+  const ColorCountDialog({super.key,this.initial,this.unavailable=const <String>{}});
+  @override State<ColorCountDialog> createState()=>_ColorCountDialogState();
+}
+
+class _ColorCountDialogState extends State<ColorCountDialog>{
+  late String color;
+  late int male;
+  late int female;
+
+  @override void initState(){
+    super.initState();
+    final initialColor=(widget.initial?['color']??'').toString();
+    color=ReproductionStore.colorOptions.contains(initialColor)
+        ?initialColor
+        :ReproductionStore.colorOptions.firstWhere((c)=>!widget.unavailable.contains(c),orElse:()=>ReproductionStore.colorOptions.first);
+    male=ReproductionStore.n(widget.initial?['male']);
+    female=ReproductionStore.n(widget.initial?['female']);
+  }
+
+  @override Widget build(BuildContext context)=>AlertDialog(
+    title:Text(widget.initial==null?'Ajouter une couleur':'Modifier la couleur'),
+    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+      DropdownButtonFormField<String>(
+        value:color,
+        isExpanded:true,
+        decoration:const InputDecoration(labelText:'Couleur'),
+        items:ReproductionStore.colorOptions.where((c)=>c==(widget.initial?['color']??'').toString()||!widget.unavailable.contains(c)).map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
+        onChanged:(v)=>setState(()=>color=v??color),
+      ),
+      const SizedBox(height:12),
+      Row(children:[
+        Expanded(child:DropdownButtonFormField<int>(
+          value:male,
+          decoration:const InputDecoration(labelText:'Mâles'),
+          items:List.generate(21,(i)=>DropdownMenuItem(value:i,child:Text('$i'))),
+          onChanged:(v)=>setState(()=>male=v??0),
+        )),
+        const SizedBox(width:10),
+        Expanded(child:DropdownButtonFormField<int>(
+          value:female,
+          decoration:const InputDecoration(labelText:'Femelles'),
+          items:List.generate(21,(i)=>DropdownMenuItem(value:i,child:Text('$i'))),
+          onChanged:(v)=>setState(()=>female=v??0),
+        )),
+      ]),
+      const SizedBox(height:8),
+      Text('Total : ${male+female} lapereau${male+female>1 ? 'x' : ''}',style:const TextStyle(fontWeight:FontWeight.w800,color:brown)),
+    ])),
+    actions:[
+      TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Annuler')),
+      PremiumFilledButton(
+        onPressed:male+female==0?null:()=>Navigator.pop(context,{'color':color,'male':male,'female':female}),
+        child:const Text('Valider'),
+      ),
+    ],
+  );
+}
+
 class BreedingDialog extends StatefulWidget{
   final Map<String,dynamic> currentRabbit;
   final List<Map<String,dynamic>> allRabbits;
@@ -6289,9 +6864,70 @@ class _BreedingDialogState extends State<BreedingDialog>{
     d=Map<String,dynamic>.from(widget.record);
     currentIsMale=widget.currentRabbit['sex']=='Mâle';
     for(final k in ['liveMaleBirth','liveFemaleBirth','deadMaleBirth','deadFemaleBirth','liveMaleWeaning','liveFemaleWeaning']){d[k]=ReproductionStore.n(d[k]);}
+    d['colors']=ReproductionStore.colorsOf(d);
   }
 
   List<Map<String,dynamic>> get partners=>widget.allRabbits.where((x)=>x['id']!=widget.currentRabbit['id']&&x['sex']==(currentIsMale?'Femelle':'Mâle')).toList();
+  List<Map<String,dynamic>> get colorEntries=>List<Map<String,dynamic>>.from((d['colors'] as List?)??[]);
+
+  Future<void> addColor()async{
+    final used=colorEntries.map((e)=>(e['color']??'').toString()).toSet();
+    if(used.length>=ReproductionStore.colorOptions.length){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Toutes les couleurs disponibles sont déjà renseignées.')));
+      return;
+    }
+    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(unavailable:used));
+    if(result==null)return;
+    final list=colorEntries..add(result);
+    setState(()=>d['colors']=list);
+  }
+
+  Future<void> editColor(int index)async{
+    final list=colorEntries;
+    if(index<0||index>=list.length)return;
+    final used=list.asMap().entries.where((e)=>e.key!=index).map((e)=>(e.value['color']??'').toString()).toSet();
+    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(initial:list[index],unavailable:used));
+    if(result==null)return;
+    list[index]=result;
+    setState(()=>d['colors']=list);
+  }
+
+  Future<void> deleteColor(int index)async{
+    final list=colorEntries;
+    if(index<0||index>=list.length)return;
+    final label=(list[index]['color']??'cette couleur').toString();
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:Text('Supprimer $label ?'),
+      content:const Text('Cette couleur sera retirée de cette portée et du graphique.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+    ))??false;
+    if(!ok)return;
+    list.removeAt(index);
+    setState(()=>d['colors']=list);
+  }
+
+  Future<void> clearColors()async{
+    if(colorEntries.isEmpty)return;
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer toutes les couleurs ?'),
+      content:const Text('Le tableau des couleurs de cette portée sera entièrement vidé.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Tout supprimer'))],
+    ))??false;
+    if(ok)setState(()=>d['colors']=<Map<String,dynamic>>[]);
+  }
+
+  bool validateColors(){
+    final colors=ReproductionStore.colorSexTotals(colorEntries);
+    if(colors['total']==0)return true;
+    final totals=ReproductionStore.totals(d);
+    if(colors['male']!=totals['maleTotal']||colors['female']!=totals['femaleTotal']){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
+        'Vérifiez les couleurs : ${colors['male']} mâle(s) / ${colors['female']} femelle(s) saisis, mais la portée contient ${totals['maleTotal']} mâle(s) / ${totals['femaleTotal']} femelle(s).',
+      )));
+      return false;
+    }
+    return true;
+  }
 
   Future<void> pickDate(String key,String label)async{
     final current=Notifications.parseDate(d[key] as String?);
@@ -6322,6 +6958,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date de saillie et le partenaire.')));
             return;
           }
+          if(!validateColors())return;
           if(currentIsMale){d['maleId']=widget.currentRabbit['id'];}else{d['femaleId']=widget.currentRabbit['id'];}
           widget.onSave(d);
         },child:const Text('ENREGISTRER'))],
@@ -6346,6 +6983,50 @@ class _BreedingDialogState extends State<BreedingDialog>{
         countField('Mâles morts','deadMaleBirth'),
         const SizedBox(height:10),
         countField('Femelles mortes','deadFemaleBirth'),
+        const SizedBox(height:22),
+        PremiumCard(child:Padding(
+          padding:const EdgeInsets.all(12),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Row(children:[
+              const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('Couleurs des lapereaux',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:ink)),
+                SizedBox(height:2),
+                Text('Le nom simple désigne le papillon ; « uni » désigne une robe entièrement de cette couleur.',style:TextStyle(fontSize:11,color:Colors.black54)),
+              ])),
+              if(colorEntries.isNotEmpty)IconButton(
+                tooltip:'Tout supprimer',
+                onPressed:clearColors,
+                icon:const Icon(Icons.close,color:Colors.red),
+              ),
+            ]),
+            if(colorEntries.isEmpty)
+              const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Aucune couleur renseignée.',style:TextStyle(color:Colors.black54))),
+            ...colorEntries.asMap().entries.map((entry){
+              final i=entry.key;
+              final item=entry.value;
+              return Container(
+                margin:const EdgeInsets.only(bottom:7),
+                decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.42))),
+                child:ListTile(
+                  dense:true,
+                  onTap:()=>editColor(i),
+                  title:Text((item['color']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+                  subtitle:Text('♂ ${ReproductionStore.n(item['male'])}   •   ♀ ${ReproductionStore.n(item['female'])}   •   total ${ReproductionStore.n(item['male'])+ReproductionStore.n(item['female'])}'),
+                  trailing:IconButton(tooltip:'Supprimer cette couleur',onPressed:()=>deleteColor(i),icon:const Icon(Icons.close,color:Colors.red,size:21)),
+                ),
+              );
+            }),
+            const SizedBox(height:4),
+            OutlinedButton.icon(onPressed:addColor,icon:const Icon(Icons.add),label:const Text('Ajouter une couleur')),
+            if(colorEntries.isNotEmpty)...[
+              const SizedBox(height:8),
+              Builder(builder:(_){
+                final ct=ReproductionStore.colorSexTotals(colorEntries);
+                return Text('Total couleurs : ♂ ${ct['male']}   •   ♀ ${ct['female']}   •   ${ct['total']} lapereau(x)',style:const TextStyle(fontWeight:FontWeight.w800,color:brown));
+              }),
+            ],
+          ]),
+        )),
         const SizedBox(height:22),
         const Text('Au sevrage',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
         dateField('Date de sevrage','weaningDate'),
