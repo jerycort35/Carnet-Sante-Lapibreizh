@@ -530,6 +530,165 @@ class ReproductionSettingsStore {
   }
 }
 
+class RabbitBreedCatalog {
+  static const categories=<String>[
+    'Toutes','Grandes races','Races moyennes','Petites races','Races naines','Fourrure caractéristique','Autres',
+  ];
+
+  // Base volontairement courte pour valider l'architecture.
+  // La prochaine mise à jour remplacera/complètera ces données par la base exhaustive vérifiée race par race.
+  static const breeds=<Map<String,dynamic>>[
+    {'name':'Géant Papillon Français','category':'Grandes races'},
+    {'name':'Géant des Flandres','category':'Grandes races'},
+    {'name':'Fauve de Bourgogne','category':'Races moyennes'},
+    {'name':'Rex','category':'Fourrure caractéristique'},
+    {'name':'Nain de couleur','category':'Races naines'},
+    {'name':'Croisé','category':'Autres'},
+    {'name':'Autre / non reconnu','category':'Autres'},
+    {'name':'Race inconnue','category':'Autres'},
+  ];
+
+  static const colorsByBreed=<String,List<Map<String,dynamic>>>{
+    'Géant Papillon Français':[
+      {'name':'Noir','standard':true},{'name':'Bleu','standard':true},{'name':'Havane','standard':true},
+      {'name':'Noir uni','standard':false},{'name':'Bleu uni','standard':false},{'name':'Havane uni','standard':false},
+      {'name':'Charlot','standard':false},{'name':'Non déterminé','standard':false},{'name':'Autre / non standard','standard':false},
+    ],
+    'Fauve de Bourgogne':[
+      {'name':'Fauve','standard':true},{'name':'Non déterminé','standard':false},{'name':'Autre / non standard','standard':false},
+    ],
+    'Rex':[
+      {'name':'Noir','standard':true},{'name':'Bleu','standard':true},{'name':'Havane','standard':true},{'name':'Fauve','standard':true},
+      {'name':'Non déterminé','standard':false},{'name':'Autre / non standard','standard':false},
+    ],
+    'Nain de couleur':[
+      {'name':'Noir','standard':true},{'name':'Bleu','standard':true},{'name':'Havane','standard':true},{'name':'Fauve','standard':true},
+      {'name':'Non déterminé','standard':false},{'name':'Autre / non standard','standard':false},
+    ],
+  };
+
+  static List<String> racesFor({String category='Toutes',String query=''}){
+    final q=query.trim().toLowerCase();
+    final out=breeds.where((b){
+      final categoryOk=category=='Toutes'||b['category']==category;
+      final name=(b['name']??'').toString();
+      final queryOk=q.isEmpty||name.toLowerCase().contains(q);
+      return categoryOk&&queryOk;
+    }).map((b)=>(b['name']??'').toString()).where((x)=>x.isNotEmpty).toList();
+    out.sort((a,b)=>a.toLowerCase().compareTo(b.toLowerCase()));
+    return out;
+  }
+
+  static List<Map<String,dynamic>> colorsFor(String? breed){
+    final key=(breed??'').trim();
+    final exact=colorsByBreed[key];
+    if(exact!=null)return exact.map((e)=>Map<String,dynamic>.from(e)).toList();
+    return [
+      ...ReproductionStore.colorOptions.map((c)=>{'name':c,'standard':false}),
+      {'name':'Autre / non standard','standard':false},
+    ];
+  }
+
+  static bool isStandard(String? breed,String? color)=>colorsFor(breed).any((e)=>e['name']==color&&e['standard']==true);
+}
+
+class RacePickerDialog extends StatefulWidget{
+  final String initial;
+  final String title;
+  const RacePickerDialog({super.key,this.initial='',this.title='Choisir la race'});
+  @override State<RacePickerDialog> createState()=>_RacePickerDialogState();
+}
+
+class _RacePickerDialogState extends State<RacePickerDialog>{
+  String category='Toutes';
+  String query='';
+  @override Widget build(BuildContext context){
+    final races=RabbitBreedCatalog.racesFor(category:category,query:query);
+    return Dialog.fullscreen(child:Scaffold(
+      appBar:AppBar(title:Text(widget.title),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
+      body:Column(children:[
+        Padding(padding:const EdgeInsets.all(14),child:TextField(
+          autofocus:false,
+          decoration:const InputDecoration(labelText:'Rechercher une race',prefixIcon:Icon(Icons.search)),
+          onChanged:(v)=>setState(()=>query=v),
+        )),
+        SizedBox(height:44,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12),children:[
+          for(final c in RabbitBreedCatalog.categories) Padding(
+            padding:const EdgeInsets.only(right:7),
+            child:ChoiceChip(label:Text(c),selected:category==c,onSelected:(_)=>setState(()=>category=c)),
+          ),
+        ])),
+        const SizedBox(height:6),
+        Expanded(child:races.isEmpty
+          ? const Center(child:Text('Aucune race trouvée.'))
+          : ListView.separated(
+              itemCount:races.length,
+              separatorBuilder:(_,__)=>const Divider(height:1),
+              itemBuilder:(context,i){
+                final race=races[i];
+                return ListTile(
+                  title:Text(race,style:const TextStyle(fontWeight:FontWeight.w700)),
+                  trailing:race==widget.initial?const Icon(Icons.check_circle,color:lapiGreen):null,
+                  onTap:()=>Navigator.pop(context,race),
+                );
+              },
+            )),
+      ]),
+    ));
+  }
+}
+
+class BreedColorPickerDialog extends StatefulWidget{
+  final String breed;
+  final String initial;
+  final Set<String> unavailable;
+  const BreedColorPickerDialog({super.key,required this.breed,this.initial='',this.unavailable=const <String>{}});
+  @override State<BreedColorPickerDialog> createState()=>_BreedColorPickerDialogState();
+}
+
+class _BreedColorPickerDialogState extends State<BreedColorPickerDialog>{
+  String query='';
+  @override Widget build(BuildContext context){
+    final q=query.trim().toLowerCase();
+    final items=RabbitBreedCatalog.colorsFor(widget.breed).where((e){
+      final name=(e['name']??'').toString();
+      final available=name==widget.initial||!widget.unavailable.contains(name);
+      return available&&(q.isEmpty||name.toLowerCase().contains(q));
+    }).toList();
+    return Dialog.fullscreen(child:Scaffold(
+      appBar:AppBar(title:const Text('Choisir la couleur / variété'),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
+      body:Column(children:[
+        Padding(
+          padding:const EdgeInsets.fromLTRB(14,14,14,6),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Text(widget.breed.trim().isEmpty?'Race non renseignée':widget.breed,style:const TextStyle(fontWeight:FontWeight.w900,color:ink)),
+            const SizedBox(height:4),
+            const Text('🏅 = variété reconnue au standard de la race',style:TextStyle(fontSize:11,color:brown)),
+            const SizedBox(height:10),
+            TextField(decoration:const InputDecoration(labelText:'Rechercher une couleur / variété',prefixIcon:Icon(Icons.search)),onChanged:(v)=>setState(()=>query=v)),
+          ]),
+        ),
+        Expanded(child:ListView.separated(
+          itemCount:items.length,
+          separatorBuilder:(_,__)=>const Divider(height:1),
+          itemBuilder:(context,i){
+            final item=items[i];
+            final name=(item['name']??'').toString();
+            final standard=item['standard']==true;
+            return ListTile(
+              leading:standard?const Text('🏅',style:TextStyle(fontSize:20)):const SizedBox(width:22),
+              title:Text(name,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:name=='Charlot'?const Text('Type de marquage non standard'):null,
+              trailing:name==widget.initial?const Icon(Icons.check_circle,color:lapiGreen):null,
+              onTap:()=>Navigator.pop(context,name),
+            );
+          },
+        )),
+      ]),
+    ));
+  }
+}
+
 class ReproductionStore {
   static const key='lapibreizh_reproduction_v1';
 
@@ -1804,7 +1963,7 @@ class _HomePageState extends State<HomePage>{
     var count=0;
     for(final r in rabbits){
       final missing=[
-        r['name'],r['sex'],r['breed'],r['birth'],
+        r['name'],r['sex'],r['breed'],r['color'],r['birth'],
       ].where((v)=>(v??'').toString().trim().isEmpty).length;
       if(missing>0)count++;
     }
@@ -1816,7 +1975,7 @@ class _HomePageState extends State<HomePage>{
     return rabbits.asMap().entries.where((entry){
       final r=entry.value;
       final haystack=[
-        r['name'],r['breed'],r['identification'],r['tattoo'],r['fatherName'],r['motherName']
+        r['name'],r['breed'],r['color'],r['identification'],r['tattoo'],r['fatherName'],r['motherName']
       ].map((e)=>(e??'').toString().toLowerCase()).join(' ');
       if(q.isNotEmpty&&!haystack.contains(q))return false;
       if(sexFilter!='Tous'&&r['sex']!=sexFilter)return false;
@@ -2968,7 +3127,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherBirth':'','motherName':'','motherBreed':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','color':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherColor':'','fatherBirth':'','motherName':'','motherBreed':'','motherColor':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -4544,14 +4703,14 @@ class _RabbitPageState extends State<RabbitPage>{
       case 'identity':
         return section('Identité',Icons.badge,[
           info('Sexe',rr['sex']),info('Statut',rr['sterilized']),info('Naissance',rr['birth']),
-          info('Sevrage',rr['weaning']),info('Race',rr['breed']),
+          info('Sevrage',rr['weaning']),info('Race',rr['breed']),info('Couleur / variété',rr['color']),
           info('Identification (facultatif)',rr['identification']),info('Tatouage (facultatif)',rr['tattoo']),
         ]);
       case 'filiation':
         return section('Filiation',Icons.account_tree,[
-          info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Naissance du père',rr['fatherBirth']),
+          info('Père',rr['fatherName']),info('Race du père',rr['fatherBreed']),info('Couleur du père',rr['fatherColor']),info('Naissance du père',rr['fatherBirth']),
           const Divider(),
-          info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Naissance de la mère',rr['motherBirth']),
+          info('Mère',rr['motherName']),info('Race de la mère',rr['motherBreed']),info('Couleur de la mère',rr['motherColor']),info('Naissance de la mère',rr['motherBirth']),
         ]);
       case 'alerts': return dataAlertsSection();
       case 'health': return healthJourneySection();
@@ -6377,7 +6536,7 @@ class EditIdentity extends StatefulWidget{
 }
 class _EditIdentityState extends State<EditIdentity>{
   late Map<String,dynamic>d;
-  @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';}
+  @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';d['color']??='';d['fatherColor']??='';d['motherColor']??='';}
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
     appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
@@ -6396,21 +6555,77 @@ class _EditIdentityState extends State<EditIdentity>{
         ChoiceChip(label:const Text('Stérilisé(e)'),selected:d['sterilized']=='Stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Stérilisé(e)')),
         ChoiceChip(label:const Text('Non stérilisé(e)'),selected:d['sterilized']=='Non stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Non stérilisé(e)')),
       ]),
-      field('Race','breed'),
+      raceColorFields('breed','color'),
       field('Numéro d’identification (facultatif)','identification'),
       field('Numéro de tatouage (facultatif)','tattoo'),
       dateField('Date de naissance','birth'),
       dateField('Date de sevrage','weaning'),
       const SizedBox(height:20),
       const Text('Père',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-      field('Nom du père','fatherName'),field('Race du père','fatherBreed'),dateField('Date de naissance du père','fatherBirth'),
+      field('Nom du père','fatherName'),raceColorFields('fatherBreed','fatherColor',raceLabel:'Race du père',colorLabel:'Couleur / variété du père'),dateField('Date de naissance du père','fatherBirth'),
       const SizedBox(height:20),
       const Text('Mère',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-      field('Nom de la mère','motherName'),field('Race de la mère','motherBreed'),dateField('Date de naissance de la mère','motherBirth'),
+      field('Nom de la mère','motherName'),raceColorFields('motherBreed','motherColor',raceLabel:'Race de la mère',colorLabel:'Couleur / variété de la mère'),dateField('Date de naissance de la mère','motherBirth'),
     ]),
   ));
 
   Widget choiceTitle(String label)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Text(label,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:brown)));
+
+  Future<void> chooseRace(String raceKey,String colorKey,String title)async{
+    final selected=await showDialog<String>(context:context,builder:(_)=>RacePickerDialog(initial:(d[raceKey]??'').toString(),title:title));
+    if(selected==null)return;
+    setState((){
+      final changed=(d[raceKey]??'').toString()!=selected;
+      d[raceKey]=selected;
+      if(changed)d[colorKey]='';
+    });
+  }
+
+  Future<void> chooseColor(String raceKey,String colorKey)async{
+    final breed=(d[raceKey]??'').toString();
+    if(breed.trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez d’abord la race.')));
+      return;
+    }
+    final selected=await showDialog<String>(context:context,builder:(_)=>BreedColorPickerDialog(breed:breed,initial:(d[colorKey]??'').toString()));
+    if(selected!=null)setState(()=>d[colorKey]=selected);
+  }
+
+  Widget raceColorFields(String raceKey,String colorKey,{String raceLabel='Race',String colorLabel='Couleur / variété'}){
+    final race=(d[raceKey]??'').toString();
+    final color=(d[colorKey]??'').toString();
+    final standard=RabbitBreedCatalog.isStandard(race,color);
+    return Padding(
+      padding:const EdgeInsets.only(top:10),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        InkWell(
+          borderRadius:BorderRadius.circular(12),
+          onTap:()=>chooseRace(raceKey,colorKey,raceLabel),
+          child:InputDecorator(
+            decoration:InputDecoration(labelText:raceLabel,suffixIcon:const Icon(Icons.arrow_drop_down)),
+            child:Text(race.isEmpty?'Sélectionner une race':race,style:TextStyle(color:race.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(height:10),
+        InkWell(
+          borderRadius:BorderRadius.circular(12),
+          onTap:()=>chooseColor(raceKey,colorKey),
+          child:InputDecorator(
+            decoration:InputDecoration(labelText:colorLabel,suffixIcon:const Icon(Icons.arrow_drop_down)),
+            child:Row(children:[
+              if(standard)...[const Text('🏅'),const SizedBox(width:6)],
+              Expanded(child:Text(color.isEmpty?'Sélectionner une couleur / variété':color,style:TextStyle(color:color.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700))),
+            ]),
+          ),
+        ),
+        if(color.isNotEmpty)Padding(
+          padding:const EdgeInsets.only(top:4,left:4),
+          child:Text(standard?'🏅 Variété reconnue au standard de la race':'Variété / type enregistré hors repère standard',style:const TextStyle(fontSize:10,color:Colors.black54)),
+        ),
+      ]),
+    );
+  }
+
   Widget field(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(initialValue:d[key]??'',decoration:InputDecoration(labelText:label),onChanged:(v)=>d[key]=v));
   Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(
     readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
@@ -6788,7 +7003,8 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
 class ColorCountDialog extends StatefulWidget{
   final Map<String,dynamic>? initial;
   final Set<String> unavailable;
-  const ColorCountDialog({super.key,this.initial,this.unavailable=const <String>{}});
+  final String breed;
+  const ColorCountDialog({super.key,this.initial,this.unavailable=const <String>{},this.breed=''});
   @override State<ColorCountDialog> createState()=>_ColorCountDialogState();
 }
 
@@ -6800,9 +7016,8 @@ class _ColorCountDialogState extends State<ColorCountDialog>{
   @override void initState(){
     super.initState();
     final initialColor=(widget.initial?['color']??'').toString();
-    color=ReproductionStore.colorOptions.contains(initialColor)
-        ?initialColor
-        :ReproductionStore.colorOptions.firstWhere((c)=>!widget.unavailable.contains(c),orElse:()=>ReproductionStore.colorOptions.first);
+    final available=RabbitBreedCatalog.colorsFor(widget.breed).map((e)=>(e['name']??'').toString()).where((c)=>c.isNotEmpty&&!widget.unavailable.contains(c)).toList();
+    color=initialColor.isNotEmpty?initialColor:(available.isNotEmpty?available.first:'Non déterminé');
     male=ReproductionStore.n(widget.initial?['male']);
     female=ReproductionStore.n(widget.initial?['female']);
   }
@@ -6810,13 +7025,26 @@ class _ColorCountDialogState extends State<ColorCountDialog>{
   @override Widget build(BuildContext context)=>AlertDialog(
     title:Text(widget.initial==null?'Ajouter une couleur':'Modifier la couleur'),
     content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-      DropdownButtonFormField<String>(
-        value:color,
-        isExpanded:true,
-        decoration:const InputDecoration(labelText:'Couleur'),
-        items:ReproductionStore.colorOptions.where((c)=>c==(widget.initial?['color']??'').toString()||!widget.unavailable.contains(c)).map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
-        onChanged:(v)=>setState(()=>color=v??color),
+      InkWell(
+        borderRadius:BorderRadius.circular(12),
+        onTap:()async{
+          final selected=await showDialog<String>(context:context,builder:(_)=>BreedColorPickerDialog(
+            breed:widget.breed,
+            initial:color,
+            unavailable:widget.unavailable,
+          ));
+          if(selected!=null)setState(()=>color=selected);
+        },
+        child:InputDecorator(
+          decoration:const InputDecoration(labelText:'Couleur / variété',suffixIcon:Icon(Icons.arrow_drop_down)),
+          child:Row(children:[
+            if(RabbitBreedCatalog.isStandard(widget.breed,color))...[const Text('🏅'),const SizedBox(width:6)],
+            Expanded(child:Text(color,style:const TextStyle(fontWeight:FontWeight.w700))),
+          ]),
+        ),
       ),
+      const SizedBox(height:4),
+      Align(alignment:Alignment.centerLeft,child:Text(widget.breed.isEmpty?'Race de portée non définie':widget.breed,style:const TextStyle(fontSize:10,color:Colors.black54))),
       const SizedBox(height:12),
       Row(children:[
         Expanded(child:DropdownButtonFormField<int>(
@@ -6870,13 +7098,31 @@ class _BreedingDialogState extends State<BreedingDialog>{
   List<Map<String,dynamic>> get partners=>widget.allRabbits.where((x)=>x['id']!=widget.currentRabbit['id']&&x['sex']==(currentIsMale?'Femelle':'Mâle')).toList();
   List<Map<String,dynamic>> get colorEntries=>List<Map<String,dynamic>>.from((d['colors'] as List?)??[]);
 
+  Map<String,dynamic>? get selectedPartner{
+    final partnerKey=currentIsMale?'femaleId':'maleId';
+    final id=(d[partnerKey]??'').toString();
+    final hits=partners.where((p)=>(p['id']??'').toString()==id);
+    return hits.isEmpty?null:hits.first;
+  }
+
+  String get litterBreed{
+    final a=(widget.currentRabbit['breed']??'').toString().trim();
+    final b=(selectedPartner?['breed']??'').toString().trim();
+    if(a.isNotEmpty&&b.isNotEmpty&&a==b)return a;
+    if(a.isNotEmpty&&b.isEmpty)return a;
+    if(b.isNotEmpty&&a.isEmpty)return b;
+    if(a.isNotEmpty&&b.isNotEmpty&&a!=b)return 'Croisé';
+    return '';
+  }
+
   Future<void> addColor()async{
     final used=colorEntries.map((e)=>(e['color']??'').toString()).toSet();
-    if(used.length>=ReproductionStore.colorOptions.length){
+    final available=RabbitBreedCatalog.colorsFor(litterBreed).map((e)=>(e['name']??'').toString()).where((c)=>c.isNotEmpty).toSet();
+    if(available.isNotEmpty&&used.containsAll(available)){
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Toutes les couleurs disponibles sont déjà renseignées.')));
       return;
     }
-    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(unavailable:used));
+    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(unavailable:used,breed:litterBreed));
     if(result==null)return;
     final list=colorEntries..add(result);
     setState(()=>d['colors']=list);
@@ -6886,7 +7132,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
     final list=colorEntries;
     if(index<0||index>=list.length)return;
     final used=list.asMap().entries.where((e)=>e.key!=index).map((e)=>(e.value['color']??'').toString()).toSet();
-    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(initial:list[index],unavailable:used));
+    final result=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>ColorCountDialog(initial:list[index],unavailable:used,breed:litterBreed));
     if(result==null)return;
     list[index]=result;
     setState(()=>d['colors']=list);
@@ -6972,6 +7218,10 @@ class _BreedingDialogState extends State<BreedingDialog>{
           items:partners.map((p)=>DropdownMenuItem<String>(value:p['id'] as String,child:Text(((p['name']??'') as String).isEmpty?'Lapin sans nom':p['name']))).toList(),
           onChanged:(v)=>setState(()=>d[partnerKey]=v??''),
         ),
+        if(litterBreed.isNotEmpty)Padding(
+          padding:const EdgeInsets.only(top:6,left:4),
+          child:Text('Race utilisée pour les couleurs : $litterBreed',style:const TextStyle(fontSize:10.5,color:Colors.black54,fontWeight:FontWeight.w700)),
+        ),
         dateField('Date de naissance des lapereaux','birthDate'),
         const SizedBox(height:22),
         const Text('À la naissance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
@@ -6991,7 +7241,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
               const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Text('Couleurs des lapereaux',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:ink)),
                 SizedBox(height:2),
-                Text('Le nom simple désigne le papillon ; « uni » désigne une robe entièrement de cette couleur.',style:TextStyle(fontSize:11,color:Colors.black54)),
+                Text('La liste des couleurs / variétés dépend de la race du couple. 🏅 indique une variété reconnue au standard.',style:TextStyle(fontSize:11,color:Colors.black54)),
               ])),
               if(colorEntries.isNotEmpty)IconButton(
                 tooltip:'Tout supprimer',
