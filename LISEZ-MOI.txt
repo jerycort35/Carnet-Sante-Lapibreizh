@@ -1,14 +1,35 @@
-LapiGestion V3 - correctif Galerie Android
+LapiGestion V3-1.19 — Premium détails
 
-Ce ZIP ajoute uniquement des fichiers .nomedia afin que Samsung Galerie / Android Media Scanner n'indexe plus les visuels du projet Gitling.
+BASE
+- Vérifié directement sur GitHub main avant modification.
+- lib/main.dart SHA GitHub : 2406d2a539ec3a5f3db43fc93fb267b036f5f2bf
+- Version de départ : 1.0.0+18
 
-Fichiers ajoutés :
-- /.nomedia
-- /assets/.nomedia
-- /assets/images/.nomedia
+OBJECTIF VISUEL
+- Référence : maquette premium vert / ivoire / or validée.
+- Un seul paysage côtier plein écran, sans lapins, derrière toutes les pages.
+- Fond visible sur toute la hauteur pendant le défilement.
+- Cartes ivoire, liserés dorés fins.
+- Boutons et barre inférieure vert profond avec texture marbrée.
+- Sélections dorées.
+- Petites feuilles dorées décoratives dans les cadres.
+- Bloc LapiGestion supérieur centré, premium et intégré au paysage.
+- Moteur fonctionnel conservé.
 
-Aucun fichier Dart, Android, Gradle, signature, workflow GitHub ou visuel n'est modifié.
+FICHIERS À EXTRAIRE À LA RACINE DU PROJET
+- lib/main.dart
+- pubspec.yaml
+- assets/images/lapigestion_background_master.jpg
+- assets/images/lapigestion_green_marble.jpg
+- assets/images/lapigestion_gold_leaves.png
 
-Décompressez ce ZIP à la racine du projet, puis commit/push.
+VERSION
+- 1.0.0+19
 
-Les images déjà visibles dans la Galerie peuvent rester temporairement en cache. Après le push, fermez la Galerie puis redémarrez le téléphone si nécessaire.
+NON MODIFIÉ
+- .github/workflows/
+- android/app/build.gradle
+- signature Android
+- AndroidManifest.xml
+
+Le ZIP est volontairement limité aux fichiers nécessaires pour éviter tout problème de workflow GitHub.

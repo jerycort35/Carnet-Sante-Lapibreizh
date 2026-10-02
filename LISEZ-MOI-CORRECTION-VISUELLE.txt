@@ -1,0 +1,13 @@
+Base visuelle pour correction manuelle.
+
+Contenu attendu :
+- vert marbré pour les cadres/boutons : assets/images/lapigestion_green_marble.jpg
+- feuilles dorées : assets/images/lapigestion_gold_leaves.png
+- fond principal : assets/images/lapigestion_background_master.jpg
+- logique d’intégration : lib/main.dart
+
+Objectif visuel validé :
+- vert marbré plus fidèle
+- feuilles correctement dorées
+- rendu or avec reflet / brillance, pas jaune terne
+- respect des emplacements décoratifs d’origine
