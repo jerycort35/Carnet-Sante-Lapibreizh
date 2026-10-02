@@ -2629,7 +2629,7 @@ class HomePage extends StatefulWidget { const HomePage({super.key}); @override S
 class _HomePageState extends State<HomePage>{
   List<Map<String,dynamic>> rabbits=[]; List<Map<String,dynamic>> breedings=[]; bool loading=true; String appMode='Éleveur';
   String searchQuery=''; String sexFilter='Tous'; String adoptionFilter='Tous';
-  String desiredColor='Noir'; int reproMaxLitters=4; int reproRestDays=90;
+  String desiredBreed='Géant Papillon Français'; String desiredColor='Noir'; int reproMaxLitters=4; int reproRestDays=90;
   bool homeOrganizing=false; bool homeLayoutLoaded=false;
   bool vetLoading=false; String vetError=''; int vetRadiusKm=20; String vetFilter='Tous';
   List<Map<String,dynamic>> nearbyVets=[];
@@ -2773,7 +2773,15 @@ class _HomePageState extends State<HomePage>{
     final reproSettings=await ReproductionSettingsStore.load();
     reproMaxLitters=reproSettings['maxLitters']??4;
     reproRestDays=reproSettings['restDays']??90;
-    if(!ReproductionStore.colorOptions.contains(desiredColor))desiredColor=ReproductionStore.colorOptions.first;
+    final knownBreeds=RabbitBreedCatalog.racesFor();
+    if(!knownBreeds.contains(desiredBreed)){
+      desiredBreed=knownBreeds.contains('Géant Papillon Français')?'Géant Papillon Français':(knownBreeds.isNotEmpty?knownBreeds.first:'');
+    }
+    final desiredColors=RabbitBreedCatalog.colorsFor(desiredBreed)
+        .map((e)=>(e['name']??'').toString())
+        .where((c)=>c.isNotEmpty&&c!='Non déterminé'&&c!='Autre / non standard')
+        .toList();
+    if(!desiredColors.contains(desiredColor))desiredColor=desiredColors.isNotEmpty?desiredColors.first:'';
     if(!homeLayoutLoaded){
       homeOrder=await LayoutStore.load('home',homeDefaults);
       homeLayoutLoaded=true;
@@ -2958,6 +2966,18 @@ class _HomePageState extends State<HomePage>{
     return true;
   }
 
+  String _homePairBreed(String maleId,String femaleId){
+    final male=_rabbitById(maleId);
+    final female=_rabbitById(femaleId);
+    final a=(male?['breed']??'').toString().trim();
+    final b=(female?['breed']??'').toString().trim();
+    if(a.isNotEmpty&&b.isNotEmpty&&a==b)return a;
+    if(a.isNotEmpty&&b.isNotEmpty&&a!=b)return 'Croisé';
+    if(a.isNotEmpty)return a;
+    if(b.isNotEmpty)return b;
+    return '';
+  }
+
   List<Map<String,dynamic>> _colorRecommendations(){
     final groups=<String,List<Map<String,dynamic>>>{};
     for(final b in breedings){
@@ -2971,6 +2991,8 @@ class _HomePageState extends State<HomePage>{
       final ids=entry.key.split('|');
       final maleId=ids[0],femaleId=ids[1];
       if(!_femaleAvailableForReproduction(femaleId))continue;
+      final pairBreed=_homePairBreed(maleId,femaleId);
+      if(desiredBreed.isNotEmpty&&pairBreed!=desiredBreed)continue;
       final colors=ReproductionStore.aggregateColors(entry.value);
       final selected=colors.where((c)=>c['color']==desiredColor);
       if(selected.isEmpty)continue;
@@ -3006,6 +3028,36 @@ class _HomePageState extends State<HomePage>{
     setState((){reproMaxLitters=newMax;reproRestDays=newRest;});
   }
 
+  Future<void> _chooseDesiredBreed() async {
+    final selected=await showDialog<String>(
+      context:context,
+      builder:(_)=>RacePickerDialog(initial:desiredBreed,title:'Race recherchée'),
+    );
+    if(selected==null)return;
+    final colors=RabbitBreedCatalog.colorsFor(selected)
+        .map((e)=>(e['name']??'').toString())
+        .where((c)=>c.isNotEmpty&&c!='Non déterminé'&&c!='Autre / non standard')
+        .toList();
+    if(!mounted)return;
+    setState((){
+      desiredBreed=selected;
+      desiredColor=colors.isNotEmpty?colors.first:'';
+    });
+  }
+
+  Future<void> _chooseDesiredColor() async {
+    if(desiredBreed.trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez d’abord la race.')));
+      return;
+    }
+    final selected=await showDialog<String>(
+      context:context,
+      builder:(_)=>BreedColorPickerDialog(breed:desiredBreed,initial:desiredColor),
+    );
+    if(selected==null||selected=='Non déterminé'||selected=='Autre / non standard')return;
+    if(mounted)setState(()=>desiredColor=selected);
+  }
+
   Widget colorPlannerSection(){
     final results=_colorRecommendations();
     return Padding(
@@ -3021,13 +3073,34 @@ class _HomePageState extends State<HomePage>{
           const SizedBox(height:4),
           const Text('LapiGestion compare uniquement vos résultats réellement enregistrés. Il ne garantit pas la couleur d’une future portée.',style:TextStyle(fontSize:10.5,color:Colors.black54)),
           const SizedBox(height:10),
-          DropdownButtonFormField<String>(
-            value:desiredColor,
-            isExpanded:true,
-            decoration:const InputDecoration(labelText:'Couleur recherchée'),
-            items:ReproductionStore.colorOptions.where((c)=>c!='Non déterminé').map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
-            onChanged:(v){if(v!=null)setState(()=>desiredColor=v);},
+          InkWell(
+            borderRadius:BorderRadius.circular(12),
+            onTap:_chooseDesiredBreed,
+            child:InputDecorator(
+              decoration:const InputDecoration(labelText:'Race recherchée',suffixIcon:Icon(Icons.arrow_drop_down)),
+              child:Text(
+                desiredBreed.isEmpty?'Sélectionner une race':desiredBreed,
+                style:TextStyle(color:desiredBreed.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700),
+              ),
+            ),
           ),
+          const SizedBox(height:10),
+          InkWell(
+            borderRadius:BorderRadius.circular(12),
+            onTap:_chooseDesiredColor,
+            child:InputDecorator(
+              decoration:const InputDecoration(labelText:'Couleur / variété recherchée',suffixIcon:Icon(Icons.arrow_drop_down)),
+              child:Row(children:[
+                if(RabbitBreedCatalog.isStandard(desiredBreed,desiredColor))...[const Text('🏅'),const SizedBox(width:6)],
+                Expanded(child:Text(
+                  desiredColor.isEmpty?'Sélectionner une couleur / variété':desiredColor,
+                  style:TextStyle(color:desiredColor.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700),
+                )),
+              ]),
+            ),
+          ),
+          const SizedBox(height:4),
+          const Text('🏅 = variété reconnue au standard de la race',style:TextStyle(fontSize:10,color:Colors.black54)),
           const SizedBox(height:10),
           Row(children:[
             Expanded(child:DropdownButtonFormField<int>(
@@ -3058,7 +3131,7 @@ class _HomePageState extends State<HomePage>{
             Container(
               padding:const EdgeInsets.all(12),
               decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(13)),
-              child:Text('Aucun croisement actuellement disponible n’a encore produit « $desiredColor » dans les données enregistrées.',textAlign:TextAlign.center,style:const TextStyle(color:Colors.black54)),
+              child:Text('Aucun croisement « $desiredBreed » actuellement disponible n’a encore produit « $desiredColor » dans les données enregistrées.',textAlign:TextAlign.center,style:const TextStyle(color:Colors.black54)),
             )
           else...results.take(5).map((item){
             final rate=((item['rate'] as double)*100).round();
@@ -3074,6 +3147,7 @@ class _HomePageState extends State<HomePage>{
                 ]),
                 const SizedBox(height:5),
                 Text('${item['count']} $desiredColor sur ${item['total']} lapereaux • $rate % observés',textAlign:TextAlign.center,style:const TextStyle(fontSize:11.5,fontWeight:FontWeight.w900,color:brown)),
+                Text(desiredBreed,style:const TextStyle(fontSize:10,color:Colors.black54,fontWeight:FontWeight.w700)),
                 Text('♂ ${item['male']} • ♀ ${item['female']} • ${item['litters']} portée${item['litters']==1 ? '' : 's'}',style:const TextStyle(fontSize:10.5,color:Colors.black54)),
               ]),
             );

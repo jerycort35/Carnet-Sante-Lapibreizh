@@ -1,4 +1,4 @@
-LapiGestion V3-1.23 — Base exhaustive races & variétés
+LapiGestion V3-1.24 — Correction recherche couleur accueil
 
 BASE VERIFIEE AVANT MODIFICATION
 - GitHub main : jerycort35/Carnet-Sante-Lapibreizh
@@ -31,8 +31,15 @@ SOURCE PRINCIPALE
 - Application au 01 septembre 2026
 - Pour les races à variété unique, la désignation de couleur a été précisée à partir des fiches de présentation FFC lorsqu'elle n'était pas répétée dans le tableau de nomenclature.
 
+CORRECTION V3-1.24
+- Le bloc d'accueil « Je recherche une couleur » utilise maintenant le catalogue exhaustif race -> couleur / variété.
+- Sélection de la race via le même moteur de recherche et les mêmes catégories que les fiches lapins.
+- Sélection de la couleur / variété filtrée selon la race choisie.
+- Repère 🏅 conservé pour les variétés reconnues au standard.
+- Les recommandations sont filtrées sur la race sélectionnée afin d'éviter de mélanger des résultats portant le même nom de couleur dans plusieurs races.
+
 VERSION
-- 1.0.0+22
+- 1.0.0+23
 
 NON MODIFIE
 - .github/workflows/
