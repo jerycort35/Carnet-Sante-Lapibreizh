@@ -1143,7 +1143,7 @@ class PremiumFilledButton extends StatelessWidget {
       ?m.FilledButton.icon(onPressed:onPressed,icon:icon!,label:label!,style:transparentStyle)
       :m.FilledButton(onPressed:onPressed,style:transparentStyle,child:child!);
     return Opacity(
-      opacity:onPressed==null?.48:1,
+      opacity:onPressed==null ? .48 : 1,
       child:ClipRRect(
         borderRadius:BorderRadius.circular(14),
         child:Stack(
