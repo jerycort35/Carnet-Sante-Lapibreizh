@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as m;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -910,18 +911,18 @@ BoxDecoration premiumMarbleDecoration({
   bool selected=false,
   bool strong=false,
 })=>BoxDecoration(
-  color:strong?heroGreen:heroGreen2,
+  color:strong?const Color(0xFF063B28):const Color(0xFF0B5138),
   image:DecorationImage(
     image:const AssetImage('assets/images/lapigestion_green_marble.jpg'),
     fit:BoxFit.cover,
-    opacity:strong ? .96 : .88,
+    opacity:strong ? 1.0 : .96,
     colorFilter:ColorFilter.mode(
-      strong?const Color(0x22000000):const Color(0x0AFFFFFF),
+      strong?const Color(0x10000000):const Color(0x06FFFFFF),
       BlendMode.srcOver,
     ),
   ),
   borderRadius:BorderRadius.circular(radius),
-  border:Border.all(color:selected?gold:gold.withValues(alpha:.72),width:selected?1.35:.8),
+  border:Border.all(color:selected?const Color(0xFFFFE39A):const Color(0xFFF2C85F),width:selected?1.45:.95),
   boxShadow:[
     BoxShadow(
       color:Colors.black.withValues(alpha:selected ? .13 : .07),
@@ -991,6 +992,224 @@ class PremiumMarbleButton extends StatelessWidget{
             ],
           ),
         ),
+      ),
+    ),
+  );
+}
+
+
+/// Cadre ivoire premium commun à toutes les grandes cartes de l'application.
+/// Les ornements sont de vraies images dorées avec reflets, jamais une teinte jaune plate.
+class PremiumCard extends StatelessWidget {
+  final Widget? child;
+  final Color? color;
+  final Color? shadowColor;
+  final Color? surfaceTintColor;
+  final double? elevation;
+  final ShapeBorder? shape;
+  final bool borderOnForeground;
+  final EdgeInsetsGeometry? margin;
+  final Clip clipBehavior;
+  final bool semanticContainer;
+
+  const PremiumCard({
+    super.key,
+    this.child,
+    this.color,
+    this.shadowColor,
+    this.surfaceTintColor,
+    this.elevation,
+    this.shape,
+    this.borderOnForeground=true,
+    this.margin,
+    this.clipBehavior=Clip.none,
+    this.semanticContainer=true,
+  });
+
+  @override
+  Widget build(BuildContext context) => m.Card(
+    color:color,
+    shadowColor:shadowColor,
+    surfaceTintColor:surfaceTintColor,
+    elevation:elevation,
+    shape:shape,
+    borderOnForeground:borderOnForeground,
+    margin:margin,
+    clipBehavior:clipBehavior,
+    semanticContainer:semanticContainer,
+    child:Stack(
+      clipBehavior:Clip.none,
+      children:[
+        if(child!=null) child!,
+        Positioned.fill(
+          child:IgnorePointer(
+            child:Opacity(
+              opacity:.13,
+              child:Image.asset(
+                'assets/images/lapigestion_gold_corners.png',
+                fit:BoxFit.fill,
+                filterQuality:FilterQuality.high,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right:-7,
+          bottom:-8,
+          child:IgnorePointer(
+            child:Opacity(
+              opacity:.30,
+              child:Image.asset(
+                'assets/images/lapigestion_gold_corner_volute.png',
+                width:58,
+                fit:BoxFit.contain,
+                filterQuality:FilterQuality.high,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left:-8,
+          top:-8,
+          child:IgnorePointer(
+            child:Opacity(
+              opacity:.18,
+              child:Image.asset(
+                'assets/images/lapigestion_gold_leaves.png',
+                width:48,
+                fit:BoxFit.contain,
+                filterQuality:FilterQuality.high,
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child:IgnorePointer(
+            child:LayoutBuilder(builder:(context,c){
+              if(c.maxHeight<250)return const SizedBox.shrink();
+              return Align(
+                alignment:Alignment.centerRight,
+                child:Opacity(
+                  opacity:.075,
+                  child:Image.asset(
+                    'assets/images/lapigestion_gold_ornament_vertical.png',
+                    width:54,
+                    height:c.maxHeight*.72,
+                    fit:BoxFit.contain,
+                    filterQuality:FilterQuality.high,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Bouton primaire premium : vrai marbre vert profond + veines or + reflet doré.
+class PremiumFilledButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final Widget? child;
+  final Widget? icon;
+  final Widget? label;
+  final ButtonStyle? style;
+
+  const PremiumFilledButton({
+    super.key,
+    required this.onPressed,
+    required Widget this.child,
+    this.style,
+  }):icon=null,label=null;
+
+  const PremiumFilledButton.icon({
+    super.key,
+    required this.onPressed,
+    required Widget this.icon,
+    required Widget this.label,
+    this.style,
+  }):child=null;
+
+  @override
+  Widget build(BuildContext context){
+    final transparentStyle=ButtonStyle(
+      backgroundColor:const WidgetStatePropertyAll(Colors.transparent),
+      shadowColor:const WidgetStatePropertyAll(Colors.transparent),
+      surfaceTintColor:const WidgetStatePropertyAll(Colors.transparent),
+      side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent)),
+    ).merge(style);
+    final native=icon!=null
+      ?m.FilledButton.icon(onPressed:onPressed,icon:icon!,label:label!,style:transparentStyle)
+      :m.FilledButton(onPressed:onPressed,style:transparentStyle,child:child!);
+    return Opacity(
+      opacity:onPressed==null?.48:1,
+      child:ClipRRect(
+        borderRadius:BorderRadius.circular(14),
+        child:Stack(
+          children:[
+            Positioned.fill(child:DecoratedBox(decoration:premiumMarbleDecoration(radius:14,strong:true))),
+            Positioned.fill(
+              child:IgnorePointer(
+                child:Opacity(
+                  opacity:.18,
+                  child:Image.asset(
+                    'assets/images/lapigestion_gold_volute_horizontal.png',
+                    fit:BoxFit.cover,
+                    alignment:Alignment.center,
+                    filterQuality:FilterQuality.high,
+                  ),
+                ),
+              ),
+            ),
+            native,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// SegmentedButton posé sur le même marbre vert/or afin d'éviter les aplats verts ternes.
+class PremiumSegmentedButton<T> extends StatelessWidget {
+  final List<ButtonSegment<T>> segments;
+  final Set<T> selected;
+  final void Function(Set<T>)? onSelectionChanged;
+  final bool multiSelectionEnabled;
+  final bool emptySelectionAllowed;
+  final bool showSelectedIcon;
+  final Widget? selectedIcon;
+  final ButtonStyle? style;
+
+  const PremiumSegmentedButton({
+    super.key,
+    required this.segments,
+    required this.selected,
+    required this.onSelectionChanged,
+    this.multiSelectionEnabled=false,
+    this.emptySelectionAllowed=false,
+    this.showSelectedIcon=true,
+    this.selectedIcon,
+    this.style,
+  });
+
+  @override
+  Widget build(BuildContext context)=>ClipRRect(
+    borderRadius:BorderRadius.circular(14),
+    child:DecoratedBox(
+      decoration:premiumMarbleDecoration(radius:14,strong:true),
+      child:SegmentedButton<T>(
+        segments:segments,
+        selected:selected,
+        onSelectionChanged:onSelectionChanged,
+        multiSelectionEnabled:multiSelectionEnabled,
+        emptySelectionAllowed:emptySelectionAllowed,
+        showSelectedIcon:showSelectedIcon,
+        selectedIcon:selectedIcon,
+        style:const ButtonStyle(
+          backgroundColor:WidgetStatePropertyAll(Colors.transparent),
+          surfaceTintColor:WidgetStatePropertyAll(Colors.transparent),
+        ).merge(style),
       ),
     ),
   );
@@ -1195,7 +1414,7 @@ class VeterinaryResultsPage extends StatelessWidget {
               final address=(vet['address']??'').toString();
               final hours=(vet['openingHours']??'').toString();
 
-              return Card(
+              return PremiumCard(
                 child:Padding(
                   padding:const EdgeInsets.all(14),
                   child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1397,8 +1616,9 @@ class _HomePageState extends State<HomePage>{
           boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:14,offset:const Offset(0,-4))],
         ),
         child:Stack(children:[
-          const Positioned(left:-5,bottom:-9,child:PremiumGoldLeaves(size:48,opacity:.52)),
-          Positioned(right:-5,bottom:-9,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:48,opacity:.52))),
+          Positioned.fill(child:IgnorePointer(child:Opacity(opacity:.14,child:Image.asset('assets/images/lapigestion_gold_corners.png',fit:BoxFit.fill,filterQuality:FilterQuality.high)))),
+          const Positioned(left:-5,bottom:-9,child:PremiumGoldLeaves(size:52,opacity:.72)),
+          Positioned(right:-5,bottom:-9,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:52,opacity:.72))),
           Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
@@ -1649,7 +1869,7 @@ class _HomePageState extends State<HomePage>{
         ),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Annuler')),
-          FilledButton(
+          PremiumFilledButton(
             onPressed:(){
               final n=int.tryParse(controller.text.trim());
               if(n==null||n<1||n>200){
@@ -1704,7 +1924,7 @@ class _HomePageState extends State<HomePage>{
   Widget veterinarySearchSection(){
     final visible=_visibleNearbyVets;
 
-    return Card(
+    return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
         const Positioned(right:0,top:0,child:PremiumGoldLeaves(size:46,opacity:.48)),
@@ -1727,7 +1947,7 @@ class _HomePageState extends State<HomePage>{
 
           const Text('Type de vétérinaire',style:TextStyle(fontWeight:FontWeight.w800,color:ink)),
           const SizedBox(height:5),
-          SegmentedButton<String>(
+          PremiumSegmentedButton<String>(
             segments:const [
               ButtonSegment(value:'Tous',label:Text('Tous'),icon:Icon(Icons.local_hospital)),
               ButtonSegment(value:'NAC',label:Text('NAC'),icon:Icon(Icons.pets)),
@@ -1773,7 +1993,7 @@ class _HomePageState extends State<HomePage>{
           ),
 
           const SizedBox(height:9),
-          FilledButton.icon(
+          PremiumFilledButton.icon(
             onPressed:vetLoading?null:_searchVeterinarians,
             icon:vetLoading
               ?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))
@@ -1935,7 +2155,7 @@ class _HomePageState extends State<HomePage>{
     if(rabbits.isEmpty){
       return Padding(
         padding:const EdgeInsets.fromLTRB(14,0,14,14),
-        child:Card(child:Padding(
+        child:PremiumCard(child:Padding(
           padding:const EdgeInsets.all(22),
           child:Column(children:[
             const Icon(Icons.pets,size:46,color:lapiGreenDark),
@@ -1944,7 +2164,7 @@ class _HomePageState extends State<HomePage>{
             const SizedBox(height:8),
             const Text('Créez une fiche pour chaque lapin et gardez son suivi de santé au même endroit.',textAlign:TextAlign.center),
             const SizedBox(height:16),
-            FilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin')),
+            PremiumFilledButton.icon(onPressed:addRabbit,icon:const Icon(Icons.add),label:const Text('Créer mon premier lapin')),
           ]),
         )),
       );
@@ -1961,7 +2181,7 @@ class _HomePageState extends State<HomePage>{
         ),
         const SizedBox(height:10),
         if(filtered.isEmpty)
-          Card(child:Padding(
+          PremiumCard(child:Padding(
             padding:const EdgeInsets.all(18),
             child:Column(children:[
               const Icon(Icons.search_off,color:brown,size:34),
@@ -1975,7 +2195,7 @@ class _HomePageState extends State<HomePage>{
           final status=((rabbit['adoptionStatus']??'') as String);
           return Padding(
             padding:const EdgeInsets.only(bottom:12),
-            child:Card(child:Stack(children:[
+            child:PremiumCard(child:Stack(children:[
               const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:45,opacity:.62)),
               ListTile(
                 contentPadding:const EdgeInsets.all(12),
@@ -2049,7 +2269,7 @@ class _HomePageState extends State<HomePage>{
 
   Widget dashboard(){
     final next=_nextAppointment();
-    return Card(
+    return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
         const Positioned(right:1,bottom:-2,child:PremiumGoldLeaves(size:48,opacity:.45)),
@@ -2139,7 +2359,7 @@ class _HomePageState extends State<HomePage>{
         ),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
-          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Restaurer')),
+          PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Restaurer')),
         ],
       ),
     )??false;
@@ -2159,7 +2379,7 @@ class _HomePageState extends State<HomePage>{
   }
 
   Widget backupSection(){
-    return Card(
+    return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
         const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:46,opacity:.48)),
@@ -2254,7 +2474,7 @@ class _HomePageState extends State<HomePage>{
       ]),
     ]);
 
-    return Card(
+    return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
         const Positioned(right:1,top:1,child:PremiumGoldLeaves(size:46,opacity:.56)),
@@ -2421,7 +2641,7 @@ class _HomePageState extends State<HomePage>{
                         ),
                       ])),
                       const SizedBox(width:8),
-                      SegmentedButton<String>(
+                      PremiumSegmentedButton<String>(
                         segments:const [
                           ButtonSegment(value:'Éleveur',label:Text('Élevage')),
                           ButtonSegment(value:'Adoptant',label:Text('Adoptant')),
@@ -2514,7 +2734,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
       title:const Text('Supprimer la photo ?'),
       content:const Text('La copie enregistrée dans le carnet sera supprimée. La photo originale de votre bibliothèque ne sera jamais supprimée.'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
     ))??false;
     if(!ok)return;
     r!['photo']='';
@@ -2609,7 +2829,7 @@ class _RabbitPageState extends State<RabbitPage>{
         content:const Text('Cette mesure sera retirée du suivi du poids.'),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
-          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+          PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
         ],
       ),
     )??false;
@@ -2659,7 +2879,7 @@ class _RabbitPageState extends State<RabbitPage>{
     int gramsOf(Map<String,dynamic> e)=>e['grams'] is int?e['grams'] as int:int.tryParse('${e['grams']}')??0;
 
     if(valid.isEmpty){
-      return Card(child:Padding(
+      return PremiumCard(child:Padding(
         padding:const EdgeInsets.all(10),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           header('Poids & évolution',Icons.monitor_weight_outlined),
@@ -2687,7 +2907,7 @@ class _RabbitPageState extends State<RabbitPage>{
       return '$sign$delta g • $pctSign${pct.toStringAsFixed(1).replaceAll('.',',')} %';
     }
 
-    return Card(child:Padding(
+    return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         header('Poids & évolution',Icons.monitor_weight_outlined),
@@ -2756,7 +2976,7 @@ class _RabbitPageState extends State<RabbitPage>{
         const SizedBox(height:9),
         Row(children:[
           const Expanded(child:Text('Historique des pesées',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:ink))),
-          FilledButton.icon(onPressed:addWeight,icon:const Icon(Icons.add,size:18),label:const Text('Pesée')),
+          PremiumFilledButton.icon(onPressed:addWeight,icon:const Icon(Icons.add,size:18),label:const Text('Pesée')),
         ]),
         const SizedBox(height:6),
 
@@ -2862,7 +3082,7 @@ class _RabbitPageState extends State<RabbitPage>{
       content:const Text('Les rappels et les copies internes de la photo / ordonnance seront également supprimés.'),
       actions:[
         TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
-        FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+        PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
       ],
     ))??false;
     if(!ok)return;
@@ -2946,12 +3166,12 @@ class _RabbitPageState extends State<RabbitPage>{
       );
     }
 
-    return Card(child:Padding(
+    return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Row(children:[
           Expanded(child:header('Traitements médicaux',Icons.medication_liquid_outlined)),
-          FilledButton.icon(onPressed:addMedication,icon:const Icon(Icons.add,size:18),label:const Text('Ajouter')),
+          PremiumFilledButton.icon(onPressed:addMedication,icon:const Icon(Icons.add,size:18),label:const Text('Ajouter')),
         ]),
         const Text('Médicaments prescrits, doses, horaires et ordonnances. Les doses restent celles saisies selon les indications vétérinaires.',style:TextStyle(fontSize:11,color:Colors.black54)),
         const SizedBox(height:8),
@@ -3032,7 +3252,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
       title:const Text('Supprimer cet enregistrement ?'),
       content:const Text('Le rappel associé et la copie interne de la photo seront également supprimés.'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
     ))??false;
     if(!ok)return;
     list.removeAt(index);
@@ -3073,7 +3293,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
       title:const Text('Supprimer ce rendez-vous ?'),
       content:const Text('La notification associée sera également supprimée.'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
     ))??false;
     if(!ok)return;
     (r!['appointments'] as List).remove(appointment);
@@ -3120,7 +3340,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
       title:const Text('Supprimer cette saillie ?'),
       content:const Text('Elle disparaîtra automatiquement de la fiche du mâle et de la femelle.'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
     ))??false;
     if(!ok)return;
     await ReproductionStore.remove((record['id']??'') as String);
@@ -3211,7 +3431,7 @@ class _RabbitPageState extends State<RabbitPage>{
         content:const Text('La participation, sa photo et sa carte de jugement enregistrées dans l’application seront supprimées.'),
         actions:[
           TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),
-          FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
+          PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer')),
         ],
       ),
     )??false;
@@ -3272,18 +3492,18 @@ class _RabbitPageState extends State<RabbitPage>{
     final best=scores.isEmpty?null:scores.reduce((a,b)=>a>b?a:b);
 
     if(items.isEmpty){
-      return Card(child:Padding(
+      return PremiumCard(child:Padding(
         padding:const EdgeInsets.all(10),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           header('Concours & Expositions',Icons.emoji_events_outlined),
           const Text('Enregistrez les expositions, cartes de jugement, notes, classements et distinctions de ce lapin.',style:TextStyle(color:Colors.black54)),
           const SizedBox(height:8),
-          FilledButton.icon(onPressed:addCompetition,icon:const Icon(Icons.add),label:const Text('Ajouter un concours')),
+          PremiumFilledButton.icon(onPressed:addCompetition,icon:const Icon(Icons.add),label:const Text('Ajouter un concours')),
         ]),
       ));
     }
 
-    return Card(child:Padding(
+    return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Row(children:[
@@ -3297,7 +3517,7 @@ class _RabbitPageState extends State<RabbitPage>{
           competitionStat('Meilleure note',best==null?'—':best.toStringAsFixed(best%1==0?0:1).replaceAll('.',','),Icons.stars,const Color(0xFF2E7A55)),
         ]),
         const SizedBox(height:8),
-        FilledButton.icon(onPressed:exportCompetitionPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Exporter le palmarès PDF')),
+        PremiumFilledButton.icon(onPressed:exportCompetitionPdf,icon:const Icon(Icons.picture_as_pdf),label:const Text('Exporter le palmarès PDF')),
         const SizedBox(height:8),
         ...items.map((item){
           final date=Notifications.parseDate(item['date'] as String?);
@@ -3660,7 +3880,7 @@ class _RabbitPageState extends State<RabbitPage>{
   Future<void> removeDocument(String key)async{
     final p=(r![key]??'') as String;
     if(p.isEmpty)return;
-    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer ce document ?'),content:const Text('La copie enregistrée dans le carnet sera supprimée. Le fichier original ne sera pas touché.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer ce document ?'),content:const Text('La copie enregistrée dans le carnet sera supprimée. Le fichier original ne sera pas touché.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;
     if(ok){await PrivateFiles.deleteFile(p);r![key]='';await persist();}
   }
 
@@ -3945,7 +4165,7 @@ class _RabbitPageState extends State<RabbitPage>{
     if(paths.isEmpty){await Share.share(text,subject:'Carnet de santé de ${rr['name']}');}else{await Share.shareXFiles(paths.map((p)=>XFile(p)).toList(),text:text,subject:'Carnet de santé de ${rr['name']}');}
   }
   String lines(dynamic l){final x=l as List;if(x.isEmpty)return 'Aucun enregistrement';return x.map((e)=>'• ${e['date']} — ${e['product']}').join('\n');}
-  Future<void> deleteRabbit()async{final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer cette fiche ?'),content:const Text('Cette action retire la fiche du carnet.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;if(ok){
+  Future<void> deleteRabbit()async{final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer cette fiche ?'),content:const Text('Cette action retire la fiche du carnet.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;if(ok){
     final doomed=Map<String,dynamic>.from(r!);
     await Notifications.cancelRabbit(doomed);
     await ReproductionStore.removeRabbit((doomed['id']??'') as String);
@@ -4060,7 +4280,7 @@ class _RabbitPageState extends State<RabbitPage>{
       case 'dewormings': return treatmentSection('Vermifuges','dewormings',Icons.medication);
       case 'appointments': return appointmentSection();
       case 'documents':
-        return Card(child:Padding(
+        return PremiumCard(child:Padding(
           padding:const EdgeInsets.all(10),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             header('Documents',Icons.folder_copy),
@@ -4144,7 +4364,7 @@ class _RabbitPageState extends State<RabbitPage>{
               ),
             ],
             const SizedBox(height:8),
-            FilledButton.icon(
+            PremiumFilledButton.icon(
               onPressed:rabbitOrganizing?null:editIdentity,
               icon:const Icon(Icons.edit_outlined,size:18),
               label:const Text('Modifier la fiche'),
@@ -4298,7 +4518,7 @@ class _RabbitPageState extends State<RabbitPage>{
           padding:const EdgeInsets.fromLTRB(10,4,10,24),
           sliver:SliverList.list(children:[
             Row(children:[
-              Expanded(child:FilledButton.icon(onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf,size:19),label:const Text('Créer le dossier PDF'))),
+              Expanded(child:PremiumFilledButton.icon(onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf,size:19),label:const Text('Créer le dossier PDF'))),
               const SizedBox(width:8),
               Expanded(child:OutlinedButton.icon(onPressed:rabbitOrganizing?null:share,icon:const Icon(Icons.share,size:19),label:const Text('Partager la fiche'))),
             ]),
@@ -4341,7 +4561,7 @@ class _RabbitPageState extends State<RabbitPage>{
     ),
     child:SizedBox(
       width:double.infinity,
-      child:Card(
+      child:PremiumCard(
       shape:RoundedRectangleBorder(
         borderRadius:BorderRadius.circular(14),
         side:const BorderSide(color:softGoldLine,width:.9),
@@ -4427,7 +4647,7 @@ class _RabbitPageState extends State<RabbitPage>{
         child:const Row(children:[Icon(Icons.check_circle_outline,color:Color(0xFF2E7D32)),SizedBox(width:9),Expanded(child:Text('Les informations essentielles de cette fiche sont complètes.',style:TextStyle(fontWeight:FontWeight.w700,color:ink)))]),
       );
     }
-    return Card(child:Padding(padding:const EdgeInsets.all(15),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    return PremiumCard(child:Padding(padding:const EdgeInsets.all(15),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       Row(children:[
         Container(width:38,height:38,decoration:BoxDecoration(color:gold.withValues(alpha:.14),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
         const SizedBox(width:9),
@@ -4468,7 +4688,7 @@ class _RabbitPageState extends State<RabbitPage>{
       ]),
     );
 
-    return Card(child:Padding(
+    return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         header('Adoption & départ',Icons.volunteer_activism_outlined),
@@ -4533,7 +4753,7 @@ class _RabbitPageState extends State<RabbitPage>{
             ]else...[
               const Text('Formulaire digital, mention manuscrite et signature directement sur l’écran.',style:TextStyle(fontSize:12,color:Colors.black54)),
               const SizedBox(height:8),
-              FilledButton.icon(onPressed:editEngagementCertificate,icon:const Icon(Icons.draw),label:const Text('Créer le certificat digital')),
+              PremiumFilledButton.icon(onPressed:editEngagementCertificate,icon:const Icon(Icons.draw),label:const Text('Créer le certificat digital')),
             ],
           ]),
         ),
@@ -4678,7 +4898,7 @@ class _RabbitPageState extends State<RabbitPage>{
     });
     final sex=(r!['sex']??'') as String;
     final cumulative=ReproductionStore.aggregate(records);
-    return Card(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    return PremiumCard(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       header(sex=='Mâle'?'Reproduction / Saillies':'Reproduction / Portées',Icons.favorite),
       _reproductionProfile(records),
       if(records.isNotEmpty)...[
@@ -4939,7 +5159,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final filtered=past.where(keep).toList();
     final shown=healthExpanded?filtered:filtered.take(6).toList();
 
-    return Card(child:Padding(
+    return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         header('Parcours santé',Icons.timeline),
@@ -5091,7 +5311,7 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget treatmentSection(String title,String key,IconData icon){
     final list=r![key] as List;
-    return Card(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    return PremiumCard(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       header(title,icon),
       if(list.isEmpty)const Padding(padding:EdgeInsets.only(bottom:10),child:Text('Aucun enregistrement.',style:TextStyle(color:Colors.black54))),
       ...list.asMap().entries.map((e){
@@ -5145,7 +5365,7 @@ class _RabbitPageState extends State<RabbitPage>{
       ),
     );
 
-    return Card(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    return PremiumCard(child:Padding(padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       header('Rendez-vous vétérinaire',Icons.local_hospital),
       if(upcoming.isNotEmpty)...[
         const Text('Prochain rendez-vous',style:TextStyle(fontWeight:FontWeight.bold,color:brown)),
@@ -5381,7 +5601,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
           ]),
         ),
         const SizedBox(height:18),
-        FilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le concours')),
+        PremiumFilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le concours')),
         const SizedBox(height:24),
       ]),
     ));
@@ -5459,7 +5679,7 @@ class _WeightDialogState extends State<WeightDialog>{
     ])),
     actions:[
       TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Annuler')),
-      FilledButton(
+      PremiumFilledButton(
         onPressed:(){
           final grams=int.tryParse(gramsController.text.trim());
           if(((d['date']??'') as String).isEmpty){
@@ -5890,7 +6110,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
         HandwritingPad(key:signatureKey,height:130,label:'Signez ici'),
 
         const SizedBox(height:18),
-        FilledButton.icon(onPressed:save,icon:const Icon(Icons.verified),label:const Text('Signer, générer et archiver le PDF')),
+        PremiumFilledButton.icon(onPressed:save,icon:const Icon(Icons.verified),label:const Text('Signer, générer et archiver le PDF')),
         const SizedBox(height:8),
         const Text(
           'La cession du lapin ne doit pas intervenir moins de 7 jours après la délivrance du certificat.',
@@ -6045,7 +6265,7 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
       const SizedBox(height:10),
       TextFormField(initialValue:d['adoptionNotes'],minLines:3,maxLines:7,decoration:const InputDecoration(labelText:'Notes de départ / informations utiles'),onChanged:(v)=>d['adoptionNotes']=v),
       const SizedBox(height:18),
-      FilledButton.icon(onPressed:()=>widget.onSave(d),icon:const Icon(Icons.save),label:const Text('Enregistrer le suivi d’adoption')),
+      PremiumFilledButton.icon(onPressed:()=>widget.onSave(d),icon:const Icon(Icons.save),label:const Text('Enregistrer le suivi d’adoption')),
       const SizedBox(height:24),
     ]),
   ));
@@ -6136,7 +6356,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
         const SizedBox(height:20),
         Builder(builder:(_){
           final t=ReproductionStore.totals(d);
-          return Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          return PremiumCard(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             const Text('Totaux calculés automatiquement',style:TextStyle(fontWeight:FontWeight.bold)),
             const SizedBox(height:6),
             Text('Total nés : ${t['born']}'),
@@ -6232,7 +6452,7 @@ class _TreatmentDialogState extends State<TreatmentDialog>{
     ])),
     actions:[
       TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Annuler')),
-      FilledButton(
+      PremiumFilledButton(
         onPressed:(){
           if(((d['date']??'') as String).isEmpty){
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez une date.')));
@@ -6386,7 +6606,7 @@ class _MedicationDialogState extends State<MedicationDialog>{
         onChanged:(v)=>setState(()=>d['completed']=v),
       ),
       const SizedBox(height:18),
-      FilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le traitement')),
+      PremiumFilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le traitement')),
       const SizedBox(height:24),
     ]),
   ));
