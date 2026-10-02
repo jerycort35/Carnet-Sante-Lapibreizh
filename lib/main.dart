@@ -914,7 +914,7 @@ BoxDecoration premiumMarbleDecoration({
   image:DecorationImage(
     image:const AssetImage('assets/images/lapigestion_green_marble.jpg'),
     fit:BoxFit.cover,
-    opacity:strong?.96:.88,
+    opacity:strong ? .96 : .88,
     colorFilter:ColorFilter.mode(
       strong?const Color(0x22000000):const Color(0x0AFFFFFF),
       BlendMode.srcOver,
@@ -924,7 +924,7 @@ BoxDecoration premiumMarbleDecoration({
   border:Border.all(color:selected?gold:gold.withValues(alpha:.72),width:selected?1.35:.8),
   boxShadow:[
     BoxShadow(
-      color:Colors.black.withValues(alpha:selected?.13:.07),
+      color:Colors.black.withValues(alpha:selected ? .13 : .07),
       blurRadius:selected?10:7,
       offset:const Offset(0,4),
     ),
@@ -964,7 +964,7 @@ class PremiumMarbleButton extends StatelessWidget{
     this.padding=const EdgeInsets.symmetric(horizontal:16,vertical:13),
   });
   @override Widget build(BuildContext context)=>Opacity(
-    opacity:onPressed==null?.48:1,
+    opacity:onPressed==null ? .48 : 1,
     child:Material(
       color:Colors.transparent,
       child:InkWell(
