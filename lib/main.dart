@@ -142,7 +142,7 @@ class LapibreizhApp extends StatelessWidget {
     builder:(context,child)=>Container(
       decoration:const BoxDecoration(
         image:DecorationImage(
-          image:AssetImage('assets/images/lapigestion_background_pages.jpg'),
+          image:AssetImage('assets/images/lapigestion_background_master.jpg'),
           fit:BoxFit.cover,
           alignment:Alignment.topCenter,
         ),
@@ -889,25 +889,110 @@ class Scenic extends StatelessWidget {
     children:[
       Positioned.fill(
         child:Image.asset(
-          home
-            ?'assets/images/lapigestion_background_home.jpg'
-            :'assets/images/lapigestion_background_pages.jpg',
+          'assets/images/lapigestion_background_master.jpg',
           fit:BoxFit.cover,
-          alignment:home?Alignment.topCenter:Alignment.center,
+          alignment:Alignment.topCenter,
           filterQuality:FilterQuality.high,
         ),
       ),
       Positioned.fill(
         child:IgnorePointer(
-          child:Container(
-            color:home
-              ?const Color(0x16FFF8E8)
-              :const Color(0x24FFFDF5),
-          ),
+          child:Container(color:const Color(0x0DFFF8E8)),
         ),
       ),
       child,
     ],
+  );
+}
+
+BoxDecoration premiumMarbleDecoration({
+  double radius=14,
+  bool selected=false,
+  bool strong=false,
+})=>BoxDecoration(
+  color:strong?heroGreen:heroGreen2,
+  image:DecorationImage(
+    image:const AssetImage('assets/images/lapigestion_green_marble.jpg'),
+    fit:BoxFit.cover,
+    opacity:strong?.96:.88,
+    colorFilter:ColorFilter.mode(
+      strong?const Color(0x22000000):const Color(0x0AFFFFFF),
+      BlendMode.srcOver,
+    ),
+  ),
+  borderRadius:BorderRadius.circular(radius),
+  border:Border.all(color:selected?gold:gold.withValues(alpha:.72),width:selected?1.35:.8),
+  boxShadow:[
+    BoxShadow(
+      color:Colors.black.withValues(alpha:selected?.13:.07),
+      blurRadius:selected?10:7,
+      offset:const Offset(0,4),
+    ),
+    if(selected)BoxShadow(color:gold.withValues(alpha:.13),blurRadius:12),
+  ],
+);
+
+class PremiumGoldLeaves extends StatelessWidget{
+  final double size;
+  final double opacity;
+  const PremiumGoldLeaves({super.key,this.size=54,this.opacity=.66});
+  @override Widget build(BuildContext context)=>IgnorePointer(
+    child:Opacity(
+      opacity:opacity,
+      child:Image.asset(
+        'assets/images/lapigestion_gold_leaves.png',
+        width:size,
+        fit:BoxFit.contain,
+        filterQuality:FilterQuality.high,
+      ),
+    ),
+  );
+}
+
+class PremiumMarbleButton extends StatelessWidget{
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final EdgeInsetsGeometry padding;
+  const PremiumMarbleButton({
+    super.key,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    this.selected=false,
+    this.padding=const EdgeInsets.symmetric(horizontal:16,vertical:13),
+  });
+  @override Widget build(BuildContext context)=>Opacity(
+    opacity:onPressed==null?.48:1,
+    child:Material(
+      color:Colors.transparent,
+      child:InkWell(
+        onTap:onPressed,
+        borderRadius:BorderRadius.circular(14),
+        child:Ink(
+          padding:padding,
+          decoration:premiumMarbleDecoration(radius:14,selected:selected,strong:true),
+          child:Row(
+            mainAxisAlignment:MainAxisAlignment.center,
+            mainAxisSize:MainAxisSize.min,
+            children:[
+              Icon(icon,color:selected?warmGoldText:Colors.white,size:21),
+              const SizedBox(width:9),
+              Flexible(child:Text(
+                label,
+                textAlign:TextAlign.center,
+                style:TextStyle(
+                  color:selected?warmGoldText:Colors.white,
+                  fontSize:14,
+                  fontWeight:FontWeight.w800,
+                ),
+              )),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -1301,15 +1386,25 @@ class _HomePageState extends State<HomePage>{
     child:SafeArea(
       top:false,
       child:Container(
-        decoration:const BoxDecoration(
-          gradient:LinearGradient(colors:[Color(0xFF083521),Color(0xFF12583A)]),
-          border:Border(top:BorderSide(color:gold,width:1.1)),
+        decoration:BoxDecoration(
+          color:heroGreen,
+          image:const DecorationImage(
+            image:AssetImage('assets/images/lapigestion_green_marble.jpg'),
+            fit:BoxFit.cover,
+            opacity:.96,
+          ),
+          border:const Border(top:BorderSide(color:gold,width:1.1)),
+          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:14,offset:const Offset(0,-4))],
         ),
-        child:Row(children:[
+        child:Stack(children:[
+          const Positioned(left:-5,bottom:-9,child:PremiumGoldLeaves(size:48,opacity:.52)),
+          Positioned(right:-5,bottom:-9,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:48,opacity:.52))),
+          Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
           _bottomShortcut(icon:Icons.notifications_none,label:'Rappels',onTap:()=>_jumpToHome('dashboard')),
           _bottomShortcut(icon:Icons.more_horiz,label:'Plus',onTap:_showMoreMenu),
+        ]),
         ]),
       ),
     ),
@@ -1476,13 +1571,14 @@ class _HomePageState extends State<HomePage>{
 
   Widget homeOrganizeControl()=>Padding(
     padding:const EdgeInsets.fromLTRB(14,0,14,8),
-    child:Container(
+    child:Stack(children:[
+      Container(
       padding:const EdgeInsets.fromLTRB(12,7,10,7),
       decoration:BoxDecoration(
-        color:homeOrganizing?const Color(0xFFE8F3EC):premiumCard,
+        color:homeOrganizing?const Color(0xF4EEF6ED):premiumCard,
         borderRadius:BorderRadius.circular(14),
         border:Border.all(color:homeOrganizing?gold:softGoldLine,width:homeOrganizing?1.15:.9),
-        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.025),blurRadius:9,offset:const Offset(0,4))],
+        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.055),blurRadius:12,offset:const Offset(0,5))],
       ),
       child:Row(children:[
         Container(
@@ -1502,7 +1598,9 @@ class _HomePageState extends State<HomePage>{
         ])),
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
-    ),
+      ),
+      const Positioned(right:4,bottom:0,child:PremiumGoldLeaves(size:38,opacity:.48)),
+    ]),
   );
 
   Widget homeSection(String id){
@@ -1608,7 +1706,9 @@ class _HomePageState extends State<HomePage>{
 
     return Card(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
-      child:Padding(
+      child:Stack(children:[
+        const Positioned(right:0,top:0,child:PremiumGoldLeaves(size:46,opacity:.48)),
+        Padding(
         padding:const EdgeInsets.all(12),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           Row(children:[
@@ -1826,6 +1926,7 @@ class _HomePageState extends State<HomePage>{
           ),
         ]),
       ),
+      ]),
     );
   }
 
@@ -1851,15 +1952,12 @@ class _HomePageState extends State<HomePage>{
     return Padding(
       padding:const EdgeInsets.fromLTRB(14,0,14,14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-        FilledButton.icon(
+        PremiumMarbleButton(
           onPressed:homeOrganizing?null:addRabbit,
-          icon:const Icon(Icons.add_circle,color:warmGoldText),
-          label:const Text('Ajouter un lapin'),
-          style:FilledButton.styleFrom(
-            backgroundColor:heroGreen,
-            side:const BorderSide(color:gold,width:1.1),
-            padding:const EdgeInsets.symmetric(vertical:12),
-          ),
+          icon:Icons.add_circle,
+          label:'Ajouter un lapin',
+          selected:true,
+          padding:const EdgeInsets.symmetric(vertical:13,horizontal:18),
         ),
         const SizedBox(height:10),
         if(filtered.isEmpty)
@@ -1878,7 +1976,7 @@ class _HomePageState extends State<HomePage>{
           return Padding(
             padding:const EdgeInsets.only(bottom:12),
             child:Card(child:Stack(children:[
-              Positioned(right:10,bottom:8,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.50),size:27))),
+              const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:45,opacity:.62)),
               ListTile(
                 contentPadding:const EdgeInsets.all(12),
                 leading:Hero(
@@ -1954,7 +2052,7 @@ class _HomePageState extends State<HomePage>{
     return Card(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        Positioned(right:8,bottom:5,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.30),size:25))),
+        const Positioned(right:1,bottom:-2,child:PremiumGoldLeaves(size:48,opacity:.45)),
         Padding(
           padding:const EdgeInsets.all(12),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -2063,7 +2161,9 @@ class _HomePageState extends State<HomePage>{
   Widget backupSection(){
     return Card(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
-      child:Padding(
+      child:Stack(children:[
+        const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:46,opacity:.48)),
+        Padding(
         padding:const EdgeInsets.all(12),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           Row(children:[
@@ -2082,10 +2182,10 @@ class _HomePageState extends State<HomePage>{
             style:TextStyle(fontSize:12,color:Colors.black54),
           ),
           const SizedBox(height:12),
-          FilledButton.icon(
+          PremiumMarbleButton(
             onPressed:rabbits.isEmpty?null:createBackup,
-            icon:const Icon(Icons.cloud_upload_outlined),
-            label:Text(rabbits.isEmpty?'Aucune donnée à sauvegarder':'Créer une sauvegarde complète'),
+            icon:Icons.cloud_upload_outlined,
+            label:rabbits.isEmpty?'Aucune donnée à sauvegarder':'Créer une sauvegarde complète',
           ),
           const SizedBox(height:8),
           OutlinedButton.icon(
@@ -2101,6 +2201,7 @@ class _HomePageState extends State<HomePage>{
           ),
         ]),
       ),
+      ]),
     );
   }
 
@@ -2115,12 +2216,7 @@ class _HomePageState extends State<HomePage>{
     child:AnimatedContainer(
       duration:const Duration(milliseconds:160),
       padding:const EdgeInsets.symmetric(horizontal:9,vertical:9),
-      decoration:BoxDecoration(
-        gradient:const LinearGradient(colors:[Color(0xFF0E4B31),Color(0xFF1A613E)]),
-        borderRadius:BorderRadius.circular(10),
-        border:Border.all(color:selected?gold:Colors.white24,width:selected?1.25:.75),
-        boxShadow:selected?[BoxShadow(color:gold.withValues(alpha:.16),blurRadius:8,offset:const Offset(0,3))]:null,
-      ),
+      decoration:premiumMarbleDecoration(radius:10,selected:selected,strong:selected),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
         Icon(icon,size:16,color:selected?warmGoldText:Colors.white),
         const SizedBox(width:5),
@@ -2161,8 +2257,8 @@ class _HomePageState extends State<HomePage>{
     return Card(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        Positioned(right:8,top:8,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.38),size:27))),
-        Positioned(right:8,bottom:6,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.30),size:23))),
+        const Positioned(right:1,top:1,child:PremiumGoldLeaves(size:46,opacity:.56)),
+        const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:42,opacity:.48)),
         Padding(
           padding:const EdgeInsets.all(12),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -2231,18 +2327,19 @@ class _HomePageState extends State<HomePage>{
                 margin:const EdgeInsets.fromLTRB(14,14,14,0),
                 padding:const EdgeInsets.symmetric(horizontal:18,vertical:13),
                 decoration:BoxDecoration(
-                  gradient:LinearGradient(
-                    begin:Alignment.topLeft,
-                    end:Alignment.bottomRight,
-                    colors:[
-                      heroGreen.withValues(alpha:.88),
-                      heroGreen2.withValues(alpha:.74),
-                      heroGreen.withValues(alpha:.58),
-                    ],
+                  color:heroGreen,
+                  image:DecorationImage(
+                    image:const AssetImage('assets/images/lapigestion_background_master.jpg'),
+                    fit:BoxFit.cover,
+                    alignment:Alignment.center,
+                    colorFilter:ColorFilter.mode(heroGreen.withValues(alpha:.60),BlendMode.srcOver),
                   ),
                   borderRadius:BorderRadius.circular(22),
-                  border:Border.all(color:gold.withValues(alpha:.90),width:1),
-                  boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.12),blurRadius:18,offset:const Offset(0,8))],
+                  border:Border.all(color:gold.withValues(alpha:.95),width:1.05),
+                  boxShadow:[
+                    BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:20,offset:const Offset(0,8)),
+                    BoxShadow(color:gold.withValues(alpha:.08),blurRadius:16),
+                  ],
                 ),
                 child:Column(
                   mainAxisAlignment:MainAxisAlignment.center,
