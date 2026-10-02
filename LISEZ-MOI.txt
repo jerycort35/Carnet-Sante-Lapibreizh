@@ -1,10 +1,10 @@
-LapiGestion V3-1.22 — Architecture races & couleurs
+LapiGestion V3-1.23 — Base exhaustive races & variétés
 
 BASE VERIFIEE AVANT MODIFICATION
 - GitHub main : jerycort35/Carnet-Sante-Lapibreizh
-- Commit : 99cd5851cbbe392224668bdfe5b2de64e58a84f3
-- lib/main.dart source : blob f11b4383cf9fcc78a034b4055b671a75d5045470
-- Version de départ : 1.0.0+20
+- Commit : 9fc21f0b1c173377d11793605169b6965cd509a3
+- lib/main.dart source : blob dcd7371210504fed0adb31b0cf5a7745f6e0ad22
+- Version de départ : 1.0.0+21
 
 A EXTRAIRE DIRECTEMENT A LA RACINE DU DEPOT GITLING
 - lib/main.dart
@@ -12,40 +12,31 @@ A EXTRAIRE DIRECTEMENT A LA RACINE DU DEPOT GITLING
 - LISEZ-MOI.txt
 
 OBJECTIF DE CETTE VERSION
-Valider l architecture avant d ajouter la base exhaustive de toutes les races et variétés.
+Compléter l'architecture V3-1.22 avec la base race -> couleur / variété issue de la nomenclature officielle FFC 2026-2027, applicable au 01/09/2026.
 
 NOUVEAUTES
-- Architecture centrale Catégorie -> Race -> Couleur / variété -> statut standard
-- Sélecteur de race avec recherche texte
-- Filtres horizontaux par catégories de races
-- Sélecteur de couleur / variété dépendant de la race
-- Recherche texte dans les couleurs / variétés
-- Médaille 🏅 pour les variétés marquées standard dans la base
-- Entrées non standard conservées sans médaille
-- Géant Papillon Français : entrée Charlot disponible comme type non standard
-- Même système Race + Couleur dans chaque fiche individuelle de lapin
-- Même système pour le père et la mère dans la filiation
-- Les nouvelles données couleur sont affichées dans la fiche identité / filiation
-- Le module reproduction utilise la race du couple pour proposer les couleurs de portée
-- Couple de races différentes -> contexte Croisé
-- Graphiques/statistiques de la V3-1.21 conservés
+- Catalogue étendu des races reconnues en France, classées par grandes races, races moyennes, petites races, races naines et races à fourrure caractéristique
+- Races européennes présentes dans la nomenclature française intégrées dans leur catégorie de taille
+- Variétés/couleurs reconnues marquées 🏅
+- Recherche de race et filtre par catégorie conservés
+- Recherche de couleur / variété conservée
+- Entrées génériques « Non déterminé » et « Autre / non standard » disponibles pour toutes les races
+- Géant Papillon Français : variétés standard FFC + résultats d'élevage non standard utiles (uni et Charlot)
+- Compatibilité conservée avec l'ancien libellé « Nain de couleur »
+- Les fiches individuelles, filiations et portées utilisent toutes le même catalogue
 
-BASE DE TEST INCLUSE
-Cette version contient volontairement seulement quelques races/variétés pour tester l architecture :
-- Géant Papillon Français
-- Géant des Flandres
-- Fauve de Bourgogne
-- Rex
-- Nain de couleur
-- Croisé / Autre / Race inconnue
-
-La prochaine version enrichira uniquement le catalogue avec la base exhaustive vérifiée race par race.
+SOURCE PRINCIPALE
+- Fédération Française de Cuniculiculture
+- Nomenclature officielle des races et variétés de lapins reconnues en France 2026 / 2027
+- Application au 01 septembre 2026
+- Pour les races à variété unique, la désignation de couleur a été précisée à partir des fiches de présentation FFC lorsqu'elle n'était pas répétée dans le tableau de nomenclature.
 
 VERSION
-- 1.0.0+21
+- 1.0.0+22
 
 NON MODIFIE
 - .github/workflows/
 - android/
 - signature Android
 - assets visuels premium
+- moteur de reproduction/statistiques de la V3-1.22
