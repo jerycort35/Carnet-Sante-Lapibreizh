@@ -22,6 +22,8 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 
+part 'premium_ui.dart';
+
 const gold = Color(0xFFD4AF67);
 const ink = Color(0xFF171512);
 const ivory = Color(0xFFFFFCF5);
@@ -30,7 +32,7 @@ const lapiGreen = Color(0xFF247A4B);
 const lapiGreenDark = Color(0xFF155A36);
 const paper = Color(0xFFF8F6EE);
 const mist = Color(0xFFF1F5EF);
-const premiumCard = Color(0xF7FFFEFA);
+const premiumCard = Color(0xFFFFFCF3);
 const lineSoft = Color(0xFFE4DDC8);
 const heroGreen = Color(0xFF0B3F2D);
 const heroGreen2 = Color(0xFF155C42);
@@ -51,11 +53,13 @@ class LapibreizhApp extends StatelessWidget {
     title: 'LapiGestion',
     theme: ThemeData(
       useMaterial3: true,
+      fontFamily: 'LapiText',
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: heroGreen,
         foregroundColor: Colors.white,
+        toolbarHeight: 52,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -64,16 +68,23 @@ class LapibreizhApp extends StatelessWidget {
           fontWeight:FontWeight.w800,
           color:Colors.white,
           letterSpacing:.2,
-          fontFamily:'serif',
+          fontFamily:'LapiEditorial',
         ),
       ),
+      iconTheme:const IconThemeData(color:lapiGreenDark,size:21),
+      listTileTheme:const ListTileThemeData(iconColor:lapiGreenDark,contentPadding:EdgeInsets.symmetric(horizontal:12,vertical:2)),
+      textButtonTheme:TextButtonThemeData(style:TextButton.styleFrom(foregroundColor:lapiGreenDark)),
+      dialogTheme:const DialogThemeData(backgroundColor:cream,surfaceTintColor:Colors.transparent,shape:RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(20)),side:BorderSide(color:softGoldLine))),
       inputDecorationTheme: InputDecorationTheme(
         filled:true,
         fillColor: premiumCard,
-        contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:15),
-        border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:softGoldLine)),
-        enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:softGoldLine)),
-        focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:gold,width:1.6)),
+        contentPadding:const EdgeInsets.symmetric(horizontal:18,vertical:12),
+        prefixIconColor:lapiGreenDark,
+        suffixIconColor:lapiGreenDark,
+        labelStyle:const TextStyle(color:brown,fontSize:13),
+        border:const LapiFieldBorder(),
+        enabledBorder:const LapiFieldBorder(),
+        focusedBorder:const LapiFieldBorder(borderSide:BorderSide(color:gold,width:1.6)),
       ),
       cardTheme:CardThemeData(
         color: premiumCard,
@@ -90,20 +101,22 @@ class LapibreizhApp extends StatelessWidget {
         style:FilledButton.styleFrom(
           backgroundColor:cream,
           foregroundColor:lapiGreenDark,
-          padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
+          minimumSize:const Size(48,48),
+          shape:const LapiButtonBorder(),
           side:const BorderSide(color:softGoldLine,width:1.0),
-          textStyle: const TextStyle(fontSize:14,fontWeight:FontWeight.w800),
+          textStyle: const TextStyle(fontFamily:'LapiText',fontSize:14,fontWeight:FontWeight.w800),
         ),
       ),
       outlinedButtonTheme:OutlinedButtonThemeData(
         style:OutlinedButton.styleFrom(
           foregroundColor:lapiGreenDark,
           backgroundColor:cream,
-          padding:const EdgeInsets.symmetric(horizontal:18,vertical:16),
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
+          minimumSize:const Size(48,48),
+          shape:const LapiButtonBorder(),
           side:const BorderSide(color:softGoldLine,width:1.0),
-          textStyle:const TextStyle(fontSize:14,fontWeight:FontWeight.w800),
+          textStyle:const TextStyle(fontFamily:'LapiText',fontSize:14,fontWeight:FontWeight.w800),
         ),
       ),
       chipTheme:ChipThemeData(
@@ -1510,7 +1523,7 @@ class _RacePickerDialogState extends State<RacePickerDialog>{
         SizedBox(height:44,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12),children:[
           for(final c in RabbitBreedCatalog.categories) Padding(
             padding:const EdgeInsets.only(right:7),
-            child:ChoiceChip(label:Text(c),selected:category==c,onSelected:(_)=>setState(()=>category=c)),
+            child:PremiumChoiceChip(label:Text(c),selected:category==c,onSelected:(_)=>setState(()=>category=c)),
           ),
         ])),
         const SizedBox(height:6),
@@ -2125,11 +2138,11 @@ class PremiumMarbleButton extends StatelessWidget{
         borderRadius:BorderRadius.circular(14),
         child:Ink(
           padding:EdgeInsets.zero,
-          decoration:selected?premiumMarbleDecoration(radius:14,selected:true,strong:true):null,
+          decoration:null,
           child:Stack(
             alignment:Alignment.center,
             children:[
-              if(!selected)const Positioned.fill(child:PremiumButtonFrame()),
+              Positioned.fill(child:selected?const LapiSurface(radius:13,kind:LapiFrameKind.button,selected:true,child:SizedBox.expand()):const PremiumButtonFrame()),
               Padding(
                 padding:padding,
                 child:Row(
@@ -2162,106 +2175,6 @@ class PremiumMarbleButton extends StatelessWidget{
 /// Cadre ivoire premium commun à toutes les grandes cartes de l'application.
 /// Règle V3.1.30 : intérieur totalement dégagé ; décoration uniquement sur le pourtour.
 
-class PremiumGoldFramePainter extends CustomPainter{
-  final double radius;
-  final int ornamentLevel;
-  const PremiumGoldFramePainter({this.radius=20,this.ornamentLevel=2});
-
-  Paint _goldPaint(Rect rect,double width,{double alpha=1})=>Paint()
-    ..style=PaintingStyle.stroke
-    ..strokeWidth=width
-    ..shader=const LinearGradient(
-      colors:[Color(0xFF9F6A14),Color(0xFFFFE8A6),Color(0xFFC68A20)],
-      begin:Alignment.topLeft,
-      end:Alignment.bottomRight,
-    ).createShader(rect)
-    ..color=gold.withValues(alpha:alpha);
-
-  Paint _fillGold(Rect rect,{double alpha=.95})=>Paint()
-    ..style=PaintingStyle.fill
-    ..shader=const LinearGradient(
-      colors:[Color(0xFFB97814),Color(0xFFFFE8A6),Color(0xFFD29A2E)],
-      begin:Alignment.topLeft,
-      end:Alignment.bottomRight,
-    ).createShader(rect)
-    ..color=gold.withValues(alpha:alpha);
-
-  void _leaf(Canvas canvas,Offset c,double w,double h,double angle,Rect rect){
-    canvas.save();
-    canvas.translate(c.dx,c.dy);
-    canvas.rotate(angle);
-    final p=Path()
-      ..moveTo(0,0)
-      ..quadraticBezierTo(w*.52,-h*.50,w,0)
-      ..quadraticBezierTo(w*.52,h*.50,0,0)
-      ..close();
-    canvas.drawPath(p,_fillGold(rect,alpha:.92));
-    final vein=Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=.75
-      ..color=const Color(0xFF9C6817).withValues(alpha:.85);
-    canvas.drawLine(Offset(w*.10,0),Offset(w*.82,0),vein);
-    canvas.restore();
-  }
-
-  void _corner(Canvas canvas,Size size,bool topLeft){
-    final rect=Offset.zero & size;
-    final scale=(ornamentLevel==1?0.72:ornamentLevel==2?0.90:1.05);
-    final x=topLeft?6.0:size.width-6.0;
-    final y=topLeft?6.0:size.height-6.0;
-    final sx=topLeft?1.0:-1.0;
-    final sy=topLeft?1.0:-1.0;
-
-    final stem=Path()
-      ..moveTo(x,y)
-      ..cubicTo(
-        x+sx*10*scale,y+sy*3*scale,
-        x+sx*18*scale,y+sy*13*scale,
-        x+sx*27*scale,y+sy*24*scale,
-      );
-    canvas.drawPath(stem,_goldPaint(rect,1.25,alpha:.9));
-
-    _leaf(canvas,Offset(x+sx*12*scale,y+sy*7*scale),12*scale,7*scale,topLeft ? .55 : 3.70,rect);
-    if(ornamentLevel>=2){
-      _leaf(canvas,Offset(x+sx*22*scale,y+sy*15*scale),13*scale,7.5*scale,topLeft ? .78 : 3.92,rect);
-    }
-    if(ornamentLevel>=3){
-      _leaf(canvas,Offset(x+sx*29*scale,y+sy*24*scale),11*scale,6.5*scale,topLeft ? .25 : 3.38,rect);
-    }
-
-    final curl=Path()
-      ..moveTo(x+sx*5*scale,y+sy*14*scale)
-      ..cubicTo(
-        x+sx*1*scale,y+sy*21*scale,
-        x+sx*8*scale,y+sy*25*scale,
-        x+sx*13*scale,y+sy*20*scale,
-      );
-    canvas.drawPath(curl,_goldPaint(rect,1.0,alpha:.82));
-  }
-
-  @override void paint(Canvas canvas,Size size){
-    final rect=Offset.zero & size;
-    final rrect=RRect.fromRectAndRadius(
-      Rect.fromLTWH(.75,.75,size.width-1.5,size.height-1.5),
-      Radius.circular(radius),
-    );
-
-    // Double liseré fin, comme la planche de référence.
-    canvas.drawRRect(rrect,_goldPaint(rect,1.15,alpha:.95));
-    final inner=RRect.fromRectAndRadius(
-      Rect.fromLTWH(3.0,3.0,size.width-6.0,size.height-6.0),
-      Radius.circular((radius-2).clamp(0,99).toDouble()),
-    );
-    canvas.drawRRect(inner,_goldPaint(rect,.55,alpha:.62));
-
-    _corner(canvas,size,true);
-    _corner(canvas,size,false);
-  }
-
-  @override bool shouldRepaint(covariant PremiumGoldFramePainter oldDelegate)=>
-    oldDelegate.radius!=radius || oldDelegate.ornamentLevel!=ornamentLevel;
-}
-
 class PremiumCard extends StatelessWidget {
   final Widget? child;
   final Color? color;
@@ -2293,74 +2206,19 @@ class PremiumCard extends StatelessWidget {
     shadowColor:shadowColor,
     surfaceTintColor:Colors.transparent,
     elevation:elevation??0,
-    shape:shape??RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+    shape:shape??const RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(16))),
     borderOnForeground:false,
     margin:margin,
-    clipBehavior:Clip.none,
+    clipBehavior:clipBehavior,
     semanticContainer:semanticContainer,
-    child:LayoutBuilder(
-      builder:(context,constraints){
-        final h=constraints.maxHeight;
-        final w=constraints.maxWidth;
-        final level=(h.isFinite && h>=320) || (w.isFinite && w>=520)
-          ?3
-          :((h.isFinite && h>=170) || (w.isFinite && w>=360) ?2:1);
-
-        return Stack(
-          children:[
-            Positioned.fill(
-              child:DecoratedBox(
-                decoration:BoxDecoration(
-                  color:color??premiumCard,
-                  borderRadius:BorderRadius.circular(20),
-                  boxShadow:[
-                    BoxShadow(
-                      color:Colors.black.withValues(alpha:.055),
-                      blurRadius:7,
-                      offset:const Offset(0,3),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child:IgnorePointer(
-                child:CustomPaint(
-                  painter:PremiumGoldFramePainter(
-                    radius:20,
-                    ornamentLevel:level,
-                  ),
-                ),
-              ),
-            ),
-            if(child!=null) child!,
-          ],
-        );
-      },
-    ),
+    child:LapiSurface(color:color??premiumCard,child:child??const SizedBox.shrink()),
   );
 }
 
 class PremiumButtonFrame extends StatelessWidget{
   const PremiumButtonFrame({super.key});
-  @override Widget build(BuildContext context)=>Stack(
-    children:[
-      Positioned.fill(
-        child:DecoratedBox(
-          decoration:BoxDecoration(
-            color:cream,
-            borderRadius:BorderRadius.circular(14),
-          ),
-        ),
-      ),
-      const Positioned.fill(
-        child:IgnorePointer(
-          child:CustomPaint(
-            painter:PremiumGoldFramePainter(radius:14,ornamentLevel:1),
-          ),
-        ),
-      ),
-    ],
+  @override Widget build(BuildContext context)=>const LapiSurface(
+    radius:13,kind:LapiFrameKind.button,color:cream,child:SizedBox.expand(),
   );
 }
 
@@ -2396,7 +2254,8 @@ class PremiumFilledButton extends StatelessWidget {
       shadowColor:const WidgetStatePropertyAll(Colors.transparent),
       surfaceTintColor:const WidgetStatePropertyAll(Colors.transparent),
       side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent)),
-      textStyle:const WidgetStatePropertyAll(TextStyle(fontWeight:FontWeight.w800)),
+      textStyle:const WidgetStatePropertyAll(TextStyle(fontFamily:'LapiText',fontWeight:FontWeight.w800)),
+      shape:const WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(13)))),
     ).merge(style);
 
     final native=icon!=null
@@ -2419,11 +2278,18 @@ class PremiumFilledButton extends StatelessWidget {
   }
 }
 
-/// Bandeau supérieur commun V3.1.31 : totalement transparent.
-/// Le paysage général reste visible derrière le titre et les actions.
+/// Paysage opaque sous les titres : le contenu défilant ne traverse pas la barre.
 class PremiumMarbleBar extends StatelessWidget {
   const PremiumMarbleBar({super.key});
-  @override Widget build(BuildContext context)=>const SizedBox.expand();
+  @override Widget build(BuildContext context)=>DecoratedBox(
+    decoration:const BoxDecoration(
+      image:DecorationImage(image:AssetImage('assets/images/lapigestion_background_master.jpg'),fit:BoxFit.cover,alignment:Alignment.topCenter),
+    ),
+    child:const DecoratedBox(
+      decoration:BoxDecoration(gradient:LinearGradient(colors:[Color(0xCC12382C),Color(0xE6153C30)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
+      child:SizedBox.expand(),
+    ),
+  );
 }
 
 /// SegmentedButton posé sur le même marbre vert/or afin d'éviter les aplats verts ternes.
@@ -2511,13 +2377,13 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
         borderRadius:BorderRadius.circular(12),
         child:Ink(
           padding:EdgeInsets.zero,
-          decoration:selected?premiumMarbleDecoration(radius:12,selected:true,strong:true):null,
+          decoration:null,
           child:Stack(
             alignment:Alignment.center,
             children:[
-              if(!selected)const Positioned.fill(child:PremiumButtonFrame()),
+              Positioned.fill(child:selected?const LapiSurface(radius:13,kind:LapiFrameKind.button,selected:true,child:SizedBox.expand()):const PremiumButtonFrame()),
               Padding(
-                padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+                padding:const EdgeInsets.symmetric(horizontal:8,vertical:10),
                 child:Row(
                   mainAxisAlignment:MainAxisAlignment.center,
                   mainAxisSize:MainAxisSize.min,
@@ -2532,13 +2398,14 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
                       ),
                       const SizedBox(width:5),
                     ],
-                    DefaultTextStyle.merge(
-                      style:TextStyle(
+                    Flexible(child:DefaultTextStyle.merge(
+                      textAlign:TextAlign.center,
+                      style:TextStyle(fontSize:13,
                         color:selected?warmGoldText:lapiGreenDark,
                         fontWeight:FontWeight.w800,
                       ),
                       child:segment.label ?? const SizedBox.shrink(),
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -2900,8 +2767,8 @@ class _HomePageState extends State<HomePage>{
   bool homeOrganizing=false; bool homeLayoutLoaded=false;
   bool vetLoading=false; String vetError=''; int vetRadiusKm=20; String vetFilter='Tous';
   List<Map<String,dynamic>> nearbyVets=[];
-  List<String> homeOrder=['dashboard','colors','vets','backup','filters','rabbits'];
-  static const homeDefaults=['dashboard','colors','vets','backup','filters','rabbits'];
+  List<String> homeOrder=['filters','dashboard','colors','vets','backup','rabbits'];
+  static const homeDefaults=['filters','dashboard','colors','vets','backup','rabbits'];
 
   final GlobalKey _homeTopKey=GlobalKey();
   final GlobalKey _dashboardKey=GlobalKey();
@@ -2989,7 +2856,7 @@ class _HomePageState extends State<HomePage>{
               fontSize:11,
               fontWeight:selected?FontWeight.w800:FontWeight.w600,
               color:homeOrganizing?Colors.white38:(selected?gold:Colors.white),
-              fontFamily:selected?'serif':null,
+              fontFamily:selected?'LapiEditorial':null,
             ),
           ),
           if(selected)...[
@@ -3326,14 +3193,14 @@ class _HomePageState extends State<HomePage>{
   Widget colorPlannerSection(){
     final results=_colorRecommendations();
     return Padding(
-      padding:const EdgeInsets.fromLTRB(14,0,14,10),
+      padding:const EdgeInsets.fromLTRB(10,0,10,8),
       child:PremiumCard(child:Padding(
         padding:const EdgeInsets.all(12),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           Row(children:[
             const Icon(Icons.palette_outlined,color:lapiGreenDark),
             const SizedBox(width:8),
-            const Expanded(child:Text('Je recherche une couleur',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink,fontFamily:'serif'))),
+            const Expanded(child:Text('Je recherche une couleur',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:ink,fontFamily:'LapiEditorial'))),
           ]),
           const SizedBox(height:4),
           const Text('LapiGestion compare uniquement vos résultats réellement enregistrés. Il ne garantit pas la couleur d’une future portée.',style:TextStyle(fontSize:10.5,color:Colors.black54)),
@@ -3458,16 +3325,9 @@ class _HomePageState extends State<HomePage>{
   }
 
   Widget homeOrganizeControl()=>Padding(
-    padding:const EdgeInsets.fromLTRB(14,0,14,8),
-    child:Stack(children:[
-      Container(
+    padding:const EdgeInsets.fromLTRB(10,0,10,8),
+    child:LapiSurface(child:Padding(
       padding:const EdgeInsets.fromLTRB(12,7,10,7),
-      decoration:BoxDecoration(
-        color:homeOrganizing?const Color(0xF4EEF6ED):premiumCard,
-        borderRadius:BorderRadius.circular(14),
-        border:Border.all(color:homeOrganizing?gold:softGoldLine,width:homeOrganizing?1.15:.9),
-        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.055),blurRadius:12,offset:const Offset(0,5))],
-      ),
       child:Row(children:[
         Container(
           width:34,height:34,
@@ -3486,8 +3346,7 @@ class _HomePageState extends State<HomePage>{
         ])),
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
-      ),
-    ]),
+    )),
   );
 
   Widget homeSection(String id){
@@ -3593,7 +3452,7 @@ class _HomePageState extends State<HomePage>{
     final visible=_visibleNearbyVets;
 
     return PremiumCard(
-      margin:const EdgeInsets.fromLTRB(14,0,14,10),
+      margin:const EdgeInsets.fromLTRB(10,0,10,8),
       child:Stack(children:[
         Padding(
         padding:const EdgeInsets.all(12),
@@ -3606,7 +3465,7 @@ class _HomePageState extends State<HomePage>{
             ),
             const SizedBox(width:10),
             const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text('Trouver un vétérinaire',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),
+              Text('Trouver un vétérinaire',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),
               Text('Recherche autour de votre position',style:TextStyle(fontSize:11,color:Colors.black54)),
             ])),
           ]),
@@ -3634,7 +3493,7 @@ class _HomePageState extends State<HomePage>{
             runSpacing:6,
             children:[
               for(final km in const [10,20,30,50,100])
-                ChoiceChip(
+                PremiumChoiceChip(
                   label:Text(
                     '$km km',
                     style:TextStyle(
@@ -3843,7 +3702,6 @@ class _HomePageState extends State<HomePage>{
           onPressed:homeOrganizing?null:addRabbit,
           icon:Icons.add_circle,
           label:'Ajouter un lapin',
-          selected:true,
           padding:const EdgeInsets.symmetric(vertical:13,horizontal:18),
         ),
         const SizedBox(height:10),
@@ -3880,7 +3738,7 @@ class _HomePageState extends State<HomePage>{
                 ),
                 title:Text(
                   (rabbit['name']??'').isEmpty?'Lapin sans nom':rabbit['name'],
-                  style:const TextStyle(fontSize:17,fontWeight:FontWeight.w800,fontFamily:'serif'),
+                  style:const TextStyle(fontSize:17,fontWeight:FontWeight.w800,fontFamily:'LapiEditorial'),
                 ),
                 subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text('${rabbit['breed']?.isEmpty==false?rabbit['breed']:'Race à renseigner'}${rabbit['birth']?.isEmpty==false?'  •  ${rabbit['birth']}':''}'),
@@ -3910,7 +3768,7 @@ class _HomePageState extends State<HomePage>{
 
   Widget _premiumDashTile(String label,String value,IconData icon,Color color){
     return Expanded(child:Container(
-      constraints:const BoxConstraints(minHeight:82),
+      constraints:const BoxConstraints(minHeight:68),
       padding:const EdgeInsets.fromLTRB(9,9,8,8),
       decoration:BoxDecoration(
         color:premiumCard,
@@ -3919,15 +3777,15 @@ class _HomePageState extends State<HomePage>{
         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.025),blurRadius:6,offset:const Offset(0,3))],
       ),
       child:Stack(children:[
-        Positioned(right:-4,bottom:-5,child:Icon(icon,size:35,color:gold.withValues(alpha:.12))),
+        
         Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Row(children:[
             Icon(icon,color:color,size:18),
             const Spacer(),
             Text(value,style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:color,height:1)),
           ]),
-          const Spacer(),
-          Text(label,maxLines:2,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,color:ink,height:1.05)),
+          const SizedBox(height:8),
+          Text(label,maxLines:2,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:ink,height:1.15)),
         ]),
       ]),
     ));
@@ -3936,7 +3794,7 @@ class _HomePageState extends State<HomePage>{
   Widget dashboard(){
     final next=_nextAppointment();
     return PremiumCard(
-      margin:const EdgeInsets.fromLTRB(14,0,14,10),
+      margin:const EdgeInsets.fromLTRB(10,0,10,8),
       child:Stack(children:[
         Padding(
           padding:const EdgeInsets.all(12),
@@ -3944,7 +3802,7 @@ class _HomePageState extends State<HomePage>{
             Row(children:[
               const Icon(Icons.dashboard_rounded,color:lapiGreenDark,size:22),
               const SizedBox(width:7),
-              const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif'))),
+              const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
               Container(
                 padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                 decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(99),border:Border.all(color:gold.withValues(alpha:.30))),
@@ -4045,7 +3903,7 @@ class _HomePageState extends State<HomePage>{
 
   Widget backupSection(){
     return PremiumCard(
-      margin:const EdgeInsets.fromLTRB(14,0,14,10),
+      margin:const EdgeInsets.fromLTRB(10,0,10,8),
       child:Stack(children:[
         Padding(
         padding:const EdgeInsets.all(12),
@@ -4053,12 +3911,8 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             const Icon(Icons.shield_outlined,color:brown),
             const SizedBox(width:8),
-            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif'))),
-            Container(
-              padding:const EdgeInsets.symmetric(horizontal:9,vertical:4),
-              decoration:BoxDecoration(color:gold.withValues(alpha:.15),borderRadius:BorderRadius.circular(12)),
-              child:const Text('V2',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:brown)),
-            ),
+            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
+
           ]),
           const SizedBox(height:5),
           const Text(
@@ -4097,10 +3951,8 @@ class _HomePageState extends State<HomePage>{
   })=>InkWell(
     onTap:onTap,
     borderRadius:BorderRadius.circular(10),
-    child:AnimatedContainer(
-      duration:const Duration(milliseconds:160),
-      padding:const EdgeInsets.symmetric(horizontal:9,vertical:9),
-      decoration:premiumMarbleDecoration(radius:10,selected:selected,strong:selected),
+    child:LapiSurface(radius:11,kind:LapiFrameKind.button,selected:selected,color:cream,child:Padding(
+      padding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
         Icon(icon,size:16,color:selected?warmGoldText:lapiGreenDark),
         const SizedBox(width:5),
@@ -4111,14 +3963,14 @@ class _HomePageState extends State<HomePage>{
           style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?warmGoldText:lapiGreenDark),
         )),
       ]),
-    ),
+    )),
   );
 
   Widget searchAndFilters(){
     final results=_filteredRabbits();
 
     Widget sexBlock()=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      const Text('Sexe',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),
+      const Text('Sexe',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),
       const SizedBox(height:7),
       Wrap(spacing:6,runSpacing:6,children:[
         _premiumFilterChoice(label:'Tous',icon:Icons.check,selected:sexFilter=='Tous',onTap:()=>setState(()=>sexFilter='Tous')),
@@ -4128,7 +3980,7 @@ class _HomePageState extends State<HomePage>{
     ]);
 
     Widget adoptionBlock()=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      const Text('Statut adoption',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),
+      const Text('Statut adoption',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),
       const SizedBox(height:7),
       Wrap(spacing:6,runSpacing:6,children:[
         _premiumFilterChoice(label:'Tous',icon:Icons.check,selected:adoptionFilter=='Tous',onTap:()=>setState(()=>adoptionFilter='Tous')),
@@ -4139,7 +3991,7 @@ class _HomePageState extends State<HomePage>{
     ]);
 
     return PremiumCard(
-      margin:const EdgeInsets.fromLTRB(14,0,14,10),
+      margin:const EdgeInsets.fromLTRB(10,0,10,8),
       child:Stack(children:[
         Padding(
           padding:const EdgeInsets.all(12),
@@ -4158,7 +4010,7 @@ class _HomePageState extends State<HomePage>{
             ),
             const SizedBox(height:10),
             LayoutBuilder(builder:(context,c){
-              final twoColumns=appMode=='Éleveur'&&c.maxWidth>=320;
+              final twoColumns=appMode=='Éleveur'&&c.maxWidth>=620;
               if(!twoColumns)return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
                 sexBlock(),
                 if(appMode=='Éleveur')...[
@@ -4205,69 +4057,55 @@ class _HomePageState extends State<HomePage>{
             crossAxisAlignment:CrossAxisAlignment.stretch,
             children:[
               Container(
-                height:154,
-                margin:const EdgeInsets.fromLTRB(14,14,14,0),
+                height:126,
+                margin:const EdgeInsets.fromLTRB(10,6,10,0),
                 decoration:BoxDecoration(
                   borderRadius:BorderRadius.circular(22),
                   boxShadow:[
-                    BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:20,offset:const Offset(0,8)),
+                    BoxShadow(color:Colors.black.withValues(alpha:.04),blurRadius:5,offset:const Offset(0,2)),
                     BoxShadow(color:gold.withValues(alpha:.08),blurRadius:16),
                   ],
                 ),
                 clipBehavior:Clip.antiAlias,
                 child:Image.asset(
                   'assets/images/lapigestion_home_banner.png',
-                  fit:BoxFit.cover,
+                  fit:BoxFit.contain,
                   alignment:Alignment.center,
                   filterQuality:FilterQuality.high,
                 ),
               ),
               Padding(
-                padding:const EdgeInsets.fromLTRB(14,12,14,10),
-                child:Container(
-                  padding:const EdgeInsets.fromLTRB(12,9,10,9),
-                  decoration:BoxDecoration(
-                    color:premiumCard,
-                    borderRadius:BorderRadius.circular(20),
-                    border:Border.all(color:softGoldLine,width:.85),
-                    boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
-                  ),
-                  child:Column(children:[
-                    Row(children:[
-                      Container(
-                        width:36,height:36,
-                        decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.28))),
-                        child:Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:20),
-                      ),
-                      const SizedBox(width:10),
-                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),
-                        const SizedBox(height:2),
-                        Text(
-                          appMode=='Éleveur'
-                            ?'Reproduction, départ et suivi santé.'
-                            :'Le suivi quotidien de votre lapin.',
-                          style:const TextStyle(fontSize:11,color:Colors.black54),
-                        ),
-                      ])),
-                      const SizedBox(width:8),
-                      PremiumSegmentedButton<String>(
+                padding:const EdgeInsets.fromLTRB(10,8,10,8),
+                child:LapiSurface(child:Padding(
+                  padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                  child:LayoutBuilder(builder:(context,c){
+                    final controls=SizedBox(
+                      width:184,
+                      child:PremiumSegmentedButton<String>(
                         segments:const [
                           ButtonSegment(value:'Éleveur',label:Text('Élevage')),
                           ButtonSegment(value:'Adoptant',label:Text('Adoptant')),
                         ],
-                        selected:{appMode},
-                        showSelectedIcon:false,
+                        selected:{appMode},showSelectedIcon:false,
                         onSelectionChanged:homeOrganizing?null:(v)=>setAppMode(v.first),
-                        style:ButtonStyle(
-                          visualDensity:VisualDensity.compact,
-                          side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
-                          shape:WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.circular(5))),
-                        ),
                       ),
-                    ]),
-                  ]),
-                ),
+                    );
+                    final title=Row(children:[
+                      Container(width:28,height:28,
+                        decoration:premiumCreamDecoration(radius:9),
+                        child:Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark,size:21)),
+                      const SizedBox(width:6),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(appMode=='Éleveur'?'Mode élevage':'Mode adoptant',style:const TextStyle(fontSize:13.5,fontWeight:FontWeight.w700,color:ink,fontFamily:'LapiEditorial')),
+                        Text(appMode=='Éleveur'?'Reproduction, départ et suivi santé.':'Le suivi quotidien de votre lapin.',style:const TextStyle(fontSize:10,color:brown)),
+                      ])),
+                    ]);
+                    if(c.maxWidth<300 || MediaQuery.textScalerOf(context).scale(14)>17){
+                      return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[title,const SizedBox(height:6),Align(alignment:Alignment.centerRight,child:controls)]);
+                    }
+                    return Row(children:[Expanded(child:title),const SizedBox(width:8),controls]);
+                  }),
+                )),
               ),
             ],
           )),
@@ -4289,7 +4127,7 @@ class _HomePageState extends State<HomePage>{
                 return homeFrame(id,index,homeSection(id));
               },
             ),
-          const SliverToBoxAdapter(child:SizedBox(height:105)),
+          const SliverToBoxAdapter(child:SizedBox(height:20)),
         ]))),
       bottomNavigationBar:_bottomNavigation(),
     );
@@ -5843,18 +5681,8 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget rabbitOrganizeControl()=>Container(
     margin:const EdgeInsets.only(bottom:8),
-    padding:const EdgeInsets.fromLTRB(12,10,10,10),
-    decoration:BoxDecoration(
-      color:rabbitOrganizing?const Color(0xFFF5F8F2):premiumCard,
-      borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:rabbitOrganizing?gold:softGoldLine,width:rabbitOrganizing?1.15:1.0),
-      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,5))],
-      image:const DecorationImage(
-        image:AssetImage('assets/images/lapigestion_gold_corners.png'),
-        fit:BoxFit.fill,
-        opacity:.085,
-      ),
-    ),
+    child:LapiSurface(child:Padding(
+      padding:const EdgeInsets.fromLTRB(14,9,12,9),
     child:Row(children:[
       Container(
         width:34,height:34,
@@ -5873,6 +5701,7 @@ class _RabbitPageState extends State<RabbitPage>{
       ])),
       Switch(value:rabbitOrganizing,onChanged:toggleRabbitOrganizing),
     ]),
+    )),
   );
 
   Widget rabbitSection(String id,Map<String,dynamic> rr){
@@ -5935,18 +5764,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final rr=r!;
     final visible=visibleRabbitOrder;
 
-    final photoCard=Container(
-      decoration:BoxDecoration(
-        gradient:const LinearGradient(colors:[premiumCard, Color(0xFFFFFCF4)], begin:Alignment.topLeft, end:Alignment.bottomRight),
-        borderRadius:BorderRadius.circular(18),
-        border:Border.all(color:softGoldLine,width:1.05),
-        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.04),blurRadius:14,offset:const Offset(0,6))],
-        image:const DecorationImage(
-          image:AssetImage('assets/images/lapigestion_gold_corners.png'),
-          fit:BoxFit.fill,
-          opacity:.10,
-        ),
-      ),
+    final photoCard=LapiSurface(
       child:Padding(
         padding:const EdgeInsets.all(14),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -5956,7 +5774,7 @@ class _RabbitPageState extends State<RabbitPage>{
             child:Hero(
               tag:'rabbit${widget.index}',
               child:Container(
-                width:94,height:94,
+                width:112,height:112,
                 decoration:BoxDecoration(
                   color:mist,
                   borderRadius:BorderRadius.circular(18),
@@ -5976,11 +5794,12 @@ class _RabbitPageState extends State<RabbitPage>{
               rr['name'].isEmpty?'Nom à renseigner':rr['name'],
               maxLines:2,
               overflow:TextOverflow.ellipsis,
-              style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'serif'),
+              style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'LapiEditorial'),
             ),
             const SizedBox(height:8),
             if(rr['breed'].isNotEmpty)
               Text(rr['breed'],style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:brown)),
+            if(rr['color'].isNotEmpty)Text(rr['color'],style:const TextStyle(fontSize:12,color:brown)),
             if(rr['sex'].isNotEmpty||rr['birth'].isNotEmpty)...[
               const SizedBox(height:5),
               Text(
@@ -5988,21 +5807,23 @@ class _RabbitPageState extends State<RabbitPage>{
                 style:const TextStyle(fontSize:12,color:Colors.black54),
               ),
             ],
-            const SizedBox(height:8),
-            PremiumFilledButton.icon(
-              onPressed:rabbitOrganizing?null:editIdentity,
-              icon:const Icon(Icons.edit_outlined,size:18),
-              label:const Text('Modifier la fiche'),
-            ),
+            if((rr['adoptionStatus']??'').toString().isNotEmpty)Text(rr['adoptionStatus'],style:const TextStyle(fontSize:12,color:brown)),
+
           ])),
         ]),
         const SizedBox(height:7),
         Row(children:[
-          Expanded(child:OutlinedButton.icon(
-            onPressed:rabbitOrganizing?null:replaceRabbitPhoto,
-            icon:const Icon(Icons.photo_camera_outlined,size:18),
-            label:Text(rr['photo'].isEmpty?'Ajouter une photo':'Changer la photo'),
+          Expanded(child:PremiumFilledButton.icon(
+            onPressed:rabbitOrganizing?null:editIdentity,
+            icon:const Icon(Icons.edit_outlined,size:18),
+            label:const Text('Modifier la fiche'),
           )),
+          const SizedBox(width:6),
+          IconButton(
+            tooltip:rr['photo'].isEmpty?'Ajouter une photo':'Changer la photo',
+            onPressed:rabbitOrganizing?null:replaceRabbitPhoto,
+            icon:const Icon(Icons.photo_camera_outlined,color:lapiGreenDark),
+          ),
           if(rr['photo'].isNotEmpty)...[
             const SizedBox(width:8),
             IconButton(
@@ -6066,14 +5887,14 @@ class _RabbitPageState extends State<RabbitPage>{
           foregroundColor:Colors.white,
           surfaceTintColor:Colors.transparent,
           elevation:0,
-          pinned:false,
+          pinned:true,
           floating:false,
           snap:false,
           toolbarHeight:54,
           flexibleSpace:const PremiumMarbleBar(),
           title:Text(
             rr['name'].isEmpty?'Fiche du lapin':rr['name'],
-            style:const TextStyle(fontFamily:'serif',fontSize:20,fontWeight:FontWeight.w800,color:Colors.white),
+            style:const TextStyle(fontFamily:'LapiEditorial',fontSize:20,fontWeight:FontWeight.w800,color:Colors.white),
           ),
           actions:[
             IconButton(tooltip:'PDF',onPressed:rabbitOrganizing?null:exportPdf,icon:const Icon(Icons.picture_as_pdf,size:22)),
@@ -6163,7 +5984,7 @@ class _RabbitPageState extends State<RabbitPage>{
       child:Column(mainAxisSize:MainAxisSize.min,children:[
         Icon(icon,size:23,color:selected?warmGoldText:Colors.white),
         const SizedBox(height:2),
-        Text(label,style:TextStyle(fontSize:11,fontWeight:selected?FontWeight.w800:FontWeight.w600,color:selected?warmGoldText:Colors.white,fontFamily:selected?'serif':null)),
+        Text(label,style:TextStyle(fontSize:11,fontWeight:selected?FontWeight.w800:FontWeight.w600,color:selected?warmGoldText:Colors.white,fontFamily:selected?'LapiEditorial':null)),
         if(selected)...[
           const SizedBox(height:3),
           Container(width:26,height:2,decoration:BoxDecoration(color:gold,borderRadius:BorderRadius.circular(99))),
@@ -6181,7 +6002,7 @@ class _RabbitPageState extends State<RabbitPage>{
         child:Icon(i,color:lapiGreenDark,size:18),
       ),
       const SizedBox(width:10),
-      Expanded(child:Text(t,style:const TextStyle(fontSize:16.5,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'serif'))),
+      Expanded(child:Text(t,style:const TextStyle(fontSize:16.5,fontWeight:FontWeight.w800,color:ink,height:1.05,fontFamily:'LapiEditorial'))),
     ]),
   );
   Widget section(String t,IconData i,List<Widget> ch)=>Container(
@@ -6196,7 +6017,6 @@ class _RabbitPageState extends State<RabbitPage>{
         side:const BorderSide(color:softGoldLine,width:.9),
       ),
       child:Stack(children:[
-        Positioned(right:6,bottom:4,child:IgnorePointer(child:Icon(Icons.eco_outlined,color:gold.withValues(alpha:.42),size:22))),
         Padding(
           padding:const EdgeInsets.all(10),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[header(t,i),...ch]),
@@ -6219,18 +6039,8 @@ class _RabbitPageState extends State<RabbitPage>{
   }
   Widget modeBanner()=>Container(
     margin:const EdgeInsets.only(bottom:8),
-    padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
-    decoration:BoxDecoration(
-      gradient:const LinearGradient(colors:[premiumCard,Color(0xFFFFFCF4)],begin:Alignment.topLeft,end:Alignment.bottomRight),
-      borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:softGoldLine,width:1.0),
-      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,5))],
-      image:const DecorationImage(
-        image:AssetImage('assets/images/lapigestion_gold_corners.png'),
-        fit:BoxFit.fill,
-        opacity:.09,
-      ),
-    ),
+    child:LapiSurface(child:Padding(
+      padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
     child:Row(children:[
       Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark),
       const SizedBox(width:10),
@@ -6244,6 +6054,7 @@ class _RabbitPageState extends State<RabbitPage>{
         ),
       ])),
     ]),
+    )),
   );
 
   List<String> _dataAlerts(){
@@ -6285,7 +6096,7 @@ class _RabbitPageState extends State<RabbitPage>{
       Row(children:[
         Container(width:38,height:38,decoration:BoxDecoration(color:gold.withValues(alpha:.14),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
         const SizedBox(width:9),
-        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'serif')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
       ]),
       const SizedBox(height:7),
       ...alerts.take(5).map((a)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.circle,size:7,color:Color(0xFFEF6C00)),const SizedBox(width:8),Expanded(child:Text(a,style:const TextStyle(fontSize:13)))]))),
@@ -6860,20 +6671,20 @@ class _RabbitPageState extends State<RabbitPage>{
     return Icons.local_hospital;
   }
 
-  Widget _healthStat(String label,int value,IconData icon,Color color){
+  Widget _healthStat(String label,int value,IconData icon,Color color,{double width=108}){
     return Container(
-      width:108,
+      width:width,
       padding:const EdgeInsets.symmetric(horizontal:8,vertical:8),
       decoration:BoxDecoration(
         color:premiumCard,
-        borderRadius:BorderRadius.circular(17),
+        borderRadius:BorderRadius.circular(11),
         border:Border.all(color:softGoldLine,width:.85),
       ),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Icon(icon,color:color,size:21),
-        const SizedBox(height:7),
-        Text('$value',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:color)),
-        Text(label,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w700,color:ink)),
+        const SizedBox(height:4),
+        Text('$value',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:color)),
+        FittedBox(alignment:Alignment.centerLeft,fit:BoxFit.scaleDown,child:Text(label,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w600,color:ink))),
       ]),
     );
   }
@@ -7029,16 +6840,20 @@ class _RabbitPageState extends State<RabbitPage>{
         header('Parcours santé',Icons.timeline),
         const Text(
           'Toute l’histoire médicale réunie au même endroit.',
-          style:TextStyle(color:Colors.black54),
+          style:TextStyle(fontSize:11,color:Colors.black54),
         ),
         const SizedBox(height:9),
 
-        Wrap(spacing:8,runSpacing:8,children:[
-          _healthStat('Événements',past.length,Icons.monitor_heart,const Color(0xFF315B49)),
-          _healthStat('Vaccins',vaccines,Icons.vaccines,const Color(0xFF2D7654)),
-          _healthStat('Vermifuges',dewormings,Icons.medication,const Color(0xFF3C674F)),
-          _healthStat('Visites véto',vetVisits,Icons.local_hospital,const Color(0xFF1D6044)),
-        ]),
+        LayoutBuilder(builder:(context,c){
+          final columns=c.maxWidth<300 || MediaQuery.textScalerOf(context).scale(12)>16?2:4;
+          final width=(c.maxWidth-(columns-1)*6)/columns;
+          return Wrap(spacing:6,runSpacing:6,children:[
+            _healthStat('Événements',past.length,Icons.monitor_heart,const Color(0xFF315B49),width:width),
+            _healthStat('Vaccins',vaccines,Icons.vaccines,const Color(0xFF2D7654),width:width),
+            _healthStat('Vermifuges',dewormings,Icons.medication,const Color(0xFF3C674F),width:width),
+            _healthStat('Visites véto',vetVisits,Icons.local_hospital,const Color(0xFF1D6044),width:width),
+          ]);
+        }),
 
         const SizedBox(height:11),
         Container(
@@ -7095,7 +6910,7 @@ class _RabbitPageState extends State<RabbitPage>{
           const SizedBox(height:7),
           Wrap(spacing:7,runSpacing:7,children:[
             for(final f in ['Tout','Vaccins','Vermifuges','Véto'])
-              ChoiceChip(
+              PremiumChoiceChip(
                 label:Text(
                   f,
                   style:TextStyle(
@@ -7379,8 +7194,8 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
     final hasPhoto=newPhotoSource!=null||(!removePhoto&&((d['photo']??'') as String).isNotEmpty);
     final hasSheet=newSheetSource!=null||(!removeSheet&&((d['judgingSheet']??'') as String).isNotEmpty);
     return Dialog.fullscreen(child:Scaffold(
-      appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Concours & Exposition'),actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))]),
-      body:ListView(padding:const EdgeInsets.all(16),children:[
+      appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Concours & Exposition'),actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))]),
+      body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
         Container(
           padding:const EdgeInsets.all(14),
           decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
@@ -7464,7 +7279,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
         const SizedBox(height:18),
         PremiumFilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le concours')),
         const SizedBox(height:24),
-      ]),
+      ])),
     ));
   }
 }
@@ -7741,34 +7556,47 @@ class _EditIdentityState extends State<EditIdentity>{
         child:const Text('ENREGISTRER',style:TextStyle(fontWeight:FontWeight.w900,letterSpacing:.3)),
       )],
     ),
-    body:ListView(padding:const EdgeInsets.all(16),children:[
-      const Text('Le lapin',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-      field('Nom','name'),
-      const SizedBox(height:14),
-      choiceTitle('Sexe'),
-      Wrap(spacing:10,runSpacing:8,children:[
-        ChoiceChip(label:const Text('Mâle'),selected:d['sex']=='Mâle',onSelected:(_)=>setState(()=>d['sex']='Mâle')),
-        ChoiceChip(label:const Text('Femelle'),selected:d['sex']=='Femelle',onSelected:(_)=>setState(()=>d['sex']='Femelle')),
+    body:ListView(padding:const EdgeInsets.fromLTRB(10,8,10,24),children:[
+      identityPanel('Le lapin',Icons.pets,[
+        field('Nom','name'),
+        const SizedBox(height:10),
+        choiceTitle('Sexe'),
+        PremiumSegmentedButton<String>(
+          segments:const [ButtonSegment(value:'Mâle',icon:Icon(Icons.male),label:Text('Mâle')),ButtonSegment(value:'Femelle',icon:Icon(Icons.female),label:Text('Femelle'))],
+          selected:{if((d['sex']??'').toString().isNotEmpty)d['sex']},
+          showSelectedIcon:false,onSelectionChanged:(v)=>setState(()=>d['sex']=v.first),
+        ),
+        const SizedBox(height:10),
+        choiceTitle('Stérilisation'),
+        PremiumSegmentedButton<String>(
+          segments:const [ButtonSegment(value:'Stérilisé(e)',label:Text('Stérilisé(e)')),ButtonSegment(value:'Non stérilisé(e)',label:Text('Non stérilisé(e)'))],
+          selected:{if((d['sterilized']??'').toString().isNotEmpty)d['sterilized']},
+          showSelectedIcon:false,onSelectionChanged:(v)=>setState(()=>d['sterilized']=v.first),
+        ),
+        raceColorFields('breed','color'),
+        field('Numéro d’identification (facultatif)','identification'),
+        field('Numéro de tatouage (facultatif)','tattoo'),
+        dateField('Date de naissance','birth'),
+        dateField('Date de sevrage','weaning'),
       ]),
-      const SizedBox(height:14),
-      choiceTitle('Stérilisation'),
-      Wrap(spacing:10,runSpacing:8,children:[
-        ChoiceChip(label:const Text('Stérilisé(e)'),selected:d['sterilized']=='Stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Stérilisé(e)')),
-        ChoiceChip(label:const Text('Non stérilisé(e)'),selected:d['sterilized']=='Non stérilisé(e)',onSelected:(_)=>setState(()=>d['sterilized']='Non stérilisé(e)')),
+      const SizedBox(height:8),
+      identityPanel('Père',Icons.account_tree_outlined,[
+        field('Nom du père','fatherName'),raceColorFields('fatherBreed','fatherColor',raceLabel:'Race du père',colorLabel:'Couleur / variété du père'),dateField('Date de naissance du père','fatherBirth'),
       ]),
-      raceColorFields('breed','color'),
-      field('Numéro d’identification (facultatif)','identification'),
-      field('Numéro de tatouage (facultatif)','tattoo'),
-      dateField('Date de naissance','birth'),
-      dateField('Date de sevrage','weaning'),
-      const SizedBox(height:20),
-      const Text('Père',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-      field('Nom du père','fatherName'),raceColorFields('fatherBreed','fatherColor',raceLabel:'Race du père',colorLabel:'Couleur / variété du père'),dateField('Date de naissance du père','fatherBirth'),
-      const SizedBox(height:20),
-      const Text('Mère',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
-      field('Nom de la mère','motherName'),raceColorFields('motherBreed','motherColor',raceLabel:'Race de la mère',colorLabel:'Couleur / variété de la mère'),dateField('Date de naissance de la mère','motherBirth'),
+      const SizedBox(height:8),
+      identityPanel('Mère',Icons.account_tree_outlined,[
+        field('Nom de la mère','motherName'),raceColorFields('motherBreed','motherColor',raceLabel:'Race de la mère',colorLabel:'Couleur / variété de la mère'),dateField('Date de naissance de la mère','motherBirth'),
+      ]),
     ]),
   ));
+
+  Widget identityPanel(String title,IconData icon,List<Widget> children)=>LapiSurface(
+    kind:LapiFrameKind.panel,
+    child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Row(children:[Icon(icon,size:21,color:lapiGreenDark),const SizedBox(width:8),Expanded(child:Text(title,style:const TextStyle(fontFamily:'LapiEditorial',fontSize:18,fontWeight:FontWeight.w700,color:ink)))]),
+      ...children,
+    ])),
+  );
 
   Widget choiceTitle(String label)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Text(label,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:brown)));
 
@@ -7942,9 +7770,9 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
       appBar:AppBar(
       flexibleSpace:const PremiumMarbleBar(),
         title:const Text('Certificat d’engagement'),
-        actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
+        actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))],
       ),
-      body:ListView(padding:const EdgeInsets.all(16),children:[
+      body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
         Container(
           padding:const EdgeInsets.all(14),
           decoration:BoxDecoration(color:ink,borderRadius:BorderRadius.circular(18),border:Border.all(color:gold)),
@@ -8049,7 +7877,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
           style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:brown),
         ),
         const SizedBox(height:24),
-      ]),
+      ])),
     ));
   }
 }
@@ -8162,13 +7990,13 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
   }
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
-    appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Adoption & départ'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
-    body:ListView(padding:const EdgeInsets.all(16),children:[
+    appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Adoption & départ'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))]),
+    body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
       const Text('Statut du lapin',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
       const SizedBox(height:10),
       Wrap(spacing:8,runSpacing:8,children:[
         for(final status in ['À l’élevage','Réservé','Adopté / parti'])
-          ChoiceChip(label:Text(status),selected:d['adoptionStatus']==status,onSelected:(_)=>setState(()=>d['adoptionStatus']=status)),
+          PremiumChoiceChip(label:Text(status),selected:d['adoptionStatus']==status,onSelected:(_)=>setState(()=>d['adoptionStatus']=status)),
       ]),
       const SizedBox(height:20),
       const Text('Adoptant',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
@@ -8198,7 +8026,7 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
       const SizedBox(height:18),
       PremiumFilledButton.icon(onPressed:()=>widget.onSave(d),icon:const Icon(Icons.save),label:const Text('Enregistrer le suivi d’adoption')),
       const SizedBox(height:24),
-    ]),
+    ])),
   ));
 }
 
@@ -8410,9 +8238,9 @@ class _BreedingDialogState extends State<BreedingDialog>{
           if(!validateColors())return;
           if(currentIsMale){d['maleId']=widget.currentRabbit['id'];}else{d['femaleId']=widget.currentRabbit['id'];}
           widget.onSave(d);
-        },child:const Text('ENREGISTRER'))],
+        },child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))],
       ),
-      body:ListView(padding:const EdgeInsets.all(16),children:[
+      body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
         dateField('Date de la saillie','matingDate'),
         const SizedBox(height:10),
         DropdownButtonFormField<String>(
@@ -8500,7 +8328,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
             Text('Vivants au sevrage : ${t['weaned']}'),
           ])));
         }),
-      ]),
+      ])),
     ));
   }
 }
@@ -8663,9 +8491,9 @@ class _MedicationDialogState extends State<MedicationDialog>{
     appBar:AppBar(
       flexibleSpace:const PremiumMarbleBar(),
       title:Text(((widget.item['name']??'') as String).isEmpty?'Nouveau traitement':'Modifier le traitement'),
-      actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
+      actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))],
     ),
-    body:ListView(padding:const EdgeInsets.all(16),children:[
+    body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
       Container(
         padding:const EdgeInsets.all(12),
         decoration:BoxDecoration(color:gold.withValues(alpha:.09),borderRadius:BorderRadius.circular(15),border:Border.all(color:gold.withValues(alpha:.5))),
@@ -8743,7 +8571,7 @@ class _MedicationDialogState extends State<MedicationDialog>{
       const SizedBox(height:18),
       PremiumFilledButton.icon(onPressed:save,icon:const Icon(Icons.save),label:const Text('Enregistrer le traitement')),
       const SizedBox(height:24),
-    ]),
+    ])),
   ));
 
   Future<void> save()async{
@@ -8801,9 +8629,9 @@ class _AppointmentDialogState extends State<AppointmentDialog>{
           return;
         }
         widget.onSave(d);
-      },child:const Text('ENREGISTRER'))],
+      },child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))],
     ),
-    body:ListView(padding:const EdgeInsets.all(16),children:[
+    body:PremiumFormPanel(child:ListView(padding:const EdgeInsets.all(16),children:[
       TextFormField(
         readOnly:true,
         controller:TextEditingController(text:d['date']??''),
@@ -8837,6 +8665,6 @@ class _AppointmentDialogState extends State<AppointmentDialog>{
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('3 jours avant'),value:(d['reminderDays'] as List).contains(3),onChanged:(v)=>toggleDay(3,v??false)),
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('La veille'),value:(d['reminderDays'] as List).contains(1),onChanged:(v)=>toggleDay(1,v??false)),
       CheckboxListTile(contentPadding:EdgeInsets.zero,title:const Text('Le jour même'),value:(d['reminderDays'] as List).contains(0),onChanged:(v)=>toggleDay(0,v??false)),
-    ]),
+    ])),
   ));
 }

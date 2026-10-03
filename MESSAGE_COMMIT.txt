@@ -1,0 +1,3 @@
+Harmoniser l’interface LapiGestion V3.1.36
+
+Cadres adaptés aux composants, formulaires ivoire/or, sélections vert marbré, bannière sans mat noir et barre haute opaque fixe. Conservation du stockage, des notifications, de la reproduction et de la recherche vétérinaire.

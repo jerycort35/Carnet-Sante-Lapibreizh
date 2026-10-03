@@ -1,0 +1,19 @@
+{
+  "syntaxErrors": [],
+  "criticalClassesUnchanged": {
+    "Notifications": true,
+    "Store": true,
+    "AppModeStore": true,
+    "ReproductionSettingsStore": true,
+    "RabbitBreedCatalog": true,
+    "ReproductionStore": true,
+    "PrivateFiles": true,
+    "LayoutStore": true,
+    "BackupService": true,
+    "VeterinaryService": true
+  },
+  "originalFutureMethods": 116,
+  "removedFutureMethods": [],
+  "futureMethodsWithChangedTokens": [],
+  "removedClasses": []
+}
