@@ -2351,6 +2351,12 @@ class PremiumSegmentedButton<T> extends StatelessWidget {
 
 
 class VeterinaryService {
+  static const List<String> _overpassEndpoints=[
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+  ];
+
   static Future<Position> currentPosition() async {
     final enabled=await Geolocator.isLocationServiceEnabled();
     if(!enabled){
@@ -2377,19 +2383,20 @@ class VeterinaryService {
   }
 
   static bool _nacMention(Map<String,dynamic> tags){
-    final text=tags.values.map((e)=>e.toString().toLowerCase()).join(' ');
+    // Priorité aux balises qui décrivent réellement l'activité ou les espèces soignées.
+    const relevantKeys=[
+      'animal','animals','veterinary','veterinary:speciality','healthcare:speciality',
+      'speciality','description','name','operator','service','services',
+    ];
+    final text=relevantKeys
+        .map((key)=>tags[key])
+        .where((value)=>value!=null)
+        .map((value)=>value.toString().toLowerCase())
+        .join(' ');
     const words=[
-      'nac',
-      'nouveaux animaux de compagnie',
-      'exotic',
-      'exotique',
-      'rabbit',
-      'lapin',
-      'rongeur',
-      'rodent',
-      'reptile',
-      'avian',
-      'oiseau',
+      'nac','nouveaux animaux de compagnie','exotic','exotics','exotique',
+      'rabbit','rabbits','lapin','lapins','rodent','rodents','rongeur','rongeurs',
+      'reptile','reptiles','avian','oiseau','oiseaux','ferret','furet','furets',
     ];
     return words.any(text.contains);
   }
@@ -2403,11 +2410,53 @@ class VeterinaryService {
 
     final city=[
       tags['addr:postcode'],
-      tags['addr:city']??tags['addr:town']??tags['addr:village'],
+      tags['addr:city']??tags['addr:town']??tags['addr:village']??tags['addr:municipality'],
     ].where((e)=>e!=null&&e.toString().trim().isNotEmpty)
       .map((e)=>e.toString().trim()).join(' ');
 
     return [line,city].where((e)=>e.isNotEmpty).join(', ');
+  }
+
+  static String _normalized(String value)=>value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9àâäéèêëîïôöùûüç]+'),' ')
+      .trim();
+
+  static int _informationScore(Map<String,dynamic> vet){
+    var score=0;
+    for(final key in ['address','phone','website','openingHours']){
+      if((vet[key]??'').toString().trim().isNotEmpty)score++;
+    }
+    if(vet['nac']==true)score+=2;
+    if(vet['emergency']==true)score++;
+    return score;
+  }
+
+  static Future<Map<String,dynamic>> _queryOverpass(String query) async {
+    Object? lastError;
+    for(final endpoint in _overpassEndpoints){
+      try{
+        final response=await http.post(
+          Uri.parse(endpoint),
+          headers:{
+            'User-Agent':'LapiGestion-LesLapibreizh/1.0',
+            'Accept':'application/json',
+          },
+          body:{'data':query},
+        ).timeout(const Duration(seconds:28));
+        if(response.statusCode==200){
+          final decoded=jsonDecode(response.body);
+          if(decoded is Map<String,dynamic>)return decoded;
+        }
+        lastError=Exception('HTTP ${response.statusCode}');
+      }catch(error){
+        lastError=error;
+      }
+    }
+    throw Exception(
+      'Les serveurs de recherche vétérinaire sont momentanément indisponibles. '
+      'Réessayez dans quelques instants.${lastError==null?'':' '}',
+    );
   }
 
   static Future<List<Map<String,dynamic>>> searchNearby({
@@ -2416,29 +2465,25 @@ class VeterinaryService {
     required int radiusKm,
   }) async {
     final radius=radiusKm*1000;
-    final query='[out:json][timeout:30];('
+
+    // OSM peut enregistrer une clinique comme node, way ou relation et, selon les
+    // contributeurs, avec amenity=veterinary ou healthcare=veterinary.
+    final query='[out:json][timeout:25];('
       'node["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
       'way["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
       'relation["amenity"="veterinary"](around:$radius,$latitude,$longitude);'
-      ');out center tags;';
+      'node["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
+      'way["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
+      'relation["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
+      ');out center tags qt;';
 
-    final response=await http.post(
-      Uri.parse('https://overpass-api.de/api/interpreter'),
-      headers:{'User-Agent':'LapiGestion-LesLapibreizh/1.0'},
-      body:{'data':query},
-    ).timeout(const Duration(seconds:40));
-
-    if(response.statusCode!=200){
-      throw Exception('Le service de recherche vétérinaire est momentanément indisponible.');
-    }
-
-    final decoded=jsonDecode(response.body) as Map<String,dynamic>;
+    final decoded=await _queryOverpass(query);
     final elements=(decoded['elements'] as List?)??[];
-    final result=<Map<String,dynamic>>[];
-    final seen=<String>{};
+    final byKey=<String,Map<String,dynamic>>{};
 
     for(final raw in elements){
-      final element=Map<String,dynamic>.from(raw as Map);
+      if(raw is! Map)continue;
+      final element=Map<String,dynamic>.from(raw);
       final tags=Map<String,dynamic>.from((element['tags'] as Map?)??{});
       final center=element['center'] is Map
           ?Map<String,dynamic>.from(element['center'] as Map)
@@ -2452,24 +2497,37 @@ class VeterinaryService {
       final lon=lonValue.toDouble();
       final rawName=(tags['name']??tags['operator']??'Cabinet vétérinaire').toString().trim();
       final name=rawName.isEmpty?'Cabinet vétérinaire':rawName;
-      final key='${name.toLowerCase()}|${lat.toStringAsFixed(4)}|${lon.toStringAsFixed(4)}';
-      if(!seen.add(key))continue;
-
       final distance=Geolocator.distanceBetween(latitude,longitude,lat,lon)/1000.0;
-      result.add({
+      if(distance>radiusKm+0.2)continue;
+
+      final vet=<String,dynamic>{
         'name':name,
         'lat':lat,
         'lon':lon,
         'distance':distance,
         'address':_address(tags),
-        'phone':(tags['contact:phone']??tags['phone']??'').toString(),
-        'website':(tags['contact:website']??tags['website']??'').toString(),
+        'phone':(tags['contact:phone']??tags['phone']??tags['contact:mobile']??'').toString(),
+        'website':(tags['contact:website']??tags['website']??tags['url']??'').toString(),
         'openingHours':(tags['opening_hours']??'').toString(),
-        'emergency':tags['emergency']=='yes',
+        'emergency':tags['emergency']=='yes'||tags['veterinary:emergency']=='yes',
         'nac':_nacMention(tags),
-      });
+      };
+
+      // Plusieurs objets OSM peuvent décrire la même clinique. On regroupe les
+      // entrées portant le même nom dans ~110 m et on garde la fiche la plus riche.
+      final normalizedName=_normalized(name);
+      final key=normalizedName=='cabinet veterinaire'||normalizedName.isEmpty
+          ?'${lat.toStringAsFixed(4)}|${lon.toStringAsFixed(4)}'
+          :'$normalizedName|${lat.toStringAsFixed(3)}|${lon.toStringAsFixed(3)}';
+      final previous=byKey[key];
+      if(previous==null||_informationScore(vet)>_informationScore(previous)){
+        byKey[key]=vet;
+      }else if(vet['nac']==true){
+        previous['nac']=true;
+      }
     }
 
+    final result=byKey.values.toList();
     result.sort((a,b)=>(a['distance'] as double).compareTo(b['distance'] as double));
     return result;
   }
@@ -7450,7 +7508,27 @@ class _EditIdentityState extends State<EditIdentity>{
   @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';d['color']??='';d['fatherColor']??='';d['motherColor']??='';}
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
-    appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),style:TextButton.styleFrom(foregroundColor:const Color(0xFFFFD54F),padding:const EdgeInsets.symmetric(horizontal:12,vertical:8)),child:const Text('ENREGISTRER',style:TextStyle(fontWeight:FontWeight.w900,letterSpacing:.3)))]),
+    appBar:AppBar(
+      backgroundColor:Colors.transparent,
+      flexibleSpace:Container(
+        decoration:const BoxDecoration(
+          image:DecorationImage(
+            image:AssetImage('assets/images/lapigestion_appbar_marble.jpg'),
+            fit:BoxFit.cover,
+          ),
+          border:Border(bottom:BorderSide(color:gold,width:1.2)),
+        ),
+      ),
+      title:const Text('Identité & filiation'),
+      actions:[TextButton(
+        onPressed:()=>widget.onSave(d),
+        style:TextButton.styleFrom(
+          foregroundColor:gold,
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+        ),
+        child:const Text('ENREGISTRER',style:TextStyle(fontWeight:FontWeight.w900,letterSpacing:.3)),
+      )],
+    ),
     body:ListView(padding:const EdgeInsets.all(16),children:[
       const Text('Le lapin',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
       field('Nom','name'),
