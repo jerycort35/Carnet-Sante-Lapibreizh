@@ -2204,41 +2204,60 @@ class PremiumCard extends StatelessWidget {
   );
 }
 
-class _PremiumGoldFrame extends StatelessWidget{
-  const _PremiumGoldFrame();
+class PremiumCornerOrnament extends StatelessWidget{
+  final double size;
+  final int quarterTurns;
+  final double opacity;
+  const PremiumCornerOrnament({
+    super.key,
+    this.size=34,
+    this.quarterTurns=0,
+    this.opacity=.78,
+  });
 
-  Widget corner({required Alignment alignment,required int quarterTurns,double size=54})=>Align(
-    alignment:alignment,
+  @override Widget build(BuildContext context)=>IgnorePointer(
     child:Opacity(
-      opacity:.56,
+      opacity:opacity,
       child:RotatedBox(
         quarterTurns:quarterTurns,
         child:Image.asset(
-          'assets/images/lapigestion_gold_corners.png',
+          'assets/images/lapigestion_corner_gold.png',
           width:size,
           height:size,
-          fit:BoxFit.cover,
-          alignment:Alignment.topLeft,
+          fit:BoxFit.contain,
           filterQuality:FilterQuality.high,
         ),
       ),
     ),
   );
+}
+
+/// Cadre premium : liseré or continu + deux ornements réellement intégrés
+/// aux angles. Aucun motif ne flotte dans la zone de contenu.
+class _PremiumGoldFrame extends StatelessWidget{
+  const _PremiumGoldFrame();
 
   @override Widget build(BuildContext context)=>Stack(
-    clipBehavior:Clip.none,
+    clipBehavior:Clip.hardEdge,
     children:[
       Positioned.fill(
         child:DecoratedBox(
           decoration:BoxDecoration(
             borderRadius:BorderRadius.circular(20),
-            border:Border.all(color:softGoldLine.withValues(alpha:.95),width:.9),
+            border:Border.all(color:softGoldLine.withValues(alpha:.98),width:1.0),
           ),
         ),
       ),
-      // Deux finitions seulement : élégantes, périphériques et hors des textes.
-      Positioned(left:-2,top:-2,width:54,height:54,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:0))),
-      Positioned(right:-2,bottom:-2,width:58,height:58,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:2,size:58))),
+      const Positioned(
+        left:-3,
+        top:-3,
+        child:PremiumCornerOrnament(size:38,quarterTurns:0,opacity:.72),
+      ),
+      const Positioned(
+        right:-3,
+        bottom:-3,
+        child:PremiumCornerOrnament(size:40,quarterTurns:2,opacity:.72),
+      ),
     ],
   );
 }
@@ -2290,8 +2309,8 @@ class PremiumFilledButton extends StatelessWidget {
           alignment:Alignment.center,
           children:[
             Positioned.fill(child:DecoratedBox(decoration:premiumCreamDecoration(radius:14))),
-            const Positioned(left:-6,bottom:-9,child:PremiumGoldLeaves(size:31,opacity:.42)),
-            Positioned(right:-6,top:-9,child:Transform.flip(flipX:true,flipY:true,child:const PremiumGoldLeaves(size:31,opacity:.42))),
+            const Positioned(left:-3,bottom:-3,child:PremiumCornerOrnament(size:23,quarterTurns:3,opacity:.62)),
+            const Positioned(right:-3,top:-3,child:PremiumCornerOrnament(size:23,quarterTurns:1,opacity:.62)),
             native,
           ],
         ),
@@ -2892,8 +2911,7 @@ class _HomePageState extends State<HomePage>{
         child:Stack(children:[
           Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
           const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
-          Positioned(right:-10,bottom:-13,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:44,opacity:.52))),
-          Row(children:[
+                    Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
           _bottomShortcut(icon:Icons.notifications_none,label:'Rappels',onTap:()=>_jumpToHome('dashboard')),
@@ -5923,8 +5941,7 @@ class _RabbitPageState extends State<RabbitPage>{
             child:Stack(children:[
               Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
               const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
-              Positioned(right:-10,bottom:-13,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:44,opacity:.52))),
-              Row(children:[
+                            Row(children:[
                 Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
                 Expanded(child:_rabbitBottomNavItem(Icons.pets_outlined,'Mes lapins',true,(){})),
                 Expanded(child:_rabbitBottomNavItem(Icons.notifications_none,'Rappels',false,(){})),
