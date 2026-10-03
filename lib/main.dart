@@ -2412,7 +2412,7 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
                   color:selected?warmGoldText:lapiGreenDark,
                   fontWeight:FontWeight.w800,
                 ),
-                child:segment.label,
+                child:segment.label ?? const SizedBox.shrink(),
               ),
             ],
           ),
