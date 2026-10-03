@@ -2124,23 +2124,32 @@ class PremiumMarbleButton extends StatelessWidget{
         onTap:onPressed,
         borderRadius:BorderRadius.circular(14),
         child:Ink(
-          padding:padding,
-          decoration:premiumMarbleDecoration(radius:14,selected:selected,strong:selected),
-          child:Row(
-            mainAxisAlignment:MainAxisAlignment.center,
-            mainAxisSize:MainAxisSize.min,
+          padding:EdgeInsets.zero,
+          decoration:selected?premiumMarbleDecoration(radius:14,selected:true,strong:true):null,
+          child:Stack(
+            alignment:Alignment.center,
             children:[
-              Icon(icon,color:selected?warmGoldText:lapiGreenDark,size:21),
-              const SizedBox(width:9),
-              Flexible(child:Text(
-                label,
-                textAlign:TextAlign.center,
-                style:TextStyle(
-                  color:selected?warmGoldText:lapiGreenDark,
-                  fontSize:14,
-                  fontWeight:FontWeight.w800,
+              if(!selected)const Positioned.fill(child:PremiumButtonFrame()),
+              Padding(
+                padding:padding,
+                child:Row(
+                  mainAxisAlignment:MainAxisAlignment.center,
+                  mainAxisSize:MainAxisSize.min,
+                  children:[
+                    Icon(icon,color:selected?warmGoldText:lapiGreenDark,size:21),
+                    const SizedBox(width:9),
+                    Flexible(child:Text(
+                      label,
+                      textAlign:TextAlign.center,
+                      style:TextStyle(
+                        color:selected?warmGoldText:lapiGreenDark,
+                        fontSize:14,
+                        fontWeight:FontWeight.w800,
+                      ),
+                    )),
+                  ],
                 ),
-              )),
+              ),
             ],
           ),
         ),
@@ -2152,6 +2161,30 @@ class PremiumMarbleButton extends StatelessWidget{
 
 /// Cadre ivoire premium commun à toutes les grandes cartes de l'application.
 /// Règle V3.1.30 : intérieur totalement dégagé ; décoration uniquement sur le pourtour.
+class PremiumReferenceFrame extends StatelessWidget{
+  final String asset;
+  final Rect centerSlice;
+  final BorderRadius borderRadius;
+  const PremiumReferenceFrame({
+    super.key,
+    required this.asset,
+    required this.centerSlice,
+    required this.borderRadius,
+  });
+
+  @override Widget build(BuildContext context)=>IgnorePointer(
+    child:ClipRRect(
+      borderRadius:borderRadius,
+      child:Image.asset(
+        asset,
+        fit:BoxFit.fill,
+        centerSlice:centerSlice,
+        filterQuality:FilterQuality.high,
+      ),
+    ),
+  );
+}
+
 class PremiumCard extends StatelessWidget {
   final Widget? child;
   final Color? color;
@@ -2178,87 +2211,57 @@ class PremiumCard extends StatelessWidget {
     this.semanticContainer=true,
   });
 
-  @override
-  Widget build(BuildContext context) => m.Card(
-    color:color??premiumCard,
+  @override Widget build(BuildContext context)=>m.Card(
+    color:Colors.transparent,
     shadowColor:shadowColor,
-    surfaceTintColor:surfaceTintColor,
-    elevation:elevation,
-    shape:shape??RoundedRectangleBorder(
-      borderRadius:BorderRadius.circular(20),
-      side:const BorderSide(color:softGoldLine,width:1.0),
-    ),
-    borderOnForeground:borderOnForeground,
+    surfaceTintColor:Colors.transparent,
+    elevation:elevation??0,
+    shape:shape??RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+    borderOnForeground:false,
     margin:margin,
     clipBehavior:Clip.none,
     semanticContainer:semanticContainer,
     child:Stack(
-      clipBehavior:Clip.none,
       children:[
+        Positioned.fill(
+          child:LayoutBuilder(
+            builder:(context,constraints){
+              final w=constraints.maxWidth;
+              final h=constraints.maxHeight;
+              if(h.isFinite && h>=330){
+                return const PremiumReferenceFrame(
+                  asset:'assets/images/lapigestion_frame_card_large.png',
+                  centerSlice:Rect.fromLTRB(150,72,385,118),
+                  borderRadius:BorderRadius.all(Radius.circular(20)),
+                );
+              }
+              if((h.isFinite && h>=180) || (w.isFinite && w>=430)){
+                return const PremiumReferenceFrame(
+                  asset:'assets/images/lapigestion_frame_card_medium.png',
+                  centerSlice:Rect.fromLTRB(120,68,270,122),
+                  borderRadius:BorderRadius.all(Radius.circular(20)),
+                );
+              }
+              return const PremiumReferenceFrame(
+                asset:'assets/images/lapigestion_frame_card_small.png',
+                centerSlice:Rect.fromLTRB(105,58,245,112),
+                borderRadius:BorderRadius.all(Radius.circular(20)),
+              );
+            },
+          ),
+        ),
         if(child!=null) child!,
-        // Le décor est volontairement limité aux bords :
-        // aucune arabesque ni feuille derrière le texte ou les données.
-        const Positioned.fill(child:IgnorePointer(child:_PremiumGoldFrame())),
       ],
     ),
   );
 }
 
-class PremiumCornerOrnament extends StatelessWidget{
-  final double size;
-  final int quarterTurns;
-  final double opacity;
-  const PremiumCornerOrnament({
-    super.key,
-    this.size=34,
-    this.quarterTurns=0,
-    this.opacity=.78,
-  });
-
-  @override Widget build(BuildContext context)=>IgnorePointer(
-    child:Opacity(
-      opacity:opacity,
-      child:RotatedBox(
-        quarterTurns:quarterTurns,
-        child:Image.asset(
-          'assets/images/lapigestion_corner_gold.png',
-          width:size,
-          height:size,
-          fit:BoxFit.contain,
-          filterQuality:FilterQuality.high,
-        ),
-      ),
-    ),
-  );
-}
-
-/// Cadre premium : liseré or continu + deux ornements réellement intégrés
-/// aux angles. Aucun motif ne flotte dans la zone de contenu.
-class _PremiumGoldFrame extends StatelessWidget{
-  const _PremiumGoldFrame();
-
-  @override Widget build(BuildContext context)=>Stack(
-    clipBehavior:Clip.hardEdge,
-    children:[
-      Positioned.fill(
-        child:DecoratedBox(
-          decoration:BoxDecoration(
-            borderRadius:BorderRadius.circular(20),
-            border:Border.all(color:softGoldLine.withValues(alpha:.98),width:1.0),
-          ),
-        ),
-      ),
-      const Positioned(
-        left:-3,
-        top:-3,
-        child:PremiumCornerOrnament(size:38,quarterTurns:0,opacity:.72),
-      ),
-      const Positioned(
-        right:-3,
-        bottom:-3,
-        child:PremiumCornerOrnament(size:40,quarterTurns:2,opacity:.72),
-      ),
-    ],
+class PremiumButtonFrame extends StatelessWidget{
+  const PremiumButtonFrame({super.key});
+  @override Widget build(BuildContext context)=>const PremiumReferenceFrame(
+    asset:'assets/images/lapigestion_frame_button.png',
+    centerSlice:Rect.fromLTRB(82,24,220,47),
+    borderRadius:BorderRadius.all(Radius.circular(14)),
   );
 }
 
@@ -2308,9 +2311,7 @@ class PremiumFilledButton extends StatelessWidget {
         child:Stack(
           alignment:Alignment.center,
           children:[
-            Positioned.fill(child:DecoratedBox(decoration:premiumCreamDecoration(radius:14))),
-            const Positioned(left:-3,bottom:-3,child:PremiumCornerOrnament(size:23,quarterTurns:3,opacity:.62)),
-            const Positioned(right:-3,top:-3,child:PremiumCornerOrnament(size:23,quarterTurns:1,opacity:.62)),
+            const Positioned.fill(child:PremiumButtonFrame()),
             native,
           ],
         ),
@@ -2410,28 +2411,37 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
         onTap:enabled?onTap:null,
         borderRadius:BorderRadius.circular(12),
         child:Ink(
-          padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
-          decoration:premiumMarbleDecoration(radius:12,selected:selected,strong:selected),
-          child:Row(
-            mainAxisAlignment:MainAxisAlignment.center,
-            mainAxisSize:MainAxisSize.min,
+          padding:EdgeInsets.zero,
+          decoration:selected?premiumMarbleDecoration(radius:12,selected:true,strong:true):null,
+          child:Stack(
+            alignment:Alignment.center,
             children:[
-              if(selected&&showSelectedIcon)...[
-                selectedIcon??const Icon(Icons.check,size:17),
-                const SizedBox(width:5),
-              ]else if(segment.icon!=null)...[
-                IconTheme(
-                  data:IconThemeData(color:selected?warmGoldText:lapiGreenDark,size:18),
-                  child:segment.icon!,
+              if(!selected)const Positioned.fill(child:PremiumButtonFrame()),
+              Padding(
+                padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+                child:Row(
+                  mainAxisAlignment:MainAxisAlignment.center,
+                  mainAxisSize:MainAxisSize.min,
+                  children:[
+                    if(selected&&showSelectedIcon)...[
+                      selectedIcon??const Icon(Icons.check,size:17,color:warmGoldText),
+                      const SizedBox(width:5),
+                    ]else if(segment.icon!=null)...[
+                      IconTheme(
+                        data:IconThemeData(color:selected?warmGoldText:lapiGreenDark,size:18),
+                        child:segment.icon!,
+                      ),
+                      const SizedBox(width:5),
+                    ],
+                    DefaultTextStyle.merge(
+                      style:TextStyle(
+                        color:selected?warmGoldText:lapiGreenDark,
+                        fontWeight:FontWeight.w800,
+                      ),
+                      child:segment.label ?? const SizedBox.shrink(),
+                    ),
+                  ],
                 ),
-                const SizedBox(width:5),
-              ],
-              DefaultTextStyle.merge(
-                style:TextStyle(
-                  color:selected?warmGoldText:lapiGreenDark,
-                  fontWeight:FontWeight.w800,
-                ),
-                child:segment.label ?? const SizedBox.shrink(),
               ),
             ],
           ),
