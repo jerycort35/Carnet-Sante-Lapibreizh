@@ -2051,7 +2051,7 @@ BoxDecoration premiumMarbleDecoration({
     ),
   ),
   borderRadius:BorderRadius.circular(radius),
-  border:Border.all(color:selected?gold.withValues(alpha:.42):gold.withValues(alpha:.22),width:selected?.85:.55),
+  border:Border.all(color:selected?gold.withValues(alpha:.42):gold.withValues(alpha:.22),width:selected ? .85 : .55),
   boxShadow:[
     BoxShadow(
       color:Colors.black.withValues(alpha:selected ? .13 : .07),
