@@ -2221,12 +2221,12 @@ class PremiumGoldFramePainter extends CustomPainter{
       );
     canvas.drawPath(stem,_goldPaint(rect,1.25,alpha:.9));
 
-    _leaf(canvas,Offset(x+sx*12*scale,y+sy*7*scale),12*scale,7*scale,topLeft?.55:3.70,rect);
+    _leaf(canvas,Offset(x+sx*12*scale,y+sy*7*scale),12*scale,7*scale,topLeft ? .55 : 3.70,rect);
     if(ornamentLevel>=2){
-      _leaf(canvas,Offset(x+sx*22*scale,y+sy*15*scale),13*scale,7.5*scale,topLeft?.78:3.92,rect);
+      _leaf(canvas,Offset(x+sx*22*scale,y+sy*15*scale),13*scale,7.5*scale,topLeft ? .78 : 3.92,rect);
     }
     if(ornamentLevel>=3){
-      _leaf(canvas,Offset(x+sx*29*scale,y+sy*24*scale),11*scale,6.5*scale,topLeft?.25:3.38,rect);
+      _leaf(canvas,Offset(x+sx*29*scale,y+sy*24*scale),11*scale,6.5*scale,topLeft ? .25 : 3.38,rect);
     }
 
     final curl=Path()
