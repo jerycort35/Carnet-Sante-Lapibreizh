@@ -3949,71 +3949,19 @@ class _HomePageState extends State<HomePage>{
               Container(
                 height:154,
                 margin:const EdgeInsets.fromLTRB(14,14,14,0),
-                padding:const EdgeInsets.symmetric(horizontal:18,vertical:13),
                 decoration:BoxDecoration(
-                  color:heroGreen,
-                  image:DecorationImage(
-                    image:const AssetImage('assets/images/lapigestion_background_master.jpg'),
-                    fit:BoxFit.cover,
-                    alignment:Alignment.center,
-                    colorFilter:ColorFilter.mode(heroGreen.withValues(alpha:.60),BlendMode.srcOver),
-                  ),
                   borderRadius:BorderRadius.circular(22),
-                  border:Border.all(color:gold.withValues(alpha:.95),width:1.05),
                   boxShadow:[
                     BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:20,offset:const Offset(0,8)),
                     BoxShadow(color:gold.withValues(alpha:.08),blurRadius:16),
                   ],
                 ),
-                child:Column(
-                  mainAxisAlignment:MainAxisAlignment.center,
-                  crossAxisAlignment:CrossAxisAlignment.center,
-                  children:[
-                    Container(
-                      width:48,height:48,
-                      padding:const EdgeInsets.all(4),
-                      decoration:BoxDecoration(
-                        color:const Color(0xB80B3F2D),
-                        borderRadius:BorderRadius.circular(14),
-                        border:Border.all(color:gold,width:1.15),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.14),blurRadius:8)],
-                      ),
-                      child:ClipRRect(
-                        borderRadius:BorderRadius.circular(10),
-                        child:Image.asset('assets/images/lapigestion_app_icon.png',fit:BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(height:7),
-                    const Text(
-                      'LapiGestion',
-                      textAlign:TextAlign.center,
-                      style:TextStyle(
-                        fontSize:29,
-                        fontWeight:FontWeight.w800,
-                        color:warmGoldText,
-                        fontFamily:'serif',
-                        height:1,
-                        shadows:[Shadow(color:Color(0x77000000),blurRadius:8,offset:Offset(0,2))],
-                      ),
-                    ),
-                    const SizedBox(height:4),
-                    const Text(
-                      'Développé par Les Lapibreizh',
-                      textAlign:TextAlign.center,
-                      style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w600,color:Colors.white),
-                    ),
-                    const SizedBox(height:8),
-                    Row(
-                      mainAxisAlignment:MainAxisAlignment.center,
-                      children:[
-                        Container(width:65,height:1,color:gold),
-                        const SizedBox(width:8),
-                        const Icon(Icons.spa_outlined,color:gold,size:18),
-                        const SizedBox(width:8),
-                        Container(width:65,height:1,color:gold),
-                      ],
-                    ),
-                  ],
+                clipBehavior:Clip.antiAlias,
+                child:Image.asset(
+                  'assets/images/lapigestion_home_banner.png',
+                  fit:BoxFit.cover,
+                  alignment:Alignment.center,
+                  filterQuality:FilterQuality.high,
                 ),
               ),
               Padding(
@@ -7502,7 +7450,7 @@ class _EditIdentityState extends State<EditIdentity>{
   @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';d['color']??='';d['fatherColor']??='';d['motherColor']??='';}
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
-    appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
+    appBar:AppBar(title:const Text('Identité & filiation'),actions:[TextButton(onPressed:()=>widget.onSave(d),style:TextButton.styleFrom(foregroundColor:const Color(0xFFFFD54F),padding:const EdgeInsets.symmetric(horizontal:12,vertical:8)),child:const Text('ENREGISTRER',style:TextStyle(fontWeight:FontWeight.w900,letterSpacing:.3)))]),
     body:ListView(padding:const EdgeInsets.all(16),children:[
       const Text('Le lapin',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
       field('Nom','name'),
