@@ -2161,28 +2161,105 @@ class PremiumMarbleButton extends StatelessWidget{
 
 /// Cadre ivoire premium commun à toutes les grandes cartes de l'application.
 /// Règle V3.1.30 : intérieur totalement dégagé ; décoration uniquement sur le pourtour.
-class PremiumReferenceFrame extends StatelessWidget{
-  final String asset;
-  final Rect centerSlice;
-  final BorderRadius borderRadius;
-  const PremiumReferenceFrame({
-    super.key,
-    required this.asset,
-    required this.centerSlice,
-    required this.borderRadius,
-  });
 
-  @override Widget build(BuildContext context)=>IgnorePointer(
-    child:ClipRRect(
-      borderRadius:borderRadius,
-      child:Image.asset(
-        asset,
-        fit:BoxFit.fill,
-        centerSlice:centerSlice,
-        filterQuality:FilterQuality.high,
-      ),
-    ),
-  );
+class PremiumGoldFramePainter extends CustomPainter{
+  final double radius;
+  final int ornamentLevel;
+  const PremiumGoldFramePainter({this.radius=20,this.ornamentLevel=2});
+
+  Paint _goldPaint(Rect rect,double width,{double alpha=1})=>Paint()
+    ..style=PaintingStyle.stroke
+    ..strokeWidth=width
+    ..shader=const LinearGradient(
+      colors:[Color(0xFF9F6A14),Color(0xFFFFE8A6),Color(0xFFC68A20)],
+      begin:Alignment.topLeft,
+      end:Alignment.bottomRight,
+    ).createShader(rect)
+    ..color=gold.withValues(alpha:alpha);
+
+  Paint _fillGold(Rect rect,{double alpha=.95})=>Paint()
+    ..style=PaintingStyle.fill
+    ..shader=const LinearGradient(
+      colors:[Color(0xFFB97814),Color(0xFFFFE8A6),Color(0xFFD29A2E)],
+      begin:Alignment.topLeft,
+      end:Alignment.bottomRight,
+    ).createShader(rect)
+    ..color=gold.withValues(alpha:alpha);
+
+  void _leaf(Canvas canvas,Offset c,double w,double h,double angle,Rect rect){
+    canvas.save();
+    canvas.translate(c.dx,c.dy);
+    canvas.rotate(angle);
+    final p=Path()
+      ..moveTo(0,0)
+      ..quadraticBezierTo(w*.52,-h*.50,w,0)
+      ..quadraticBezierTo(w*.52,h*.50,0,0)
+      ..close();
+    canvas.drawPath(p,_fillGold(rect,alpha:.92));
+    final vein=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=.75
+      ..color=const Color(0xFF9C6817).withValues(alpha:.85);
+    canvas.drawLine(Offset(w*.10,0),Offset(w*.82,0),vein);
+    canvas.restore();
+  }
+
+  void _corner(Canvas canvas,Size size,bool topLeft){
+    final rect=Offset.zero & size;
+    final scale=(ornamentLevel==1?0.72:ornamentLevel==2?0.90:1.05);
+    final x=topLeft?6.0:size.width-6.0;
+    final y=topLeft?6.0:size.height-6.0;
+    final sx=topLeft?1.0:-1.0;
+    final sy=topLeft?1.0:-1.0;
+
+    final stem=Path()
+      ..moveTo(x,y)
+      ..cubicTo(
+        x+sx*10*scale,y+sy*3*scale,
+        x+sx*18*scale,y+sy*13*scale,
+        x+sx*27*scale,y+sy*24*scale,
+      );
+    canvas.drawPath(stem,_goldPaint(rect,1.25,alpha:.9));
+
+    _leaf(canvas,Offset(x+sx*12*scale,y+sy*7*scale),12*scale,7*scale,topLeft?.55:3.70,rect);
+    if(ornamentLevel>=2){
+      _leaf(canvas,Offset(x+sx*22*scale,y+sy*15*scale),13*scale,7.5*scale,topLeft?.78:3.92,rect);
+    }
+    if(ornamentLevel>=3){
+      _leaf(canvas,Offset(x+sx*29*scale,y+sy*24*scale),11*scale,6.5*scale,topLeft?.25:3.38,rect);
+    }
+
+    final curl=Path()
+      ..moveTo(x+sx*5*scale,y+sy*14*scale)
+      ..cubicTo(
+        x+sx*1*scale,y+sy*21*scale,
+        x+sx*8*scale,y+sy*25*scale,
+        x+sx*13*scale,y+sy*20*scale,
+      );
+    canvas.drawPath(curl,_goldPaint(rect,1.0,alpha:.82));
+  }
+
+  @override void paint(Canvas canvas,Size size){
+    final rect=Offset.zero & size;
+    final rrect=RRect.fromRectAndRadius(
+      Rect.fromLTWH(.75,.75,size.width-1.5,size.height-1.5),
+      Radius.circular(radius),
+    );
+
+    // Double liseré fin, comme la planche de référence.
+    canvas.drawRRect(rrect,_goldPaint(rect,1.15,alpha:.95));
+    final inner=RRect.fromRectAndRadius(
+      Rect.fromLTWH(3.0,3.0,size.width-6.0,size.height-6.0),
+      Radius.circular((radius-2).clamp(0,99).toDouble()),
+    );
+    canvas.drawRRect(inner,_goldPaint(rect,.55,alpha:.62));
+
+    _corner(canvas,size,true);
+    _corner(canvas,size,false);
+  }
+
+  @override bool shouldRepaint(covariant PremiumGoldFramePainter oldDelegate)=>
+    oldDelegate.radius!=radius || oldDelegate.ornamentLevel!=ornamentLevel;
 }
 
 class PremiumCard extends StatelessWidget {
@@ -2221,47 +2298,69 @@ class PremiumCard extends StatelessWidget {
     margin:margin,
     clipBehavior:Clip.none,
     semanticContainer:semanticContainer,
-    child:Stack(
-      children:[
-        Positioned.fill(
-          child:LayoutBuilder(
-            builder:(context,constraints){
-              final w=constraints.maxWidth;
-              final h=constraints.maxHeight;
-              if(h.isFinite && h>=330){
-                return const PremiumReferenceFrame(
-                  asset:'assets/images/lapigestion_frame_card_large.png',
-                  centerSlice:Rect.fromLTRB(150,72,385,118),
-                  borderRadius:BorderRadius.all(Radius.circular(20)),
-                );
-              }
-              if((h.isFinite && h>=180) || (w.isFinite && w>=430)){
-                return const PremiumReferenceFrame(
-                  asset:'assets/images/lapigestion_frame_card_medium.png',
-                  centerSlice:Rect.fromLTRB(120,68,270,122),
-                  borderRadius:BorderRadius.all(Radius.circular(20)),
-                );
-              }
-              return const PremiumReferenceFrame(
-                asset:'assets/images/lapigestion_frame_card_small.png',
-                centerSlice:Rect.fromLTRB(105,58,245,112),
-                borderRadius:BorderRadius.all(Radius.circular(20)),
-              );
-            },
-          ),
-        ),
-        if(child!=null) child!,
-      ],
+    child:LayoutBuilder(
+      builder:(context,constraints){
+        final h=constraints.maxHeight;
+        final w=constraints.maxWidth;
+        final level=(h.isFinite && h>=320) || (w.isFinite && w>=520)
+          ?3
+          :((h.isFinite && h>=170) || (w.isFinite && w>=360) ?2:1);
+
+        return Stack(
+          children:[
+            Positioned.fill(
+              child:DecoratedBox(
+                decoration:BoxDecoration(
+                  color:color??premiumCard,
+                  borderRadius:BorderRadius.circular(20),
+                  boxShadow:[
+                    BoxShadow(
+                      color:Colors.black.withValues(alpha:.055),
+                      blurRadius:7,
+                      offset:const Offset(0,3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child:IgnorePointer(
+                child:CustomPaint(
+                  painter:PremiumGoldFramePainter(
+                    radius:20,
+                    ornamentLevel:level,
+                  ),
+                ),
+              ),
+            ),
+            if(child!=null) child!,
+          ],
+        );
+      },
     ),
   );
 }
 
 class PremiumButtonFrame extends StatelessWidget{
   const PremiumButtonFrame({super.key});
-  @override Widget build(BuildContext context)=>const PremiumReferenceFrame(
-    asset:'assets/images/lapigestion_frame_button.png',
-    centerSlice:Rect.fromLTRB(82,24,220,47),
-    borderRadius:BorderRadius.all(Radius.circular(14)),
+  @override Widget build(BuildContext context)=>Stack(
+    children:[
+      Positioned.fill(
+        child:DecoratedBox(
+          decoration:BoxDecoration(
+            color:cream,
+            borderRadius:BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      const Positioned.fill(
+        child:IgnorePointer(
+          child:CustomPaint(
+            painter:PremiumGoldFramePainter(radius:14,ornamentLevel:1),
+          ),
+        ),
+      ),
+    ],
   );
 }
 
@@ -5967,7 +6066,9 @@ class _RabbitPageState extends State<RabbitPage>{
           foregroundColor:Colors.white,
           surfaceTintColor:Colors.transparent,
           elevation:0,
-          pinned:true,
+          pinned:false,
+          floating:false,
+          snap:false,
           toolbarHeight:54,
           flexibleSpace:const PremiumMarbleBar(),
           title:Text(
