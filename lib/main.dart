@@ -54,7 +54,7 @@ class LapibreizhApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: const AppBarTheme(
-        backgroundColor: lapiGreenDark,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -130,12 +130,8 @@ class LapibreizhApp extends StatelessWidget {
           iconColor: WidgetStateProperty.resolveWith(
             (states)=>states.contains(WidgetState.selected)?warmGoldText:Colors.white,
           ),
-          side: WidgetStateProperty.resolveWith(
-            (states)=>BorderSide(
-              color:states.contains(WidgetState.selected)?gold:Colors.white24,
-              width:states.contains(WidgetState.selected)?1.2:.7,
-            ),
-          ),
+          // Pas de traits internes : la sélection se lit par le texte et le fond.
+          side: const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         ),
       ),
@@ -1494,7 +1490,7 @@ class _RacePickerDialogState extends State<RacePickerDialog>{
   @override Widget build(BuildContext context){
     final races=RabbitBreedCatalog.racesFor(category:category,query:query);
     return Dialog.fullscreen(child:Scaffold(
-      appBar:AppBar(title:Text(widget.title),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
+      appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:Text(widget.title),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
       body:Column(children:[
         Padding(padding:const EdgeInsets.all(14),child:TextField(
           autofocus:false,
@@ -1545,7 +1541,7 @@ class _BreedColorPickerDialogState extends State<BreedColorPickerDialog>{
       return available&&(q.isEmpty||name.toLowerCase().contains(q));
     }).toList();
     return Dialog.fullscreen(child:Scaffold(
-      appBar:AppBar(title:const Text('Choisir la couleur / variété'),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
+      appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Choisir la couleur / variété'),leading:IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))),
       body:Column(children:[
         Padding(
           padding:const EdgeInsets.fromLTRB(14,14,14,6),
@@ -2055,7 +2051,7 @@ BoxDecoration premiumMarbleDecoration({
     ),
   ),
   borderRadius:BorderRadius.circular(radius),
-  border:Border.all(color:selected?const Color(0xFFFFE39A):const Color(0xFFF2C85F),width:selected?1.45:.95),
+  border:Border.all(color:selected?gold.withValues(alpha:.42):gold.withValues(alpha:.22),width:selected?.85:.55),
   boxShadow:[
     BoxShadow(
       color:Colors.black.withValues(alpha:selected ? .13 : .07),
@@ -2303,6 +2299,21 @@ class PremiumFilledButton extends StatelessWidget {
   }
 }
 
+/// Texture commune des bandeaux supérieurs : même identité sur tous les écrans.
+class PremiumMarbleBar extends StatelessWidget {
+  const PremiumMarbleBar({super.key});
+  @override Widget build(BuildContext context)=>DecoratedBox(
+    decoration:const BoxDecoration(
+      image:DecorationImage(
+        image:AssetImage('assets/images/lapigestion_green_marble.jpg'),
+        fit:BoxFit.cover,
+        alignment:Alignment.center,
+      ),
+    ),
+    child:ColoredBox(color:Color(0x1800180F)),
+  );
+}
+
 /// SegmentedButton posé sur le même marbre vert/or afin d'éviter les aplats verts ternes.
 class PremiumSegmentedButton<T> extends StatelessWidget {
   final List<ButtonSegment<T>> segments;
@@ -2342,7 +2353,10 @@ class PremiumSegmentedButton<T> extends StatelessWidget {
         style:const ButtonStyle(
           backgroundColor:WidgetStatePropertyAll(Colors.transparent),
           surfaceTintColor:WidgetStatePropertyAll(Colors.transparent),
-        ).merge(style),
+          side:WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
+        ).merge(style).copyWith(
+          side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
+        ),
       ),
     ),
   );
@@ -2385,8 +2399,9 @@ class VeterinaryService {
   static bool _nacMention(Map<String,dynamic> tags){
     // Priorité aux balises qui décrivent réellement l'activité ou les espèces soignées.
     const relevantKeys=[
-      'animal','animals','veterinary','veterinary:speciality','healthcare:speciality',
-      'speciality','description','name','operator','service','services',
+      'animal','animals','animal:species','species','veterinary','veterinary:speciality',
+      'veterinary:specialty','healthcare:speciality','healthcare:specialty','speciality',
+      'specialty','description','name','operator','service','services','healthcare',
     ];
     final text=relevantKeys
         .map((key)=>tags[key])
@@ -2396,7 +2411,9 @@ class VeterinaryService {
     const words=[
       'nac','nouveaux animaux de compagnie','exotic','exotics','exotique',
       'rabbit','rabbits','lapin','lapins','rodent','rodents','rongeur','rongeurs',
-      'reptile','reptiles','avian','oiseau','oiseaux','ferret','furet','furets',
+      'reptile','reptiles','avian','oiseau','oiseaux','bird','birds','ferret','ferrets',
+      'furet','furets','guinea pig','guinea pigs','cochon d inde','cobaye','cobayes',
+      'chinchilla','hamster','hamsters','exotic animal','exotic animals',
     ];
     return words.any(text.contains);
   }
@@ -2475,6 +2492,9 @@ class VeterinaryService {
       'node["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
       'way["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
       'relation["healthcare"="veterinary"](around:$radius,$latitude,$longitude);'
+      'node["healthcare:speciality"~"veterinary",i](around:$radius,$latitude,$longitude);'
+      'way["healthcare:speciality"~"veterinary",i](around:$radius,$latitude,$longitude);'
+      'relation["healthcare:speciality"~"veterinary",i](around:$radius,$latitude,$longitude);'
       ');out center tags qt;';
 
     final decoded=await _queryOverpass(query);
@@ -2583,6 +2603,7 @@ class VeterinaryResultsPage extends StatelessWidget {
 
     return Scaffold(
       appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
         title:Text(filter=='NAC'?'Vétérinaires NAC identifiés':'Vétérinaires autour de moi'),
       ),
       body:visible.isEmpty
@@ -2806,7 +2827,6 @@ class _HomePageState extends State<HomePage>{
             fit:BoxFit.cover,
             opacity:.96,
           ),
-          border:const Border(top:BorderSide(color:gold,width:1.1)),
           boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:14,offset:const Offset(0,-4))],
         ),
         child:Stack(children:[
@@ -4061,6 +4081,7 @@ class _HomePageState extends State<HomePage>{
                         onSelectionChanged:homeOrganizing?null:(v)=>setAppMode(v.first),
                         style:ButtonStyle(
                           visualDensity:VisualDensity.compact,
+                          side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
                           shape:WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.circular(5))),
                         ),
                       ),
@@ -4160,6 +4181,7 @@ class _RabbitPageState extends State<RabbitPage>{
     await showDialog(context:context,builder:(dialogContext)=>Dialog.fullscreen(child:Scaffold(
       backgroundColor:Colors.black,
       appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
         backgroundColor:ink,foregroundColor:gold,title:const Text('Photo du lapin'),
         actions:[
           IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await replaceRabbitPhoto();},icon:const Icon(Icons.photo_camera_back_outlined)),
@@ -5276,6 +5298,7 @@ class _RabbitPageState extends State<RabbitPage>{
       await showDialog(context:context,builder:(dialogContext)=>Dialog.fullscreen(child:Scaffold(
         backgroundColor:Colors.black,
         appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
           backgroundColor:ink,foregroundColor:gold,title:Text(label),
           actions:[
             IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await attach(key);},icon:const Icon(Icons.swap_horiz)),
@@ -5828,8 +5851,11 @@ class _RabbitPageState extends State<RabbitPage>{
           top:false,
           child:Container(
             decoration:const BoxDecoration(
-              gradient:LinearGradient(colors:[Color(0xFF0D3A26),Color(0xFF145438)]),
-              border:Border(top:BorderSide(color:Color(0x66D4AF67))),
+              image:DecorationImage(
+                image:AssetImage('assets/images/lapigestion_green_marble.jpg'),
+                fit:BoxFit.cover,
+                opacity:.98,
+              ),
             ),
             child:Row(children:[
               Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
@@ -5848,12 +5874,7 @@ class _RabbitPageState extends State<RabbitPage>{
           elevation:0,
           pinned:true,
           toolbarHeight:54,
-          flexibleSpace:Container(
-            decoration:const BoxDecoration(
-              gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[heroGreen,heroGreen2]),
-              border:Border(bottom:BorderSide(color:Color(0x55D4AF67))),
-            ),
-          ),
+          flexibleSpace:const PremiumMarbleBar(),
           title:Text(
             rr['name'].isEmpty?'Fiche du lapin':rr['name'],
             style:const TextStyle(fontFamily:'serif',fontSize:20,fontWeight:FontWeight.w800,color:Colors.white),
@@ -7160,7 +7181,7 @@ class _CompetitionDialogState extends State<CompetitionDialog>{
     final hasPhoto=newPhotoSource!=null||(!removePhoto&&((d['photo']??'') as String).isNotEmpty);
     final hasSheet=newSheetSource!=null||(!removeSheet&&((d['judgingSheet']??'') as String).isNotEmpty);
     return Dialog.fullscreen(child:Scaffold(
-      appBar:AppBar(title:const Text('Concours & Exposition'),actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))]),
+      appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Concours & Exposition'),actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))]),
       body:ListView(padding:const EdgeInsets.all(16),children:[
         Container(
           padding:const EdgeInsets.all(14),
@@ -7459,6 +7480,7 @@ class _SquareCropPageState extends State<SquareCropPage>{
   @override Widget build(BuildContext context)=>Scaffold(
     backgroundColor:Colors.black,
     appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
       backgroundColor:ink,foregroundColor:gold,title:const Text('Cadrer la photo'),
       actions:[TextButton(
         onPressed:cropping?null:(){setState(()=>cropping=true);controller.crop();},
@@ -7728,6 +7750,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
 
     return Dialog.fullscreen(child:Scaffold(
       appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
         title:const Text('Certificat d’engagement'),
         actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
       ),
@@ -7949,7 +7972,7 @@ class _AdoptionDialogState extends State<AdoptionDialog>{
   }
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
-    appBar:AppBar(title:const Text('Adoption & départ'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
+    appBar:AppBar(backgroundColor:Colors.transparent,flexibleSpace:const PremiumMarbleBar(),title:const Text('Adoption & départ'),actions:[TextButton(onPressed:()=>widget.onSave(d),child:const Text('ENREGISTRER'))]),
     body:ListView(padding:const EdgeInsets.all(16),children:[
       const Text('Statut du lapin',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:ink)),
       const SizedBox(height:10),
@@ -8187,6 +8210,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
     final currentPartner=(d[partnerKey]??'') as String;
     return Dialog.fullscreen(child:Scaffold(
       appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
         title:Text(currentIsMale?'Saillie du mâle':'Saillie / portée de la femelle'),
         actions:[TextButton(onPressed:(){
           if(((d['matingDate']??'') as String).isEmpty||((d[partnerKey]??'') as String).isEmpty){
@@ -8447,6 +8471,7 @@ class _MedicationDialogState extends State<MedicationDialog>{
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
     appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
       title:Text(((widget.item['name']??'') as String).isEmpty?'Nouveau traitement':'Modifier le traitement'),
       actions:[TextButton(onPressed:save,child:const Text('ENREGISTRER'))],
     ),
@@ -8578,6 +8603,7 @@ class _AppointmentDialogState extends State<AppointmentDialog>{
 
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
     appBar:AppBar(
+      flexibleSpace:const PremiumMarbleBar(),
       title:Text(widget.item['date']?.toString().isEmpty==false?'Modifier le rendez-vous':'Nouveau rendez-vous'),
       actions:[TextButton(onPressed:(){
         if(((d['date']??'') as String).isEmpty){
