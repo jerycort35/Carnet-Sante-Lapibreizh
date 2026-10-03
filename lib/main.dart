@@ -88,23 +88,34 @@ class LapibreizhApp extends StatelessWidget {
       ),
       filledButtonTheme:FilledButtonThemeData(
         style:FilledButton.styleFrom(
-          backgroundColor:heroGreen,
-          foregroundColor:Colors.white,
+          backgroundColor:cream,
+          foregroundColor:lapiGreenDark,
           padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-          side:const BorderSide(color:gold,width:.8),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          side:const BorderSide(color:softGoldLine,width:1.0),
+          textStyle: const TextStyle(fontSize:14,fontWeight:FontWeight.w800),
         ),
       ),
       outlinedButtonTheme:OutlinedButtonThemeData(
         style:OutlinedButton.styleFrom(
           foregroundColor:lapiGreenDark,
-          backgroundColor: premiumCard,
-          padding: const EdgeInsets.symmetric(horizontal:18, vertical:16),
+          backgroundColor:cream,
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:16),
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-          side:const BorderSide(color:softGoldLine,width:.9),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          side:const BorderSide(color:softGoldLine,width:1.0),
+          textStyle:const TextStyle(fontSize:14,fontWeight:FontWeight.w800),
         ),
+      ),
+      chipTheme:ChipThemeData(
+        backgroundColor:cream,
+        selectedColor:heroGreen,
+        secondarySelectedColor:heroGreen,
+        disabledColor:cream.withValues(alpha:.55),
+        labelStyle:const TextStyle(color:lapiGreenDark,fontWeight:FontWeight.w800),
+        secondaryLabelStyle:const TextStyle(color:warmGoldText,fontWeight:FontWeight.w800),
+        checkmarkColor:warmGoldText,
+        side:const BorderSide(color:softGoldLine,width:.9),
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
@@ -119,20 +130,19 @@ class LapibreizhApp extends StatelessWidget {
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
-          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
-          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          backgroundColor: WidgetStateProperty.resolveWith(
-            (states)=>states.contains(WidgetState.selected)?heroGreen:heroGreen2,
+          padding:const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal:16,vertical:14)),
+          textStyle:const WidgetStatePropertyAll(TextStyle(fontSize:15,fontWeight:FontWeight.w800)),
+          backgroundColor:WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?heroGreen:cream,
           ),
-          foregroundColor: WidgetStateProperty.resolveWith(
-            (states)=>states.contains(WidgetState.selected)?warmGoldText:Colors.white,
+          foregroundColor:WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?warmGoldText:lapiGreenDark,
           ),
-          iconColor: WidgetStateProperty.resolveWith(
-            (states)=>states.contains(WidgetState.selected)?warmGoldText:Colors.white,
+          iconColor:WidgetStateProperty.resolveWith(
+            (states)=>states.contains(WidgetState.selected)?warmGoldText:lapiGreenDark,
           ),
-          // Pas de traits internes : la sélection se lit par le texte et le fond.
-          side: const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          side:const WidgetStatePropertyAll(BorderSide(color:softGoldLine,width:.9)),
+          shape:WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
         ),
       ),
     ),
@@ -2040,25 +2050,38 @@ BoxDecoration premiumMarbleDecoration({
   bool selected=false,
   bool strong=false,
 })=>BoxDecoration(
-  color:strong?const Color(0xFF063B28):const Color(0xFF0B5138),
-  image:DecorationImage(
-    image:const AssetImage('assets/images/lapigestion_green_marble.jpg'),
-    fit:BoxFit.cover,
-    opacity:strong ? 1.0 : .96,
-    colorFilter:ColorFilter.mode(
-      strong?const Color(0x10000000):const Color(0x06FFFFFF),
-      BlendMode.srcOver,
-    ),
-  ),
+  color:selected?const Color(0xFF0B5138):cream,
+  image:selected
+    ?const DecorationImage(
+        image:AssetImage('assets/images/lapigestion_green_marble.jpg'),
+        fit:BoxFit.cover,
+        opacity:.98,
+      )
+    :null,
   borderRadius:BorderRadius.circular(radius),
-  border:Border.all(color:selected?gold.withValues(alpha:.42):gold.withValues(alpha:.22),width:selected ? .85 : .55),
+  border:Border.all(
+    color:selected?gold:softGoldLine,
+    width:selected?1.05:.95,
+  ),
   boxShadow:[
     BoxShadow(
-      color:Colors.black.withValues(alpha:selected ? .13 : .07),
-      blurRadius:selected?10:7,
-      offset:const Offset(0,4),
+      color:Colors.black.withValues(alpha:selected ? .12 : .055),
+      blurRadius:selected?9:5,
+      offset:const Offset(0,3),
     ),
-    if(selected)BoxShadow(color:gold.withValues(alpha:.13),blurRadius:12),
+  ],
+);
+
+BoxDecoration premiumCreamDecoration({double radius=14})=>BoxDecoration(
+  color:cream,
+  borderRadius:BorderRadius.circular(radius),
+  border:Border.all(color:softGoldLine,width:1.0),
+  boxShadow:[
+    BoxShadow(
+      color:Colors.black.withValues(alpha:.045),
+      blurRadius:5,
+      offset:const Offset(0,2),
+    ),
   ],
 );
 
@@ -2102,18 +2125,18 @@ class PremiumMarbleButton extends StatelessWidget{
         borderRadius:BorderRadius.circular(14),
         child:Ink(
           padding:padding,
-          decoration:premiumMarbleDecoration(radius:14,selected:selected,strong:true),
+          decoration:premiumMarbleDecoration(radius:14,selected:selected,strong:selected),
           child:Row(
             mainAxisAlignment:MainAxisAlignment.center,
             mainAxisSize:MainAxisSize.min,
             children:[
-              Icon(icon,color:selected?warmGoldText:Colors.white,size:21),
+              Icon(icon,color:selected?warmGoldText:lapiGreenDark,size:21),
               const SizedBox(width:9),
               Flexible(child:Text(
                 label,
                 textAlign:TextAlign.center,
                 style:TextStyle(
-                  color:selected?warmGoldText:Colors.white,
+                  color:selected?warmGoldText:lapiGreenDark,
                   fontSize:14,
                   fontWeight:FontWeight.w800,
                 ),
@@ -2184,19 +2207,16 @@ class PremiumCard extends StatelessWidget {
 class _PremiumGoldFrame extends StatelessWidget{
   const _PremiumGoldFrame();
 
-  Widget corner({
-    required Alignment alignment,
-    required int quarterTurns,
-  })=>Align(
+  Widget corner({required Alignment alignment,required int quarterTurns,double size=54})=>Align(
     alignment:alignment,
     child:Opacity(
-      opacity:.68,
+      opacity:.56,
       child:RotatedBox(
         quarterTurns:quarterTurns,
         child:Image.asset(
           'assets/images/lapigestion_gold_corners.png',
-          width:78,
-          height:78,
+          width:size,
+          height:size,
           fit:BoxFit.cover,
           alignment:Alignment.topLeft,
           filterQuality:FilterQuality.high,
@@ -2208,20 +2228,17 @@ class _PremiumGoldFrame extends StatelessWidget{
   @override Widget build(BuildContext context)=>Stack(
     clipBehavior:Clip.none,
     children:[
-      // Liseré or continu et fin.
       Positioned.fill(
         child:DecoratedBox(
           decoration:BoxDecoration(
             borderRadius:BorderRadius.circular(20),
-            border:Border.all(color:softGoldLine.withValues(alpha:.92),width:.85),
+            border:Border.all(color:softGoldLine.withValues(alpha:.95),width:.9),
           ),
         ),
       ),
-      // Finitions végétales : uniquement dans les angles et sur le liseré.
-      Positioned(left:-3,top:-3,width:72,height:72,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:0))),
-      Positioned(right:-3,top:-3,width:64,height:64,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:1))),
-      Positioned(right:-3,bottom:-3,width:76,height:76,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:2))),
-      Positioned(left:-3,bottom:-3,width:60,height:60,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:3))),
+      // Deux finitions seulement : élégantes, périphériques et hors des textes.
+      Positioned(left:-2,top:-2,width:54,height:54,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:0))),
+      Positioned(right:-2,bottom:-2,width:58,height:58,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:2,size:58))),
     ],
   );
 }
@@ -2253,31 +2270,28 @@ class PremiumFilledButton extends StatelessWidget {
   Widget build(BuildContext context){
     final transparentStyle=ButtonStyle(
       backgroundColor:const WidgetStatePropertyAll(Colors.transparent),
+      foregroundColor:const WidgetStatePropertyAll(lapiGreenDark),
+      iconColor:const WidgetStatePropertyAll(lapiGreenDark),
       shadowColor:const WidgetStatePropertyAll(Colors.transparent),
       surfaceTintColor:const WidgetStatePropertyAll(Colors.transparent),
       side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent)),
+      textStyle:const WidgetStatePropertyAll(TextStyle(fontWeight:FontWeight.w800)),
     ).merge(style);
+
     final native=icon!=null
       ?m.FilledButton.icon(onPressed:onPressed,icon:icon!,label:label!,style:transparentStyle)
       :m.FilledButton(onPressed:onPressed,style:transparentStyle,child:child!);
+
     return Opacity(
       opacity:onPressed==null ? .48 : 1,
       child:ClipRRect(
         borderRadius:BorderRadius.circular(14),
         child:Stack(
+          alignment:Alignment.center,
           children:[
-            Positioned.fill(child:DecoratedBox(decoration:premiumMarbleDecoration(radius:14,strong:true))),
-            // Aucun décor derrière le libellé : seulement le marbre et le liseré or.
-            Positioned.fill(
-              child:IgnorePointer(
-                child:DecoratedBox(
-                  decoration:BoxDecoration(
-                    borderRadius:BorderRadius.circular(14),
-                    border:Border.all(color:gold.withValues(alpha:.72),width:.85),
-                  ),
-                ),
-              ),
-            ),
+            Positioned.fill(child:DecoratedBox(decoration:premiumCreamDecoration(radius:14))),
+            const Positioned(left:-6,bottom:-9,child:PremiumGoldLeaves(size:31,opacity:.42)),
+            Positioned(right:-6,top:-9,child:Transform.flip(flipX:true,flipY:true,child:const PremiumGoldLeaves(size:31,opacity:.42))),
             native,
           ],
         ),
@@ -2317,24 +2331,91 @@ class PremiumSegmentedButton<T> extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context)=>ClipRRect(
-    borderRadius:BorderRadius.circular(14),
-    child:DecoratedBox(
-      decoration:premiumMarbleDecoration(radius:14,strong:true),
-      child:SegmentedButton<T>(
-        segments:segments,
-        selected:selected,
-        onSelectionChanged:onSelectionChanged,
-        multiSelectionEnabled:multiSelectionEnabled,
-        emptySelectionAllowed:emptySelectionAllowed,
-        showSelectedIcon:showSelectedIcon,
-        selectedIcon:selectedIcon,
-        style:const ButtonStyle(
-          backgroundColor:WidgetStatePropertyAll(Colors.transparent),
-          surfaceTintColor:WidgetStatePropertyAll(Colors.transparent),
-          side:WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
-        ).merge(style).copyWith(
-          side:const WidgetStatePropertyAll(BorderSide(color:Colors.transparent,width:0)),
+  Widget build(BuildContext context)=>Row(
+    mainAxisSize:MainAxisSize.min,
+    children:[
+      for(var i=0;i<segments.length;i++)...[
+        if(i>0)const SizedBox(width:7),
+        Flexible(
+          child:_PremiumSegmentCell<T>(
+            segment:segments[i],
+            selected:selected.contains(segments[i].value),
+            enabled:onSelectionChanged!=null && segments[i].enabled,
+            showSelectedIcon:showSelectedIcon,
+            selectedIcon:selectedIcon,
+            onTap:(){
+              if(onSelectionChanged==null || !segments[i].enabled)return;
+              final value=segments[i].value;
+              final next=Set<T>.from(selected);
+              if(multiSelectionEnabled){
+                if(next.contains(value)){
+                  if(next.length>1 || emptySelectionAllowed)next.remove(value);
+                }else{
+                  next.add(value);
+                }
+              }else{
+                next
+                  ..clear()
+                  ..add(value);
+              }
+              onSelectionChanged!(next);
+            },
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+class _PremiumSegmentCell<T> extends StatelessWidget{
+  final ButtonSegment<T> segment;
+  final bool selected;
+  final bool enabled;
+  final bool showSelectedIcon;
+  final Widget? selectedIcon;
+  final VoidCallback onTap;
+  const _PremiumSegmentCell({
+    required this.segment,
+    required this.selected,
+    required this.enabled,
+    required this.showSelectedIcon,
+    required this.selectedIcon,
+    required this.onTap,
+  });
+
+  @override Widget build(BuildContext context)=>Opacity(
+    opacity:enabled?1:.46,
+    child:Material(
+      color:Colors.transparent,
+      child:InkWell(
+        onTap:enabled?onTap:null,
+        borderRadius:BorderRadius.circular(12),
+        child:Ink(
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+          decoration:premiumMarbleDecoration(radius:12,selected:selected,strong:selected),
+          child:Row(
+            mainAxisAlignment:MainAxisAlignment.center,
+            mainAxisSize:MainAxisSize.min,
+            children:[
+              if(selected&&showSelectedIcon)...[
+                selectedIcon??const Icon(Icons.check,size:17),
+                const SizedBox(width:5),
+              ]else if(segment.icon!=null)...[
+                IconTheme(
+                  data:IconThemeData(color:selected?warmGoldText:lapiGreenDark,size:18),
+                  child:segment.icon!,
+                ),
+                const SizedBox(width:5),
+              ],
+              DefaultTextStyle.merge(
+                style:TextStyle(
+                  color:selected?warmGoldText:lapiGreenDark,
+                  fontWeight:FontWeight.w800,
+                ),
+                child:segment.label,
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -3279,7 +3360,6 @@ class _HomePageState extends State<HomePage>{
         Switch(value:homeOrganizing,onChanged:toggleHomeOrganizing),
       ]),
       ),
-      const Positioned(right:4,bottom:0,child:PremiumGoldLeaves(size:38,opacity:.48)),
     ]),
   );
 
@@ -3388,7 +3468,6 @@ class _HomePageState extends State<HomePage>{
     return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        const Positioned(right:0,top:0,child:PremiumGoldLeaves(size:46,opacity:.48)),
         Padding(
         padding:const EdgeInsets.all(12),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -3432,22 +3511,22 @@ class _HomePageState extends State<HomePage>{
                   label:Text(
                     '$km km',
                     style:TextStyle(
-                      color:vetRadiusKm==km?warmGoldText:Colors.white,
+                      color:vetRadiusKm==km?warmGoldText:lapiGreenDark,
                       fontWeight:FontWeight.w800,
                     ),
                   ),
                   selected:vetRadiusKm==km,
-                  backgroundColor:heroGreen2,
+                  backgroundColor:cream,
                   selectedColor:heroGreen,
                   checkmarkColor:warmGoldText,
-                  side:BorderSide(color:vetRadiusKm==km?gold:Colors.white24),
+                  side:BorderSide(color:vetRadiusKm==km?gold:softGoldLine),
                   onSelected:(_)=>setState(()=>vetRadiusKm=km),
                 ),
               ActionChip(
-                avatar:const Icon(Icons.edit,size:17,color:Colors.white),
-                label:const Text('Autre',style:TextStyle(color:Colors.white,fontWeight:FontWeight.w800)),
-                backgroundColor:heroGreen2,
-                side:const BorderSide(color:Colors.white24),
+                avatar:const Icon(Icons.edit,size:17,color:lapiGreenDark),
+                label:const Text('Autre',style:TextStyle(color:lapiGreenDark,fontWeight:FontWeight.w800)),
+                backgroundColor:cream,
+                side:const BorderSide(color:softGoldLine),
                 onPressed:_chooseCustomVetRadius,
               ),
             ],
@@ -3657,7 +3736,6 @@ class _HomePageState extends State<HomePage>{
           return Padding(
             padding:const EdgeInsets.only(bottom:12),
             child:PremiumCard(child:Stack(children:[
-              const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:45,opacity:.62)),
               ListTile(
                 contentPadding:const EdgeInsets.all(12),
                 leading:Hero(
@@ -3733,7 +3811,6 @@ class _HomePageState extends State<HomePage>{
     return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        const Positioned(right:1,bottom:-2,child:PremiumGoldLeaves(size:48,opacity:.45)),
         Padding(
           padding:const EdgeInsets.all(12),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -3843,7 +3920,6 @@ class _HomePageState extends State<HomePage>{
     return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:46,opacity:.48)),
         Padding(
         padding:const EdgeInsets.all(12),
         child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -3899,13 +3975,13 @@ class _HomePageState extends State<HomePage>{
       padding:const EdgeInsets.symmetric(horizontal:9,vertical:9),
       decoration:premiumMarbleDecoration(radius:10,selected:selected,strong:selected),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
-        Icon(icon,size:16,color:selected?warmGoldText:Colors.white),
+        Icon(icon,size:16,color:selected?warmGoldText:lapiGreenDark),
         const SizedBox(width:5),
         Flexible(child:Text(
           label,
           maxLines:1,
           overflow:TextOverflow.ellipsis,
-          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?warmGoldText:Colors.white),
+          style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800,color:selected?warmGoldText:lapiGreenDark),
         )),
       ]),
     ),
@@ -3938,8 +4014,6 @@ class _HomePageState extends State<HomePage>{
     return PremiumCard(
       margin:const EdgeInsets.fromLTRB(14,0,14,10),
       child:Stack(children:[
-        const Positioned(right:1,top:1,child:PremiumGoldLeaves(size:46,opacity:.56)),
-        const Positioned(right:0,bottom:-2,child:PremiumGoldLeaves(size:42,opacity:.48)),
         Padding(
           padding:const EdgeInsets.all(12),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -6841,13 +6915,13 @@ class _RabbitPageState extends State<RabbitPage>{
         const SizedBox(height:11),
         Container(
           padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
-          decoration:premiumMarbleDecoration(radius:15,strong:true),
+          decoration:premiumCreamDecoration(radius:15),
           child:Row(children:[
-            const Icon(Icons.insights,color:gold,size:20),
+            const Icon(Icons.insights,color:lapiGreenDark,size:20),
             const SizedBox(width:8),
             Expanded(child:Text(
               '$recent événement${recent>1?'s':''} enregistré${recent>1?'s':''} sur les 12 derniers mois',
-              style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w700),
+              style:const TextStyle(color:lapiGreenDark,fontWeight:FontWeight.w800),
             )),
           ]),
         ),
@@ -6897,15 +6971,15 @@ class _RabbitPageState extends State<RabbitPage>{
                 label:Text(
                   f,
                   style:TextStyle(
-                    color:healthFilter==f?warmGoldText:Colors.white,
+                    color:healthFilter==f?warmGoldText:lapiGreenDark,
                     fontWeight:FontWeight.w800,
                   ),
                 ),
                 selected:healthFilter==f,
-                backgroundColor:heroGreen2,
+                backgroundColor:cream,
                 selectedColor:heroGreen,
                 checkmarkColor:warmGoldText,
-                side:BorderSide(color:healthFilter==f?gold:Colors.white24,width:healthFilter==f?1.15:.7),
+                side:BorderSide(color:healthFilter==f?gold:softGoldLine,width:healthFilter==f?1.15:.8),
                 onSelected:(_)=>setState((){healthFilter=f;healthExpanded=false;}),
               ),
           ]),
@@ -7528,15 +7602,7 @@ class _EditIdentityState extends State<EditIdentity>{
   @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
     appBar:AppBar(
       backgroundColor:Colors.transparent,
-      flexibleSpace:Container(
-        decoration:const BoxDecoration(
-          image:DecorationImage(
-            image:AssetImage('assets/images/lapigestion_appbar_marble.jpg'),
-            fit:BoxFit.cover,
-          ),
-          border:Border(bottom:BorderSide(color:gold,width:1.2)),
-        ),
-      ),
+      flexibleSpace:const PremiumMarbleBar(),
       title:const Text('Identité & filiation'),
       actions:[TextButton(
         onPressed:()=>widget.onSave(d),
