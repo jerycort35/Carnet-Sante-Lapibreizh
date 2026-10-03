@@ -4,157 +4,99 @@ part of 'main.dart';
 /// painted over: the same component can grow without stretching its ornaments.
 enum LapiFrameKind { card, button, field, panel }
 
+/// Original illustrated frames, rendered in nine slices: corners keep their
+/// proportions while only the empty rails and centre adapt to the component.
+class LapiFrameAssets extends ChangeNotifier {
+  static final instance = LapiFrameAssets();
+  final Map<String, ui.Image> images = {};
+  Future<void>? _loading;
+  Future<void> load() => _loading ??= _load();
+  Future<void> _load() async {
+    for (final name in ['lapi_frame_button_alpha.png',
+      'lapi_frame_card_alpha.png', 'lapigestion_gold_corner_volute.png']) {
+      final bytes = await rootBundle.load('assets/images/$name');
+      final codec = await ui.instantiateImageCodec(bytes.buffer.asUint8List(
+        bytes.offsetInBytes, bytes.lengthInBytes));
+      images[name] = (await codec.getNextFrame()).image;
+      codec.dispose();
+    }
+    notifyListeners();
+  }
+}
+
 class PremiumGoldFramePainter extends CustomPainter {
   final double radius;
   final int ornamentLevel;
   final LapiFrameKind kind;
-  const PremiumGoldFramePainter({
-    this.radius = 16,
-    this.ornamentLevel = 2,
-    this.kind = LapiFrameKind.card,
-  });
-
-  Paint _metal(Rect rect, {bool fill = false, double width = 1.1}) => Paint()
-    ..style = fill ? PaintingStyle.fill : PaintingStyle.stroke
-    ..strokeWidth = width
-    ..strokeCap = StrokeCap.round
-    ..strokeJoin = StrokeJoin.round
-    ..shader = const LinearGradient(
-      colors: [
-        Color(0xFFAD7728),
-        Color(0xFFF5DA92),
-        Color(0xFFBE8B37),
-        Color(0xFFE8C77E)
-      ],
-      stops: [0, .36, .7, 1],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ).createShader(rect);
-
-  // Sculpted acanthus: a closed contour, a light ridge and an inset vein.
-  void _leaf(Canvas canvas, double length, double depth, Rect rect) {
-    final leaf = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(length * .22, -depth, length * .55, -depth, length, 0)
-      ..cubicTo(length * .62, -depth * .12, length * .32, depth * .58, 0, 0)
-      ..close();
-    canvas.drawPath(leaf, _metal(rect, fill: true));
-    canvas.drawPath(
-        leaf,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = .55
-          ..color = const Color(0xFFAC772D));
-    final ridge = Path()
-      ..moveTo(1, 0)
-      ..cubicTo(
-          length * .3, -depth * .32, length * .62, -depth * .2, length * .9, 0);
-    canvas.drawPath(
-        ridge,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = .7
-          ..strokeCap = StrokeCap.round
-          ..color = const Color(0xFFFFEDBB));
+  final bool selected;
+  PremiumGoldFramePainter({this.radius = 16, this.ornamentLevel = 2,
+    this.kind = LapiFrameKind.card, this.selected = false})
+      : super(repaint: LapiFrameAssets.instance) {
+    LapiFrameAssets.instance.load();
   }
 
-  void _scroll(Canvas canvas, Rect rect,
-      {double length = 34, bool leaf = true}) {
-    final stem = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(length * .3, 0, length * .36, 7, length * .7, 7)
-      ..cubicTo(length * .96, 7, length, -2, length * .79, -2)
-      ..cubicTo(length * .63, -2, length * .67, 4, length * .77, 3);
-    canvas.drawPath(stem, _metal(rect, width: 1.25));
-    canvas.drawPath(
-        stem.shift(const Offset(0, -.7)),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = .4
-          ..color = const Color(0xFFFFE9B0));
-    if (leaf) {
-      canvas.save();
-      canvas.translate(2, 4.4);
-      _leaf(canvas, length * .64, 4.6, rect);
-      canvas.translate(length * .18, 2.2);
-      _leaf(canvas, length * .38, 3.8, rect);
-      canvas.restore();
-    }
+  void _border(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(1.2);
+    final shader = const LinearGradient(colors: [Color(0xFF95601E),
+      Color(0xFFFFEBAD), Color(0xFFBA802C), Color(0xFFF3CF75)],
+      begin: Alignment.topLeft, end: Alignment.bottomRight).createShader(rect);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      Paint()..style=PaintingStyle.stroke..strokeWidth=2.2..shader=shader);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.deflate(2), Radius.circular(radius-2)),
+      Paint()..style=PaintingStyle.stroke..strokeWidth=.6..color=const Color(0xFFFFE8A3));
   }
 
-  /// Draws a different arrangement for each role, inside an 11px edge rail.
-  void paintOrnaments(Canvas canvas, Size size) {
-    if (size.width < 52 || size.height < 28) return;
-    final rect = Offset.zero & size;
-    final small = kind == LapiFrameKind.button;
-    final field = kind == LapiFrameKind.field;
-    final tall = size.height > 160 && !small && !field;
-    final length = small
-        ? 19.0
-        : field
-            ? 26.0
-            : tall
-                ? 44.0
-                : 32.0;
-
-    if (!field) {
-      canvas.save();
-      // Horizontal and vertical motifs meet the border tangentially.
-      canvas.translate(size.width - radius - 2, 1.2);
-      canvas.scale(-1, 1);
-      _scroll(canvas, rect, length: length, leaf: !small);
-      canvas.restore();
-    }
-    if (!small) {
-      canvas.save();
-      canvas.translate(1.2, size.height - radius - 2);
-      canvas.rotate(-1.5707963267948966);
-      _scroll(canvas, rect,
-          length: field
-              ? 19
-              : tall
-                  ? 39
-                  : 26);
-      canvas.restore();
-    }
-    if (field) {
-      canvas.save();
-      canvas.translate(size.width - 1.2, radius + 3);
-      canvas.rotate(1.5707963267948966);
-      _scroll(canvas, rect, length: 19, leaf: false);
-      canvas.restore();
-    }
-    if (tall || kind == LapiFrameKind.panel) {
-      canvas.save();
-      canvas.translate(size.width - 1.2, radius + 3);
-      canvas.rotate(1.5707963267948966);
-      _scroll(canvas, rect, length: 31);
-      canvas.restore();
-      canvas.save();
-      canvas.translate(radius + 3, size.height - 1.2);
-      _scroll(canvas, rect, length: 38);
-      canvas.restore();
-    }
+  void _greenOrnaments(Canvas canvas, Size size) {
+    _border(canvas,size);
+    final image = LapiFrameAssets.instance.images['lapigestion_gold_corner_volute.png'];
+    if(image == null) return;
+    final d = (kind == LapiFrameKind.panel ? 39.0 : 23.0)
+      .clamp(0.0,size.height*.48).toDouble();
+    final src = Rect.fromLTWH(0,0,image.width.toDouble(),image.height.toDouble());
+    final paint = Paint()..filterQuality=FilterQuality.high;
+    canvas.drawImageRect(image,src,Rect.fromLTWH(size.width-d, size.height-d, d,d),paint);
+    canvas.save();
+    canvas.translate(d,d);canvas.rotate(3.141592653589793);
+    canvas.drawImageRect(image,src,Rect.fromLTWH(0,0,d,d),paint);
+    canvas.restore();
   }
+
+  void paintOrnaments(Canvas canvas, Size size) => paint(canvas,size);
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 2 || size.height <= 2) return;
-    final rect = Offset.zero & size;
-    final effectiveRadius = radius.clamp(0, size.shortestSide / 2).toDouble();
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          rect.deflate(.75), Radius.circular(effectiveRadius)),
-      _metal(rect, width: 1.15),
-    );
-    paintOrnaments(canvas, size);
+    if(size.width<8 || size.height<8) return;
+    if(selected) {_greenOrnaments(canvas,size);return;}
+    final compact = kind==LapiFrameKind.button || kind==LapiFrameKind.field;
+    final name = compact ? 'lapi_frame_button_alpha.png' : 'lapi_frame_card_alpha.png';
+    final image = LapiFrameAssets.instance.images[name];
+    if(image == null) {_border(canvas,size);return;}
+    // Fixed ornamental corners at their intended physical size. Never stretch
+    // a leaf to fill a tall card or squeeze it into a narrow button.
+    _border(canvas,size);
+    final paint=Paint()..filterQuality=FilterQuality.high;
+    final w=image.width.toDouble(),h=image.height.toDouble();
+    if(compact) {
+      // The extracted button contains transparent margins; use the art region.
+      final art=Rect.fromLTRB(w*.008,h*.10,w*.998,h*.82);
+      final height=size.height.clamp(0.0,48.0).toDouble();
+      final left=(height*.62).clamp(0.0,size.width*.3).toDouble();
+      final right=(height*.25).clamp(0.0,size.width*.2).toDouble();
+      canvas.drawImageRect(image,Rect.fromLTRB(art.left,art.top,w*.235,art.bottom),
+        Rect.fromLTWH(0,0,left,height),paint);
+      canvas.drawImageRect(image,Rect.fromLTRB(w*.88,art.top,art.right,art.bottom),
+        Rect.fromLTWH(size.width-right,0,right,height),paint);
+    } else {
+      final factor=(size.height/190).clamp(0.0,.34).toDouble();
+      canvas.drawImageRect(image,Rect.fromLTRB(w*.674,0,w,h*.395),
+        Rect.fromLTWH(size.width-128*factor,0,128*factor,75*factor),paint);
+      canvas.drawImageRect(image,Rect.fromLTRB(0,h*.368,w*.394,h),
+        Rect.fromLTWH(0,size.height-120*factor,155*factor,120*factor),paint);
+    }
   }
-
   @override
-  bool shouldRepaint(covariant PremiumGoldFramePainter oldDelegate) =>
-      radius != oldDelegate.radius ||
-      kind != oldDelegate.kind ||
-      ornamentLevel != oldDelegate.ornamentLevel;
+  bool shouldRepaint(covariant PremiumGoldFramePainter old) =>
+    old.kind!=kind || old.radius!=radius || old.selected!=selected;
 }
 
 class LapiSurface extends StatelessWidget {
@@ -175,6 +117,7 @@ class LapiSurface extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
           color: selected ? heroGreen : color,
+          gradient:selected?null:const LinearGradient(colors:[Color(0xFFFFFAEC),Color(0xFFFFFEF8),Color(0xFFF8EFDA)],begin:Alignment.topLeft,end:Alignment.bottomRight),
           image: selected
               ? const DecorationImage(
                   image:
@@ -188,14 +131,14 @@ class LapiSurface extends StatelessWidget {
           ],
         ),
         child: CustomPaint(
-          foregroundPainter:
-              PremiumGoldFramePainter(radius: radius, kind: kind),
+          painter:
+              PremiumGoldFramePainter(radius: radius, kind: kind, selected:selected),
           child: Material(
             type: MaterialType.transparency,
             borderRadius: BorderRadius.circular(radius),
             clipBehavior: Clip.antiAlias,
             child: kind == LapiFrameKind.card || kind == LapiFrameKind.panel
-                ? Padding(padding: const EdgeInsets.all(4), child: child)
+                ? Padding(padding: const EdgeInsets.all(5), child: child)
                 : child,
           ),
         ),
@@ -227,16 +170,24 @@ class LapiFieldBorder extends OutlineInputBorder {
       double gapExtent = 0,
       double gapPercentage = 0,
       TextDirection? textDirection}) {
-    super.paint(canvas, rect,
-        gapStart: gapStart,
-        gapExtent: gapExtent,
-        gapPercentage: gapPercentage,
-        textDirection: textDirection);
     canvas.save();
+    if (gapStart != null && gapExtent > 0 && gapPercentage > 0) {
+      final start = textDirection == TextDirection.rtl
+          ? rect.right - gapStart - gapExtent - gapPadding
+          : rect.left + gapStart - gapPadding;
+      final gap = Rect.fromLTWH(start, rect.top - 3,
+          (gapExtent + gapPadding * 2) * gapPercentage, 7);
+      canvas.clipPath(Path.combine(PathOperation.difference,
+          Path()..addRect(rect.inflate(3)), Path()..addRect(gap)));
+    }
     canvas.translate(rect.left, rect.top);
-    const PremiumGoldFramePainter(radius: 13, kind: LapiFrameKind.field)
+    PremiumGoldFramePainter(radius: 13, kind: LapiFrameKind.field)
         .paintOrnaments(canvas, rect.size);
     canvas.restore();
+    if (borderSide.width > 1) {
+      super.paint(canvas, rect, gapStart: gapStart, gapExtent: gapExtent,
+          gapPercentage: gapPercentage, textDirection: textDirection);
+    }
   }
 }
 
@@ -257,7 +208,7 @@ class LapiButtonBorder extends RoundedRectangleBorder {
     super.paint(canvas, rect, textDirection: textDirection);
     canvas.save();
     canvas.translate(rect.left, rect.top);
-    const PremiumGoldFramePainter(radius: 13, kind: LapiFrameKind.button)
+    PremiumGoldFramePainter(radius: 13, kind: LapiFrameKind.button)
         .paintOrnaments(canvas, rect.size);
     canvas.restore();
   }
@@ -315,11 +266,11 @@ class PremiumChoiceChip extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             shadowColor: Colors.transparent,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 3),
             labelStyle: TextStyle(
                 fontFamily: 'LapiText',
                 color: selected ? warmGoldText : lapiGreenDark,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

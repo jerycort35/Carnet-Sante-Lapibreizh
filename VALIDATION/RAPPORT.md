@@ -1,30 +1,19 @@
-# Vérification de la refonte LapiGestion V3.1.36
+# LapiGestion V3.1.37
 
-Base GitHub lue : `3e16468da517ad78bb8196b307b7b5c3658d4df3`.
-Blob source `lib/main.dart` : `9d7ab87eaca599511f52a20cafb0c558eac4cf0e`.
-Blob source `pubspec.yaml` : `43a8e41cd75fe46ce49b91eed6abacadb537535d`.
+La référence à six écrans guide les cadres illustrés, la palette et la compacité. Les téléphones de la planche ne sont pas intégrés.
 
-## Modifications
+## Changements
 
-Cadres vectoriels à liseré unique, avec des ornements reliés au contour et cantonnés au pourtour. Dispositions différentes pour cartes, boutons, champs et panneaux ; aucun étirement raster. Suppression des images de feuilles translucides à l’intérieur des cartes et des éléments décoratifs flottants. Ajustement de la densité et des espacements, résumé du lapin plus compact, statistiques santé en grille adaptable. Les champs gardent leurs labels natifs et leurs états de focus.
+Ornements illustrés avec relief doré, fonds ivoire nuancés, coins conservés à taille fixe et bordures adaptables. Images de cadres détourées par l’outil d’image à partir des assets de la passation ; cette extraction peut modifier de petits détails. Les images transparentes remplacent les raccords opaques des premiers essais. Le bandeau est détouré à l’extérieur, en conservant son intérieur sombre ; son extraction est aussi réalisée par l’outil d’image. Prompts : retirer uniquement le fond extérieur du bandeau ; conserver uniquement les contours et feuilles dorés des cadres, avec centre et extérieur transparents.
 
-Boutons ordinaires ivoire/or, sélections en marbre vert. La bannière reprend intégralement l’image 05 fournie dans la passation. Les polices de texte et de titres sont embarquées. La navigation basse et sa texture existante restent présentes. La barre haute utilise un paysage opaque ; la fiche du lapin garde ses actions visibles pendant le défilement.
+Navigation principale entièrement encadrée. Résumé santé à quatre lignes, avec accès « Voir tout » à la chronologie, aux statistiques et graphiques existants. Formulaire d’identité avec icônes, paysage extérieur visible et espacement réduit. Les sélections restent vertes et les actions ordinaires ivoire. La photo, la caméra et toutes les commandes originales restent disponibles.
 
-Pour les nouvelles installations, la recherche et les filtres précèdent le tableau de bord. Les ordres déjà enregistrés continuent d’être chargés par le mécanisme existant. Les commandes de photo restent accessibles via la photo et le bouton caméra ; leurs actions n’ont pas changé.
+## Validation
 
-## Contrôles exécutés
+13 tests Flutter passent : actions, sauvegarde des champs, sélections, défilement, barre haute fixe, ouverture/réduction de l’historique, affichage 320/390/768 et texte à 100/130 %. Analyse statique : aucune erreur et les 26 diagnostics préexistants. Syntaxe Dart valide. Les dix classes sensibles et les 116 méthodes asynchrones existantes sont identiques à la passation. Aucun stockage ni mécanisme de migration changé.
 
-- Flutter 3.47.6 stable, Dart 3.13.5.
-- `flutter test --no-pub test/premium_ui_test.dart` : 12 tests réussis.
-- `flutter analyze --no-pub --no-fatal-warnings --no-fatal-infos` : aucune erreur ; 26 diagnostics préexistants (7 avertissements, 19 conseils).
-- Le fichier de base a été analysé séparément avec le même SDK : les 26 diagnostics étaient déjà présents.
-- Analyse syntaxique Dart des deux fichiers : zéro erreur.
-- Comparaison des tokens des dix classes sensibles : identiques (stockage, migrations, sauvegarde/restauration, catalogue, reproduction, notifications et recherche vétérinaire).
-- Les 116 méthodes asynchrones préexistantes sont conservées et leur suite de tokens est identique. Aucune classe fonctionnelle supprimée.
-- Vérification visuelle des captures réelles ; les données de test sont fictives et la photo du lapin est volontairement vide. Les emojis peuvent ne pas être rendus par l’environnement de test ; Android utilise sa police système pour ces caractères.
+## Limites visuelles et natives
 
-## Limites
+Cette version n’est pas une copie pixel pour pixel de la planche. Les caractères, la forme et la disposition exacte de certaines feuilles diffèrent ; des éléments supplémentaires de l’application restent présents. La saisie d’identité conserve sa navigation modale et n’ajoute pas les quatre raccourcis de la maquette. Recherche, adoption et sauvegarde gardent leurs options réelles et leur organisation existante, qui diffèrent de la maquette. Les captures montrent ces différences ; elles ne constituent pas une certification de reproduction exacte.
 
-La tentative `flutter build bundle --release --no-pub` n’a pas abouti : SDK Android absent. Aucun APK Android n’a donc été compilé ou signé ici. Le workflow GitHub existant doit exécuter cette étape après le push effectué par Jérémy. Les tests utilisent des services locaux simulés ; ils ne vérifient pas les autorisations Android, les notifications sur un téléphone, la recherche réseau réelle, la génération de PDF, ni la signature native. Leur logique existante a été conservée.
-
-La conformité visuelle finale sur l’appareil reste à vérifier après installation. Les cadres constituent une traduction vectorielle des références ; les captures permettent de juger le résultat livré.
+Tests avec services locaux simulés. Les emojis de médailles sont absents dans l’environnement de capture et dépendent de la police Android. Aucun APK n’a été construit ou signé ici, le SDK Android est absent. Le workflow existant et une vérification sur le téléphone restent nécessaires.

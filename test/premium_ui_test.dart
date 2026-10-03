@@ -11,6 +11,7 @@ import 'package:carnet_sante_lapibreizh/main.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
+    await LapiFrameAssets.instance.load();
     await (FontLoader('MaterialIcons')
           ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf')))
         .load();
@@ -174,6 +175,21 @@ void main() {
     expect(after.top, before.top);
     expect(find.text('Nugget'), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Le résumé santé ouvre et réduit son historique complet', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Container()));
+    await show(tester, const RabbitPage(index: 0));
+    expect(find.text('Voir tout'), findsOneWidget);
+    await tester.ensureVisible(find.text('Voir tout'));
+    await tester.tap(find.text('Voir tout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Chronologie médicale'), findsOneWidget);
+    await tester.ensureVisible(find.text('Réduire'));
+    await tester.tap(find.text('Réduire'));
+    await tester.pumpAndSettle();
+    expect(find.text('Voir tout'), findsOneWidget);
+    expect(find.text('Chronologie médicale'), findsNothing);
   });
 
   testWidgets('Tous les blocs accueil défilent sans erreur', (tester) async {

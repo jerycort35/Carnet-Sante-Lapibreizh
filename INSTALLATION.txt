@@ -1,0 +1,7 @@
+LapiGestion V3.1.37 — version Flutter 1.0.0+37
+
+Extrais tous les dossiers du ZIP à la racine de ton dépôt local, en remplaçant les fichiers existants. Ajoute les nouveaux fichiers d’images et conserve lib/premium_ui.dart. Ne crée pas de dossier lib (1) ou assets (1).
+Fais toi-même le commit avec MESSAGE_COMMIT.txt puis le push. Le workflow Android existant doit fabriquer l’APK signé. Installe cet APK par-dessus l’application actuelle pour conserver tes données.
+Aucune écriture GitHub, aucun fichier Android ou workflow modifié. La signature existante doit être conservée.
+
+Les captures dans VALIDATION sont celles de cette version, obtenues réellement dans Flutter, sans téléphone ajouté. La photo de test est vide et les données sont fictives.

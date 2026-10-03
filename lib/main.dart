@@ -7,6 +7,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart' as m;
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:geolocator/geolocator.dart';
@@ -43,6 +44,7 @@ const softGoldLine = Color(0xFFDCC47B);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Notifications.init();
+  await LapiFrameAssets.instance.load();
   runApp(const LapibreizhApp());
 }
 
@@ -54,6 +56,7 @@ class LapibreizhApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       fontFamily: 'LapiText',
+      textTheme: const TextTheme(bodyMedium:TextStyle(fontSize:13),bodyLarge:TextStyle(fontSize:14),bodySmall:TextStyle(fontSize:11)),
       colorScheme: ColorScheme.fromSeed(seedColor: lapiGreen, brightness: Brightness.light),
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: const AppBarTheme(
@@ -77,9 +80,11 @@ class LapibreizhApp extends StatelessWidget {
       dialogTheme:const DialogThemeData(backgroundColor:cream,surfaceTintColor:Colors.transparent,shape:RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(20)),side:BorderSide(color:softGoldLine))),
       inputDecorationTheme: InputDecorationTheme(
         filled:true,
+        isDense:true,
         fillColor: premiumCard,
-        contentPadding:const EdgeInsets.symmetric(horizontal:18,vertical:12),
+        contentPadding:const EdgeInsets.symmetric(horizontal:24,vertical:8),
         prefixIconColor:lapiGreenDark,
+        prefixIconConstraints:const BoxConstraints(minWidth:58,minHeight:40),
         suffixIconColor:lapiGreenDark,
         labelStyle:const TextStyle(color:brown,fontSize:13),
         border:const LapiFieldBorder(),
@@ -2321,7 +2326,7 @@ class PremiumSegmentedButton<T> extends StatelessWidget {
     children:[
       for(var i=0;i<segments.length;i++)...[
         if(i>0)const SizedBox(width:7),
-        Flexible(
+        Expanded(
           child:_PremiumSegmentCell<T>(
             segment:segments[i],
             selected:selected.contains(segments[i].value),
@@ -2383,7 +2388,7 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
             children:[
               Positioned.fill(child:selected?const LapiSurface(radius:13,kind:LapiFrameKind.button,selected:true,child:SizedBox.expand()):const PremiumButtonFrame()),
               Padding(
-                padding:const EdgeInsets.symmetric(horizontal:8,vertical:10),
+                padding:const EdgeInsets.symmetric(horizontal:18,vertical:8),
                 child:Row(
                   mainAxisAlignment:MainAxisAlignment.center,
                   mainAxisSize:MainAxisSize.min,
@@ -2398,14 +2403,14 @@ class _PremiumSegmentCell<T> extends StatelessWidget{
                       ),
                       const SizedBox(width:5),
                     ],
-                    Flexible(child:DefaultTextStyle.merge(
+                    Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:DefaultTextStyle.merge(
                       textAlign:TextAlign.center,
                       style:TextStyle(fontSize:13,
                         color:selected?warmGoldText:lapiGreenDark,
                         fontWeight:FontWeight.w800,
                       ),
                       child:segment.label ?? const SizedBox.shrink(),
-                    )),
+                    ))),
                   ],
                 ),
               ),
@@ -2870,7 +2875,7 @@ class _HomePageState extends State<HomePage>{
 
   Widget _bottomNavigation()=>Material(
     color:heroGreen,
-    elevation:16,
+    elevation:0,
     shadowColor:Colors.black.withValues(alpha:.18),
     child:SafeArea(
       top:false,
@@ -2882,11 +2887,11 @@ class _HomePageState extends State<HomePage>{
             fit:BoxFit.cover,
             opacity:.96,
           ),
-          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:14,offset:const Offset(0,-4))],
+          boxShadow:const [],
         ),
         child:Stack(children:[
           Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
-          const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
+          Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:PremiumGoldFramePainter(radius:16,kind:LapiFrameKind.panel,selected:true)))),
                     Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
@@ -3465,7 +3470,7 @@ class _HomePageState extends State<HomePage>{
             ),
             const SizedBox(width:10),
             const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text('Trouver un vétérinaire',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),
+              Text('Trouver un vétérinaire',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),
               Text('Recherche autour de votre position',style:TextStyle(fontSize:11,color:Colors.black54)),
             ])),
           ]),
@@ -3508,13 +3513,9 @@ class _HomePageState extends State<HomePage>{
                   side:BorderSide(color:vetRadiusKm==km?gold:softGoldLine),
                   onSelected:(_)=>setState(()=>vetRadiusKm=km),
                 ),
-              ActionChip(
-                avatar:const Icon(Icons.edit,size:17,color:lapiGreenDark),
-                label:const Text('Autre',style:TextStyle(color:lapiGreenDark,fontWeight:FontWeight.w800)),
-                backgroundColor:cream,
-                side:const BorderSide(color:softGoldLine),
-                onPressed:_chooseCustomVetRadius,
-              ),
+              PremiumMarbleButton(icon:Icons.edit,label:'Autre',
+                padding:const EdgeInsets.symmetric(horizontal:22,vertical:7),
+                onPressed:_chooseCustomVetRadius),
             ],
           ),
 
@@ -3802,7 +3803,7 @@ class _HomePageState extends State<HomePage>{
             Row(children:[
               const Icon(Icons.dashboard_rounded,color:lapiGreenDark,size:22),
               const SizedBox(width:7),
-              const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
+              const Expanded(child:Text('Tableau de bord',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
               Container(
                 padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                 decoration:BoxDecoration(color:const Color(0xFFEAF4EC),borderRadius:BorderRadius.circular(99),border:Border.all(color:gold.withValues(alpha:.30))),
@@ -3911,7 +3912,7 @@ class _HomePageState extends State<HomePage>{
           Row(children:[
             const Icon(Icons.shield_outlined,color:brown),
             const SizedBox(width:8),
-            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
+            const Expanded(child:Text('Sécurité des données',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial'))),
 
           ]),
           const SizedBox(height:5),
@@ -3952,7 +3953,7 @@ class _HomePageState extends State<HomePage>{
     onTap:onTap,
     borderRadius:BorderRadius.circular(10),
     child:LapiSurface(radius:11,kind:LapiFrameKind.button,selected:selected,color:cream,child:Padding(
-      padding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
+      padding:const EdgeInsets.symmetric(horizontal:20,vertical:7),
       child:Row(mainAxisSize:MainAxisSize.min,children:[
         Icon(icon,size:16,color:selected?warmGoldText:lapiGreenDark),
         const SizedBox(width:5),
@@ -4057,7 +4058,7 @@ class _HomePageState extends State<HomePage>{
             crossAxisAlignment:CrossAxisAlignment.stretch,
             children:[
               Container(
-                height:126,
+                height:144,
                 margin:const EdgeInsets.fromLTRB(10,6,10,0),
                 decoration:BoxDecoration(
                   borderRadius:BorderRadius.circular(22),
@@ -4140,6 +4141,7 @@ Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEp
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
   List<Map<String,dynamic>> all=[]; List<Map<String,dynamic>> breedings=[]; Map<String,dynamic>? r; final picker=ImagePicker();
+  bool healthDetailsVisible=false;
   String healthFilter='Tout'; bool healthExpanded=false; String appMode='Éleveur';
   String reproSearch='';
   bool rabbitOrganizing=false;
@@ -5774,7 +5776,7 @@ class _RabbitPageState extends State<RabbitPage>{
             child:Hero(
               tag:'rabbit${widget.index}',
               child:Container(
-                width:112,height:112,
+                width:128,height:128,
                 decoration:BoxDecoration(
                   color:mist,
                   borderRadius:BorderRadius.circular(18),
@@ -5857,7 +5859,7 @@ class _RabbitPageState extends State<RabbitPage>{
     return Scaffold(
       bottomNavigationBar:Material(
         color:heroGreen,
-        elevation:16,
+        elevation:0,
         child:SafeArea(
           top:false,
           child:Container(
@@ -5870,7 +5872,7 @@ class _RabbitPageState extends State<RabbitPage>{
             ),
             child:Stack(children:[
               Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
-              const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
+              Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:PremiumGoldFramePainter(radius:16,kind:LapiFrameKind.panel,selected:true)))),
                             Row(children:[
                 Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
                 Expanded(child:_rabbitBottomNavItem(Icons.pets_outlined,'Mes lapins',true,(){})),
@@ -6096,7 +6098,7 @@ class _RabbitPageState extends State<RabbitPage>{
       Row(children:[
         Container(width:38,height:38,decoration:BoxDecoration(color:gold.withValues(alpha:.14),shape:BoxShape.circle),child:const Icon(Icons.fact_check_outlined,color:Color(0xFFEF6C00))),
         const SizedBox(width:9),
-        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('À compléter',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:ink,fontFamily:'LapiEditorial')),Text('Quelques informations méritent votre attention.',style:TextStyle(fontSize:11,color:Colors.black54))])),
       ]),
       const SizedBox(height:7),
       ...alerts.take(5).map((a)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.circle,size:7,color:Color(0xFFEF6C00)),const SizedBox(width:8),Expanded(child:Text(a,style:const TextStyle(fontSize:13)))]))),
@@ -6813,6 +6815,38 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget healthJourneySection(){
     final allEvents=_healthEvents();
+    if(!healthDetailsVisible){
+      Widget summaryRow(String title,String kind,IconData icon,VoidCallback emptyAction){
+        final events=allEvents.where((e)=>e['kind']==kind).toList();
+        final event=events.isEmpty?null:events.first;
+        return Padding(padding:const EdgeInsets.only(top:4),child:LapiSurface(
+          kind:LapiFrameKind.button,child:InkWell(
+            onTap:event==null?emptyAction:()=>_openHealthEvent(event),
+            borderRadius:BorderRadius.circular(12),
+            child:Padding(padding:const EdgeInsets.symmetric(horizontal:21,vertical:10),
+              child:Row(children:[Icon(icon,size:18),const SizedBox(width:8),
+                Expanded(child:Text(title,style:const TextStyle(fontSize:12))),
+                Text(event==null?'—':(event['dateLabel']??'').toString(),style:const TextStyle(fontSize:10,color:brown)),
+                const Icon(Icons.chevron_right,size:18)])),
+          )));
+      }
+      final weights=_sortedWeights();
+      return PremiumCard(child:Padding(padding:const EdgeInsets.all(12),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[const Icon(Icons.favorite,size:21),const SizedBox(width:8),
+            const Expanded(child:Text('Parcours santé',style:TextStyle(fontFamily:'LapiEditorial',fontSize:17,fontWeight:FontWeight.w700))),
+            TextButton(onPressed:()=>setState(()=>healthDetailsVisible=true),child:const Text('Voir tout',style:TextStyle(fontSize:11)))]),
+          summaryRow('Vaccination (RHD1/RHD2)','Vaccin',Icons.vaccines_outlined,()=>addTreatment('vaccines','Vaccin')),
+          summaryRow('Vermifuge','Vermifuge',Icons.medication_outlined,()=>addTreatment('dewormings','Vermifuge')),
+          summaryRow('Contrôle vétérinaire','Vétérinaire',Icons.medical_services_outlined,addAppointment),
+          Padding(padding:const EdgeInsets.only(top:4),child:LapiSurface(kind:LapiFrameKind.button,
+            child:InkWell(onTap:addWeight,child:Padding(padding:const EdgeInsets.symmetric(horizontal:21,vertical:10),
+              child:Row(children:[const Icon(Icons.monitor_weight_outlined,size:18),const SizedBox(width:8),
+                const Expanded(child:Text('Poids',style:TextStyle(fontSize:12))),
+                Text(weights.isEmpty?'—':_weightDisplay(int.tryParse('${weights.last['grams']}')??0),style:const TextStyle(fontSize:10,color:brown)),
+                const Icon(Icons.chevron_right,size:18)]))))),
+        ])));
+    }
     final now=DateTime.now();
     final past=allEvents.where((e)=>!(e['dt'] as DateTime).isAfter(now)).toList();
     final future=allEvents.where((e)=>(e['dt'] as DateTime).isAfter(now)&&e['kind']=='Vétérinaire').toList()
@@ -6837,7 +6871,7 @@ class _RabbitPageState extends State<RabbitPage>{
     return PremiumCard(child:Padding(
       padding:const EdgeInsets.all(10),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-        header('Parcours santé',Icons.timeline),
+        Row(children:[Expanded(child:header('Parcours santé',Icons.timeline)),TextButton(onPressed:()=>setState(()=>healthDetailsVisible=false),child:const Text('Réduire'))]),
         const Text(
           'Toute l’histoire médicale réunie au même endroit.',
           style:TextStyle(fontSize:11,color:Colors.black54),
@@ -7542,7 +7576,7 @@ class _EditIdentityState extends State<EditIdentity>{
   late Map<String,dynamic>d;
   @override void initState(){super.initState();d=Map<String,dynamic>.from(widget.data);d['sterilized']??='';d['color']??='';d['fatherColor']??='';d['motherColor']??='';}
 
-  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
+  @override Widget build(BuildContext context)=>Dialog.fullscreen(backgroundColor:Colors.transparent,child:Scaffold(
     appBar:AppBar(
       backgroundColor:Colors.transparent,
       flexibleSpace:const PremiumMarbleBar(),
@@ -7559,14 +7593,14 @@ class _EditIdentityState extends State<EditIdentity>{
     body:ListView(padding:const EdgeInsets.fromLTRB(10,8,10,24),children:[
       identityPanel('Le lapin',Icons.pets,[
         field('Nom','name'),
-        const SizedBox(height:10),
+        const SizedBox(height:7),
         choiceTitle('Sexe'),
         PremiumSegmentedButton<String>(
           segments:const [ButtonSegment(value:'Mâle',icon:Icon(Icons.male),label:Text('Mâle')),ButtonSegment(value:'Femelle',icon:Icon(Icons.female),label:Text('Femelle'))],
           selected:{if((d['sex']??'').toString().isNotEmpty)d['sex']},
           showSelectedIcon:false,onSelectionChanged:(v)=>setState(()=>d['sex']=v.first),
         ),
-        const SizedBox(height:10),
+        const SizedBox(height:7),
         choiceTitle('Stérilisation'),
         PremiumSegmentedButton<String>(
           segments:const [ButtonSegment(value:'Stérilisé(e)',label:Text('Stérilisé(e)')),ButtonSegment(value:'Non stérilisé(e)',label:Text('Non stérilisé(e)'))],
@@ -7598,7 +7632,7 @@ class _EditIdentityState extends State<EditIdentity>{
     ])),
   );
 
-  Widget choiceTitle(String label)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Text(label,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:brown)));
+  Widget choiceTitle(String label)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Text(label,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:brown)));
 
   Future<void> chooseRace(String raceKey,String colorKey,String title)async{
     final selected=await showDialog<String>(context:context,builder:(_)=>RacePickerDialog(initial:(d[raceKey]??'').toString(),title:title));
@@ -7625,22 +7659,22 @@ class _EditIdentityState extends State<EditIdentity>{
     final color=(d[colorKey]??'').toString();
     final standard=RabbitBreedCatalog.isStandard(race,color);
     return Padding(
-      padding:const EdgeInsets.only(top:10),
+      padding:const EdgeInsets.only(top:7),
       child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         InkWell(
           borderRadius:BorderRadius.circular(12),
           onTap:()=>chooseRace(raceKey,colorKey,raceLabel),
           child:InputDecorator(
-            decoration:InputDecoration(labelText:raceLabel,suffixIcon:const Icon(Icons.arrow_drop_down)),
+            decoration:InputDecoration(labelText:raceLabel,prefixIcon:const Icon(Icons.pets),suffixIcon:const Icon(Icons.arrow_drop_down)),
             child:Text(race.isEmpty?'Sélectionner une race':race,style:TextStyle(color:race.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700)),
           ),
         ),
-        const SizedBox(height:10),
+        const SizedBox(height:7),
         InkWell(
           borderRadius:BorderRadius.circular(12),
           onTap:()=>chooseColor(raceKey,colorKey),
           child:InputDecorator(
-            decoration:InputDecoration(labelText:colorLabel,suffixIcon:const Icon(Icons.arrow_drop_down)),
+            decoration:InputDecoration(labelText:colorLabel,prefixIcon:const Icon(Icons.palette_outlined),suffixIcon:const Icon(Icons.arrow_drop_down)),
             child:Row(children:[
               if(standard)...[const Text('🏅'),const SizedBox(width:6)],
               Expanded(child:Text(color.isEmpty?'Sélectionner une couleur / variété':color,style:TextStyle(color:color.isEmpty?Colors.black54:ink,fontWeight:FontWeight.w700))),
@@ -7655,9 +7689,9 @@ class _EditIdentityState extends State<EditIdentity>{
     );
   }
 
-  Widget field(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(initialValue:d[key]??'',decoration:InputDecoration(labelText:label),onChanged:(v)=>d[key]=v));
-  Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:10),child:TextFormField(
-    readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,suffixIcon:const Icon(Icons.calendar_month)),
+  Widget field(String label,String key)=>Padding(padding:const EdgeInsets.only(top:7),child:TextFormField(initialValue:d[key]??'',decoration:InputDecoration(labelText:label,prefixIcon:Icon(key=='identification'?Icons.attach_file:key=='tattoo'?Icons.sell_outlined:Icons.pets_outlined)),onChanged:(v)=>d[key]=v));
+  Widget dateField(String label,String key)=>Padding(padding:const EdgeInsets.only(top:7),child:TextFormField(
+    readOnly:true,controller:TextEditingController(text:d[key]??''),decoration:InputDecoration(labelText:label,prefixIcon:const Icon(Icons.calendar_month_outlined),suffixIcon:const Icon(Icons.calendar_month)),
     onTap:()async{final x=await showDatePicker(context:context,firstDate:DateTime(1990),lastDate:DateTime.now().add(const Duration(days:365)),initialDate:Notifications.parseDate(d[key])??DateTime.now());if(x!=null)setState(()=>d[key]=Notifications.formatDate(x));},
   ));
 }
