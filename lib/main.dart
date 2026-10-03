@@ -5665,10 +5665,15 @@ class _RabbitPageState extends State<RabbitPage>{
     margin:const EdgeInsets.only(bottom:8),
     padding:const EdgeInsets.fromLTRB(12,10,10,10),
     decoration:BoxDecoration(
-      color:rabbitOrganizing?const Color(0xFFE8F3EC):premiumCard,
+      color:rabbitOrganizing?const Color(0xFFF5F8F2):premiumCard,
       borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:rabbitOrganizing?gold:softGoldLine,width:rabbitOrganizing?1.15:.9),
-      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
+      border:Border.all(color:rabbitOrganizing?gold:softGoldLine,width:rabbitOrganizing?1.15:1.0),
+      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,5))],
+      image:const DecorationImage(
+        image:AssetImage('assets/images/lapigestion_gold_corners.png'),
+        fit:BoxFit.fill,
+        opacity:.085,
+      ),
     ),
     child:Row(children:[
       Container(
@@ -5752,10 +5757,15 @@ class _RabbitPageState extends State<RabbitPage>{
 
     final photoCard=Container(
       decoration:BoxDecoration(
-        gradient:const LinearGradient(colors:[premiumCard, Color(0xFFFFFCF4)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius:BorderRadius.circular(14),
-        border:Border.all(color:lineSoft),
-        boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.04), blurRadius: 14, offset: const Offset(0, 6))],
+        gradient:const LinearGradient(colors:[premiumCard, Color(0xFFFFFCF4)], begin:Alignment.topLeft, end:Alignment.bottomRight),
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:softGoldLine,width:1.05),
+        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.04),blurRadius:14,offset:const Offset(0,6))],
+        image:const DecorationImage(
+          image:AssetImage('assets/images/lapigestion_gold_corners.png'),
+          fit:BoxFit.fill,
+          opacity:.10,
+        ),
       ),
       child:Padding(
         padding:const EdgeInsets.all(14),
@@ -5868,7 +5878,7 @@ class _RabbitPageState extends State<RabbitPage>{
       ),
       body:Scenic(compact:true,child:SafeArea(child:CustomScrollView(slivers:[
         SliverAppBar(
-          backgroundColor:lapiGreenDark,
+          backgroundColor:Colors.transparent,
           foregroundColor:Colors.white,
           surfaceTintColor:Colors.transparent,
           elevation:0,
@@ -6025,10 +6035,15 @@ class _RabbitPageState extends State<RabbitPage>{
     margin:const EdgeInsets.only(bottom:8),
     padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
     decoration:BoxDecoration(
-      gradient:const LinearGradient(colors:[Color(0xFFF4FAF5),Color(0xFFF8F3E8)]),
+      gradient:const LinearGradient(colors:[premiumCard,Color(0xFFFFFCF4)],begin:Alignment.topLeft,end:Alignment.bottomRight),
       borderRadius:BorderRadius.circular(18),
-      border:Border.all(color:gold.withValues(alpha:.30)),
-      boxShadow:[BoxShadow(color: Colors.black.withValues(alpha:.03), blurRadius: 12, offset: const Offset(0, 5))],
+      border:Border.all(color:softGoldLine,width:1.0),
+      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.03),blurRadius:12,offset:const Offset(0,5))],
+      image:const DecorationImage(
+        image:AssetImage('assets/images/lapigestion_gold_corners.png'),
+        fit:BoxFit.fill,
+        opacity:.09,
+      ),
     ),
     child:Row(children:[
       Icon(appMode=='Éleveur'?Icons.home_work_outlined:Icons.favorite_outline,color:lapiGreenDark),
@@ -6842,10 +6857,7 @@ class _RabbitPageState extends State<RabbitPage>{
         const SizedBox(height:11),
         Container(
           padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
-          decoration:BoxDecoration(
-            gradient:const LinearGradient(colors:[heroGreen,heroGreen2]),
-            borderRadius:BorderRadius.circular(15),
-          ),
+          decoration:premiumMarbleDecoration(radius:15,strong:true),
           child:Row(children:[
             const Icon(Icons.insights,color:gold,size:20),
             const SizedBox(width:8),
