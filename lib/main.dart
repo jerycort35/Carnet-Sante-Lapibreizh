@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart' as m;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -464,6 +465,14 @@ class Notifications {
       }
     }
   }
+}
+
+// Older carnets store one path; newer carnets keep every page in order.
+List<String> documentPages(Map<String,dynamic> rabbit,String key){
+  final value=rabbit[key];
+  if(value is String)return value.isEmpty?<String>[]:[value];
+  if(value is List)return value.whereType<String>().where((p)=>p.isNotEmpty).toList();
+  return <String>[];
 }
 
 class Store {
@@ -1820,10 +1829,16 @@ class PrivateFiles {
   static Future<bool> migrateAll(List<Map<String,dynamic>> rabbits) async {
     var changed=false;
     for(final r in rabbits){
-      for(final entry in {'photo':'rabbit_photos','healthBook':'documents','passport':'documents'}.entries){
+      for(final entry in {'photo':'rabbit_photos'}.entries){
         final old=(r[entry.key]??'') as String;
         final moved=await _migratePath(old,entry.value);
         if(moved!=old){r[entry.key]=moved;changed=true;}
+      }
+      for(final key in ['healthBook','passport']){
+        final old=documentPages(r,key);
+        final moved=<String>[];
+        for(final path in old){moved.add(await _migratePath(path,'documents'));}
+        if(r[key] is! List||!listEquals(old,moved)){r[key]=moved;changed=true;}
       }
       for(final key in ['vaccines','dewormings']){
         final items=(r[key] as List?)??[];
@@ -1897,8 +1912,7 @@ class BackupService {
     final photo=((rabbit['photo']??'') as String);
     if(photo.isNotEmpty)yield MapEntry(photo,'rabbit_photos');
     for(final key in ['healthBook','passport']){
-      final p=((rabbit[key]??'') as String);
-      if(p.isNotEmpty)yield MapEntry(p,'documents');
+      for(final p in documentPages(rabbit,key)){yield MapEntry(p,'documents');}
     }
     for(final entry in {
       'engagementMentionImage':'documents',
@@ -2006,10 +2020,20 @@ class BackupService {
     for(final rabbit in rabbits){
       rabbit['photo']=await restorePath(((rabbit['photo']??'') as String),'rabbit_photos');
       for(final key in ['healthBook','passport']){
-        rabbit[key]=await restorePath(((rabbit[key]??'') as String),'documents');
+        final pages=<String>[];
+        for(final old in documentPages(rabbit,key)){
+          final restored=await restorePath(old,'documents');
+          if(restored.isNotEmpty)pages.add(restored);
+        }
+        rabbit[key]=pages;
       }
       for(final key in ['engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){
-        rabbit[key]=await restorePath(((rabbit[key]??'') as String),'documents');
+        final pages=<String>[];
+        for(final old in documentPages(rabbit,key)){
+          final restored=await restorePath(old,'documents');
+          if(restored.isNotEmpty)pages.add(restored);
+        }
+        rabbit[key]=pages;
       }
       for(final key in ['vaccines','dewormings']){
         for(final raw in ((rabbit[key] as List?)??[])){
@@ -4136,7 +4160,7 @@ class _HomePageState extends State<HomePage>{
 }
 
 ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','color':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherColor':'','fatherBirth':'','motherName':'','motherBreed':'','motherColor':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':'','passport':'','adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
+Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','color':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherColor':'','fatherBirth':'','motherName':'','motherBreed':'','motherColor':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':<String>[],'passport':<String>[],'adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
 
 class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
 class _RabbitPageState extends State<RabbitPage>{
@@ -5301,42 +5325,93 @@ class _RabbitPageState extends State<RabbitPage>{
     );
   }
 
-  Future<void> attach(String key)async{
-    final res=await FilePicker.platform.pickFiles(type:FileType.any);
-    final source=res?.files.single.path;
-    if(source!=null){
-      final old=(r![key]??'') as String;
-      final saved=await PrivateFiles.importFile(source,'documents');
-      if(saved.isNotEmpty){r![key]=saved;await persist();await PrivateFiles.deleteFile(old);}
+  Future<void> attachPhotos(String key)async{
+    final images=await picker.pickMultiImage(imageQuality:95);
+    if(images.isEmpty)return;
+    final added=<String>[];
+    for(final image in images){
+      final path=await PrivateFiles.importFile(image.path,'documents');
+      if(path.isNotEmpty)added.add(path);
     }
-  }
-  Future<void> viewDocument(String key,String label)async{
-    final p=(r![key]??'') as String;
-    if(p.isEmpty)return;
-    if(PrivateFiles.isImage(p)){
-      if(!mounted)return;
-      await showDialog(context:context,builder:(dialogContext)=>Dialog.fullscreen(child:Scaffold(
-        backgroundColor:Colors.black,
-        appBar:AppBar(
-      flexibleSpace:const PremiumMarbleBar(),
-          backgroundColor:ink,foregroundColor:gold,title:Text(label),
-          actions:[
-            IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await attach(key);},icon:const Icon(Icons.swap_horiz)),
-            IconButton(tooltip:'Supprimer',onPressed:()async{Navigator.pop(dialogContext);await removeDocument(key);},icon:const Icon(Icons.delete_outline)),
-          ],
-        ),
-        body:Center(child:InteractiveViewer(minScale:.5,maxScale:6,child:Image.file(File(p),fit:BoxFit.contain))),
-      )));
-    }else{
-      await OpenFilex.open(p);
-    }
+    if(added.isEmpty)return;
+    r![key]=[...documentPages(r!,key),...added];
+    await persist();
   }
 
-  Future<void> removeDocument(String key)async{
-    final p=(r![key]??'') as String;
-    if(p.isEmpty)return;
-    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer ce document ?'),content:const Text('La copie enregistrée dans le carnet sera supprimée. Le fichier original ne sera pas touché.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;
-    if(ok){await PrivateFiles.deleteFile(p);r![key]='';await persist();}
+  Future<void> attach(String key,{int? replaceIndex})async{
+    final res=await FilePicker.platform.pickFiles(type:FileType.any,allowMultiple:replaceIndex==null);
+    if(res==null)return;
+    final pages=documentPages(r!,key);
+    final added=<String>[];
+    for(final file in res.files){
+      if(file.path==null)continue;
+      final saved=await PrivateFiles.importFile(file.path!,'documents');
+      if(saved.isNotEmpty)added.add(saved);
+    }
+    if(added.isEmpty)return;
+    String? old;
+    if(replaceIndex!=null&&replaceIndex>=0&&replaceIndex<pages.length){
+      old=pages[replaceIndex];pages[replaceIndex]=added.first;
+    }else{pages.addAll(added);}
+    r![key]=pages;
+    await persist();
+    if(old!=null&&!pages.contains(old))await PrivateFiles.deleteFile(old);
+  }
+
+  Future<void> viewDocument(String key,String label,{int index=0})async{
+    final pages=documentPages(r!,key);
+    if(pages.isEmpty||index<0||index>=pages.length)return;
+    final controller=PageController(initialPage:index);
+    var current=index;
+    if(!mounted){controller.dispose();return;}
+    await showDialog(context:context,builder:(dialogContext)=>StatefulBuilder(
+      builder:(context,setViewerState)=>Dialog.fullscreen(child:Scaffold(
+        backgroundColor:Colors.black,
+        appBar:AppBar(
+          flexibleSpace:const PremiumMarbleBar(),
+          backgroundColor:ink,foregroundColor:gold,title:Text('$label - ${current+1}/${pages.length}'),
+          actions:[
+            IconButton(tooltip:'Remplacer cette page',onPressed:()async{
+              Navigator.pop(dialogContext);await attach(key,replaceIndex:current);
+            },icon:const Icon(Icons.swap_horiz)),
+            IconButton(tooltip:'Supprimer cette page',onPressed:()async{
+              Navigator.pop(dialogContext);await removeDocument(key,index:current);
+            },icon:const Icon(Icons.delete_outline)),
+          ],
+        ),
+        body:PageView.builder(
+          controller:controller,itemCount:pages.length,
+          onPageChanged:(value)=>setViewerState(()=>current=value),
+          itemBuilder:(context,i)=>PrivateFiles.isImage(pages[i])
+            ?Center(child:InteractiveViewer(minScale:.5,maxScale:6,child:Image.file(File(pages[i]),fit:BoxFit.contain)))
+            :Center(child:OutlinedButton.icon(
+              onPressed:()=>OpenFilex.open(pages[i]),icon:const Icon(Icons.description),
+              label:const Text('Ouvrir le fichier'),
+              style:OutlinedButton.styleFrom(foregroundColor:gold),
+            )),
+        ),
+        bottomNavigationBar:SafeArea(child:Row(children:[
+          IconButton(tooltip:'Page précédente',onPressed:current==0?null:()=>controller.previousPage(duration:const Duration(milliseconds:200),curve:Curves.easeOut),icon:const Icon(Icons.chevron_left,color:gold)),
+          Expanded(child:Text('Page ${current+1} sur ${pages.length}',textAlign:TextAlign.center,style:const TextStyle(color:gold))),
+          IconButton(tooltip:'Page suivante',onPressed:current==pages.length-1?null:()=>controller.nextPage(duration:const Duration(milliseconds:200),curve:Curves.easeOut),icon:const Icon(Icons.chevron_right,color:gold)),
+        ])),
+      )),
+    ));
+    controller.dispose();
+  }
+
+  Future<void> removeDocument(String key,{int index=0})async{
+    final pages=documentPages(r!,key);
+    if(index<0||index>=pages.length)return;
+    final path=pages[index];
+    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+      title:const Text('Supprimer cette page ?'),
+      content:const Text('Seule cette copie sera supprimée. Les autres pages et le fichier original seront conservés.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))],
+    ))??false;
+    if(!ok)return;
+    pages.removeAt(index);r![key]=pages;await persist();
+    if(!pages.contains(path))await PrivateFiles.deleteFile(path);
   }
 
   pw.Widget _pdfTitle(String title){
@@ -5586,8 +5661,8 @@ class _RabbitPageState extends State<RabbitPage>{
             ],
 
             _pdfTitle('Documents'),
-            _pdfLine('Carnet de santé',((rr['healthBook']??'') as String).isEmpty?'Non joint':'Joint dans l’application'),
-            _pdfLine('Passeport',((rr['passport']??'') as String).isEmpty?'Non joint':'Joint dans l’application'),
+            _pdfLine('Carnet de santé',documentPages(rr,'healthBook').isEmpty?'Non joint':'${documentPages(rr,'healthBook').length} page(s) / fichier(s) dans l’application'),
+            _pdfLine('Passeport',documentPages(rr,'passport').isEmpty?'Non joint':'${documentPages(rr,'passport').length} page(s) / fichier(s) dans l’application'),
 
             pw.SizedBox(height:16),
             pw.Text(
@@ -5616,15 +5691,17 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Future<void> share()async{
     final rr=r!; final text="Carnet de santé – Les Lapibreizh\n\n${rr['name']}\nSexe : ${rr['sex']}\nRace : ${rr['breed']}\nNaissance : ${rr['birth']}\nSevrage : ${rr['weaning']}\n\nPère : ${rr['fatherName']} – ${rr['fatherBreed']} – ${rr['fatherBirth']}\nMère : ${rr['motherName']} – ${rr['motherBreed']} – ${rr['motherBirth']}\n\nVaccins :\n${lines(rr['vaccines'])}\n\nVermifuges :\n${lines(rr['dewormings'])}";
-    final paths=<String>[]; for(final k in ['photo','healthBook','passport']){final p=rr[k];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);} for(final k in ['vaccines','dewormings']){for(final x in rr[k] as List){final p=x['photo'];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);}}
+    final paths=<String>[]; for(final k in ['photo']){final p=rr[k];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);} for(final k in ['vaccines','dewormings']){for(final x in rr[k] as List){final p=x['photo'];if(p is String&&p.isNotEmpty&&File(p).existsSync())paths.add(p);}}
+    for(final key in ['healthBook','passport']){for(final p in documentPages(rr,key)){if(File(p).existsSync()&&!paths.contains(p))paths.add(p);}}
     if(paths.isEmpty){await Share.share(text,subject:'Carnet de santé de ${rr['name']}');}else{await Share.shareXFiles(paths.map((p)=>XFile(p)).toList(),text:text,subject:'Carnet de santé de ${rr['name']}');}
   }
   String lines(dynamic l){final x=l as List;if(x.isEmpty)return 'Aucun enregistrement';return x.map((e)=>'• ${e['date']} — ${e['product']}').join('\n');}
   Future<void> deleteRabbit()async{final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Supprimer cette fiche ?'),content:const Text('Cette action retire la fiche du carnet.'),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Annuler')),PremiumFilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Supprimer'))]))??false;if(ok){
     final doomed=Map<String,dynamic>.from(r!);
     await Notifications.cancelRabbit(doomed);
+    for(final key in ['healthBook','passport']){for(final p in documentPages(doomed,key)){await PrivateFiles.deleteFile(p);}}
     await ReproductionStore.removeRabbit((doomed['id']??'') as String);
-    for(final k in ['photo','healthBook','passport','engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
+    for(final k in ['photo','engagementMentionImage','engagementSignatureImage','engagementCertificatePdf']){await PrivateFiles.deleteFile((doomed[k]??'') as String);}
     for(final k in ['vaccines','dewormings']){for(final x in doomed[k] as List){await PrivateFiles.deleteFile((x['photo']??'') as String);}}
     for(final raw in ((doomed['medications'] as List?)??[])){
       final x=raw as Map;
@@ -7099,40 +7176,40 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Widget docButton(String label,String key){
-    final p=(r![key]??'') as String;
-    if(p.isEmpty){
-      return OutlinedButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.attach_file,color:brown),label:Text('Ajouter $label'));
-    }
-    final image=PrivateFiles.isImage(p);
+    final pages=documentPages(r!,key);
     return Container(
       padding:const EdgeInsets.all(10),
       decoration:BoxDecoration(color:Colors.white.withValues(alpha:.70),borderRadius:BorderRadius.circular(16),border:Border.all(color:gold.withValues(alpha:.65))),
-      child:Row(children:[
-        InkWell(
-          onTap:()=>viewDocument(key,label),
-          borderRadius:BorderRadius.circular(12),
-          child:Container(
-            width:92,height:118,
-            decoration:BoxDecoration(color:ivory,borderRadius:BorderRadius.circular(12),border:Border.all(color:gold)),
-            clipBehavior:Clip.antiAlias,
-            child:image?Image.file(File(p),fit:BoxFit.contain):const Icon(Icons.description,size:48,color:brown),
-          ),
-        ),
-        const SizedBox(width:12),
-        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(label,style:const TextStyle(fontSize:17,fontWeight:FontWeight.bold,color:ink)),
-          const SizedBox(height:5),
-          Text(image?'Appuyez sur la miniature pour l’agrandir.':'Appuyez pour ouvrir le document.',style:const TextStyle(color:Colors.black54)),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        Text(label,style:const TextStyle(fontSize:17,fontWeight:FontWeight.bold,color:ink)),
+        const SizedBox(height:5),
+        Text(pages.isEmpty?'Ajoutez les photos des différentes pages ou un fichier.':'${pages.length} page(s) / fichier(s) - appuyez sur une miniature pour consulter.',style:const TextStyle(fontSize:11,color:Colors.black54)),
+        if(pages.isNotEmpty)...[
           const SizedBox(height:8),
-          Wrap(spacing:6,children:[
-            TextButton.icon(onPressed:()=>viewDocument(key,label),icon:const Icon(Icons.visibility),label:const Text('Voir')),
-            TextButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.swap_horiz),label:const Text('Remplacer')),
-            IconButton(tooltip:'Supprimer',onPressed:()=>removeDocument(key),icon:const Icon(Icons.delete_outline,color:Colors.redAccent)),
+          Wrap(spacing:8,runSpacing:8,children:[
+            for(var i=0;i<pages.length;i++)SizedBox(width:100,child:Column(children:[
+              InkWell(onTap:()=>viewDocument(key,label,index:i),child:Container(
+                width:100,height:120,
+                decoration:BoxDecoration(color:ivory,borderRadius:BorderRadius.circular(10),border:Border.all(color:gold)),
+                clipBehavior:Clip.antiAlias,
+                child:PrivateFiles.isImage(pages[i])?Image.file(File(pages[i]),fit:BoxFit.contain):const Icon(Icons.description,size:40,color:brown),
+              )),
+              Row(children:[
+                Expanded(child:Text('Page ${i+1}',style:const TextStyle(fontSize:11))),
+                IconButton(tooltip:'Supprimer cette page',visualDensity:VisualDensity.compact,onPressed:()=>removeDocument(key,index:i),icon:const Icon(Icons.delete_outline,color:Colors.redAccent,size:19)),
+              ]),
+            ])),
           ]),
-        ])),
+        ],
+        const SizedBox(height:8),
+        Wrap(spacing:6,runSpacing:6,children:[
+          OutlinedButton.icon(onPressed:()=>attachPhotos(key),icon:const Icon(Icons.add_photo_alternate_outlined),label:const Text('Ajouter des photos')),
+          OutlinedButton.icon(onPressed:()=>attach(key),icon:const Icon(Icons.attach_file),label:const Text('Ajouter un fichier')),
+        ]),
       ]),
     );
   }
+
 }
 
 

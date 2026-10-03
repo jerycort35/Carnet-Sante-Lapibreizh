@@ -85,6 +85,8 @@ void main() {
                   child: child!)),
         )));
     await tester.runAsync(() async {
+      if(page is RabbitPage){final dynamic state=tester.state(find.byType(RabbitPage));await state.load();}
+      if(page is HomePage){final dynamic state=tester.state(find.byType(HomePage));await state.refresh();}
       final context = tester.element(find.byKey(const Key('capture')));
       await Future.wait([
         for (final name in [
@@ -95,6 +97,9 @@ void main() {
           precacheImage(AssetImage('assets/images/$name'), context),
       ]);
       await Future<void>.delayed(const Duration(milliseconds: 150));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await tester.pump();
     });
     await tester.pumpAndSettle();
   }
@@ -119,6 +124,38 @@ void main() {
       img.dispose();
     });
   }
+
+  testWidgets('Documents : pages indépendantes, navigation et suppression ciblée', (tester) async {
+    final prefs=await SharedPreferences.getInstance();
+    final rabbits=(jsonDecode(prefs.getString(Store.key)!) as List);
+    final source='${Directory.current.path}/assets/images/lapigestion_home_banner.png';
+    rabbits.first['healthBook']=[source,source];
+    rabbits.first['passport']=[source,source];
+    await prefs.setString(Store.key,jsonEncode(rabbits));
+    await tester.runAsync(()async{await Store.load();});
+    await begin(tester,const RabbitPage(index:0));
+    await Scrollable.ensureVisible(tester.element(find.text('Carnet de santé').first),alignment:.1);
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2'),findsNWidgets(2));
+    await capture(tester,'documents_multipages');
+    final thumbnail=find.byWidgetPredicate((w)=>w is Image && w.image is FileImage).first;
+    await tester.ensureVisible(thumbnail);
+    await tester.tap(thumbnail);
+    await tester.pumpAndSettle();
+    expect(find.text('Page 1 sur 2'),findsOneWidget);
+    await tester.tap(find.byTooltip('Page suivante'));
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2 sur 2'),findsOneWidget);
+    await tester.tap(find.byTooltip('Supprimer cette page').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer').last);
+    await tester.pumpAndSettle();
+    final saved=(await tester.runAsync(()=>Store.load()))!.first;
+    expect(documentPages(saved,'healthBook'),hasLength(1));
+    expect(documentPages(saved,'passport'),hasLength(2));
+    expect(File(source).existsSync(),isTrue);
+    expect(tester.takeException(),isNull);
+  });
 
   testWidgets('Accueil compact et filtres actifs conservent leurs actions',
       (tester) async {

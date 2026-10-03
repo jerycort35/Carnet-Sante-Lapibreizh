@@ -1,19 +1,21 @@
-# LapiGestion V3.1.37
+# V3.1.38 - Documents multipages
 
-La référence à six écrans guide les cadres illustrés, la palette et la compacité. Les téléphones de la planche ne sont pas intégrés.
+## Fonctionnement
 
-## Changements
+Carnet de santé et Passeport acceptent plusieurs images, ajoutées ensemble ou en plusieurs fois. Deux commandes : Ajouter des photos (galerie, sélection multiple) et Ajouter un fichier (sélecteur de fichiers, sélection multiple). Les PDF et autres fichiers restent acceptés.
 
-Ornements illustrés avec relief doré, fonds ivoire nuancés, coins conservés à taille fixe et bordures adaptables. Images de cadres détourées par l’outil d’image à partir des assets de la passation ; cette extraction peut modifier de petits détails. Les images transparentes remplacent les raccords opaques des premiers essais. Le bandeau est détouré à l’extérieur, en conservant son intérieur sombre ; son extraction est aussi réalisée par l’outil d’image. Prompts : retirer uniquement le fond extérieur du bandeau ; conserver uniquement les contours et feuilles dorés des cadres, avec centre et extérieur transparents.
+Miniatures numérotées dans chaque rubrique. Appuyer sur une miniature ouvre le lecteur avec balayage entre pages, commandes précédente/suivante et zoom sur les photos. Chaque page peut être remplacée ou supprimée individuellement ; la suppression demande confirmation et conserve les autres pages et les fichiers originaux.
 
-Navigation principale entièrement encadrée. Résumé santé à quatre lignes, avec accès « Voir tout » à la chronologie, aux statistiques et graphiques existants. Formulaire d’identité avec icônes, paysage extérieur visible et espacement réduit. Les sélections restent vertes et les actions ordinaires ivoire. La photo, la caméra et toutes les commandes originales restent disponibles.
+Les listes de pages sont conservées localement, intégrées à la sauvegarde/restauration et jointes au partage de fiche. Le dossier PDF indique leur nombre ; il ne fusionne pas les images ou fichiers en un nouveau PDF. Suppression de fiche : nettoyage de toutes ses pages internes.
+
+## Compatibilité
+
+Les anciens chemins uniques sont reconnus et migrés en liste sans supprimer le fichier original. Les anciennes sauvegardes restent restaurables dans V3.1.38. Les nouvelles sauvegardes multipages sont destinées à cette version ou une version ultérieure compatible.
 
 ## Validation
 
-13 tests Flutter passent : actions, sauvegarde des champs, sélections, défilement, barre haute fixe, ouverture/réduction de l’historique, affichage 320/390/768 et texte à 100/130 %. Analyse statique : aucune erreur et les 26 diagnostics préexistants. Syntaxe Dart valide. Les dix classes sensibles et les 116 méthodes asynchrones existantes sont identiques à la passation. Aucun stockage ni mécanisme de migration changé.
+18 tests Flutter : compatibilité des chemins uniques ; migration ; sauvegarde/restauration de quatre pièces ; restauration de sauvegarde ancienne ; lecteur de pages, passage à la seconde page et suppression ciblée ; tests préexistants de navigation, formulaires, affichage et tailles d’écran.
 
-## Limites visuelles et natives
+Analyse statique : aucune erreur ; 26 diagnostics préexistants (7 avertissements, 19 informations). La capture est un rendu réel Flutter utilisant la bannière comme fichier de démonstration, pas de véritables pages personnelles.
 
-Cette version n’est pas une copie pixel pour pixel de la planche. Les caractères, la forme et la disposition exacte de certaines feuilles diffèrent ; des éléments supplémentaires de l’application restent présents. La saisie d’identité conserve sa navigation modale et n’ajoute pas les quatre raccourcis de la maquette. Recherche, adoption et sauvegarde gardent leurs options réelles et leur organisation existante, qui diffèrent de la maquette. Les captures montrent ces différences ; elles ne constituent pas une certification de reproduction exacte.
-
-Tests avec services locaux simulés. Les emojis de médailles sont absents dans l’environnement de capture et dépendent de la police Android. Aucun APK n’a été construit ou signé ici, le SDK Android est absent. Le workflow existant et une vérification sur le téléphone restent nécessaires.
+Les sélecteurs galerie/fichiers, le partage système et la réception des notifications doivent encore être vérifiés sur le téléphone. Aucun APK construit ici.
