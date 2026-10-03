@@ -2128,7 +2128,7 @@ class PremiumMarbleButton extends StatelessWidget{
 
 
 /// Cadre ivoire premium commun à toutes les grandes cartes de l'application.
-/// Les ornements sont de vraies images dorées avec reflets, jamais une teinte jaune plate.
+/// Règle V3.1.30 : intérieur totalement dégagé ; décoration uniquement sur le pourtour.
 class PremiumCard extends StatelessWidget {
   final Widget? child;
   final Color? color;
@@ -2157,83 +2157,72 @@ class PremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => m.Card(
-    color:color,
+    color:color??premiumCard,
     shadowColor:shadowColor,
     surfaceTintColor:surfaceTintColor,
     elevation:elevation,
-    shape:shape,
+    shape:shape??RoundedRectangleBorder(
+      borderRadius:BorderRadius.circular(20),
+      side:const BorderSide(color:softGoldLine,width:1.0),
+    ),
     borderOnForeground:borderOnForeground,
     margin:margin,
-    clipBehavior:clipBehavior,
+    clipBehavior:Clip.none,
     semanticContainer:semanticContainer,
     child:Stack(
       clipBehavior:Clip.none,
       children:[
         if(child!=null) child!,
-        Positioned.fill(
-          child:IgnorePointer(
-            child:Opacity(
-              opacity:.13,
-              child:Image.asset(
-                'assets/images/lapigestion_gold_corners.png',
-                fit:BoxFit.fill,
-                filterQuality:FilterQuality.high,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right:-7,
-          bottom:-8,
-          child:IgnorePointer(
-            child:Opacity(
-              opacity:.30,
-              child:Image.asset(
-                'assets/images/lapigestion_gold_corner_volute.png',
-                width:58,
-                fit:BoxFit.contain,
-                filterQuality:FilterQuality.high,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left:-8,
-          top:-8,
-          child:IgnorePointer(
-            child:Opacity(
-              opacity:.18,
-              child:Image.asset(
-                'assets/images/lapigestion_gold_leaves.png',
-                width:48,
-                fit:BoxFit.contain,
-                filterQuality:FilterQuality.high,
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child:IgnorePointer(
-            child:LayoutBuilder(builder:(context,c){
-              if(c.maxHeight<250)return const SizedBox.shrink();
-              return Align(
-                alignment:Alignment.centerRight,
-                child:Opacity(
-                  opacity:.075,
-                  child:Image.asset(
-                    'assets/images/lapigestion_gold_ornament_vertical.png',
-                    width:54,
-                    height:c.maxHeight*.72,
-                    fit:BoxFit.contain,
-                    filterQuality:FilterQuality.high,
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
+        // Le décor est volontairement limité aux bords :
+        // aucune arabesque ni feuille derrière le texte ou les données.
+        const Positioned.fill(child:IgnorePointer(child:_PremiumGoldFrame())),
       ],
     ),
+  );
+}
+
+class _PremiumGoldFrame extends StatelessWidget{
+  const _PremiumGoldFrame();
+
+  Widget corner({
+    required Alignment alignment,
+    required int quarterTurns,
+  })=>Align(
+    alignment:alignment,
+    child:Opacity(
+      opacity:.68,
+      child:RotatedBox(
+        quarterTurns:quarterTurns,
+        child:Image.asset(
+          'assets/images/lapigestion_gold_corners.png',
+          width:78,
+          height:78,
+          fit:BoxFit.cover,
+          alignment:Alignment.topLeft,
+          filterQuality:FilterQuality.high,
+        ),
+      ),
+    ),
+  );
+
+  @override Widget build(BuildContext context)=>Stack(
+    clipBehavior:Clip.none,
+    children:[
+      // Liseré or continu et fin.
+      Positioned.fill(
+        child:DecoratedBox(
+          decoration:BoxDecoration(
+            borderRadius:BorderRadius.circular(20),
+            border:Border.all(color:softGoldLine.withValues(alpha:.92),width:.85),
+          ),
+        ),
+      ),
+      // Finitions végétales : uniquement dans les angles et sur le liseré.
+      Positioned(left:-3,top:-3,width:72,height:72,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:0))),
+      Positioned(right:-3,top:-3,width:64,height:64,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:1))),
+      Positioned(right:-3,bottom:-3,width:76,height:76,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:2))),
+      Positioned(left:-3,bottom:-3,width:60,height:60,child:ClipRect(child:corner(alignment:Alignment.topLeft,quarterTurns:3))),
+    ],
   );
 }
 
@@ -2278,15 +2267,13 @@ class PremiumFilledButton extends StatelessWidget {
         child:Stack(
           children:[
             Positioned.fill(child:DecoratedBox(decoration:premiumMarbleDecoration(radius:14,strong:true))),
+            // Aucun décor derrière le libellé : seulement le marbre et le liseré or.
             Positioned.fill(
               child:IgnorePointer(
-                child:Opacity(
-                  opacity:.18,
-                  child:Image.asset(
-                    'assets/images/lapigestion_gold_volute_horizontal.png',
-                    fit:BoxFit.cover,
-                    alignment:Alignment.center,
-                    filterQuality:FilterQuality.high,
+                child:DecoratedBox(
+                  decoration:BoxDecoration(
+                    borderRadius:BorderRadius.circular(14),
+                    border:Border.all(color:gold.withValues(alpha:.72),width:.85),
                   ),
                 ),
               ),
@@ -2299,19 +2286,11 @@ class PremiumFilledButton extends StatelessWidget {
   }
 }
 
-/// Texture commune des bandeaux supérieurs : même identité sur tous les écrans.
+/// Bandeau supérieur commun V3.1.31 : totalement transparent.
+/// Le paysage général reste visible derrière le titre et les actions.
 class PremiumMarbleBar extends StatelessWidget {
   const PremiumMarbleBar({super.key});
-  @override Widget build(BuildContext context)=>DecoratedBox(
-    decoration:const BoxDecoration(
-      image:DecorationImage(
-        image:AssetImage('assets/images/lapigestion_green_marble.jpg'),
-        fit:BoxFit.cover,
-        alignment:Alignment.center,
-      ),
-    ),
-    child:ColoredBox(color:Color(0x1800180F)),
-  );
+  @override Widget build(BuildContext context)=>const SizedBox.expand();
 }
 
 /// SegmentedButton posé sur le même marbre vert/or afin d'éviter les aplats verts ternes.
@@ -2830,9 +2809,9 @@ class _HomePageState extends State<HomePage>{
           boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.18),blurRadius:14,offset:const Offset(0,-4))],
         ),
         child:Stack(children:[
-          Positioned.fill(child:IgnorePointer(child:Opacity(opacity:.14,child:Image.asset('assets/images/lapigestion_gold_corners.png',fit:BoxFit.fill,filterQuality:FilterQuality.high)))),
-          const Positioned(left:-5,bottom:-9,child:PremiumGoldLeaves(size:52,opacity:.72)),
-          Positioned(right:-5,bottom:-9,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:52,opacity:.72))),
+          Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
+          const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
+          Positioned(right:-10,bottom:-13,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:44,opacity:.52))),
           Row(children:[
           _bottomShortcut(icon:Icons.home_outlined,label:'Accueil',selected:true,onTap:()=>_jumpToHome('top')),
           _bottomShortcut(icon:Icons.pets_outlined,label:'Mes lapins',onTap:()=>_jumpToHome('rabbits')),
@@ -4182,7 +4161,7 @@ class _RabbitPageState extends State<RabbitPage>{
       backgroundColor:Colors.black,
       appBar:AppBar(
       flexibleSpace:const PremiumMarbleBar(),
-        backgroundColor:ink,foregroundColor:gold,title:const Text('Photo du lapin'),
+        backgroundColor:Colors.transparent,foregroundColor:gold,title:const Text('Photo du lapin'),
         actions:[
           IconButton(tooltip:'Remplacer',onPressed:()async{Navigator.pop(dialogContext);await replaceRabbitPhoto();},icon:const Icon(Icons.photo_camera_back_outlined)),
           IconButton(tooltip:'Supprimer',onPressed:()async{Navigator.pop(dialogContext);await removeRabbitPhoto();},icon:const Icon(Icons.delete_outline)),
@@ -5867,11 +5846,16 @@ class _RabbitPageState extends State<RabbitPage>{
                 opacity:.98,
               ),
             ),
-            child:Row(children:[
-              Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
-              Expanded(child:_rabbitBottomNavItem(Icons.pets_outlined,'Mes lapins',true,(){})),
-              Expanded(child:_rabbitBottomNavItem(Icons.notifications_none,'Rappels',false,(){})),
-              Expanded(child:_rabbitBottomNavItem(Icons.more_horiz,'Plus',false,(){})),
+            child:Stack(children:[
+              Positioned(left:0,right:0,top:0,child:Container(height:.9,color:gold.withValues(alpha:.78))),
+              const Positioned(left:-10,bottom:-13,child:PremiumGoldLeaves(size:44,opacity:.52)),
+              Positioned(right:-10,bottom:-13,child:Transform.flip(flipX:true,child:const PremiumGoldLeaves(size:44,opacity:.52))),
+              Row(children:[
+                Expanded(child:_rabbitBottomNavItem(Icons.home_outlined,'Accueil',false,()=>Navigator.pop(context))),
+                Expanded(child:_rabbitBottomNavItem(Icons.pets_outlined,'Mes lapins',true,(){})),
+                Expanded(child:_rabbitBottomNavItem(Icons.notifications_none,'Rappels',false,(){})),
+                Expanded(child:_rabbitBottomNavItem(Icons.more_horiz,'Plus',false,(){})),
+              ]),
             ]),
           ),
         ),
