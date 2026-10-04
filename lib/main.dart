@@ -1714,31 +1714,61 @@ class ReproductionStore {
 
   static int n(dynamic value)=>value is int?value:int.tryParse('$value')??0;
 
-  static Map<String,int> totals(Map<String,dynamic> r)=>{
-    'liveBirth':n(r['liveMaleBirth'])+n(r['liveFemaleBirth']),
-    'deadBirth':n(r['deadMaleBirth'])+n(r['deadFemaleBirth']),
-    'born':n(r['liveMaleBirth'])+n(r['liveFemaleBirth'])+n(r['deadMaleBirth'])+n(r['deadFemaleBirth']),
-    'maleTotal':n(r['liveMaleBirth'])+n(r['deadMaleBirth']),
-    'femaleTotal':n(r['liveFemaleBirth'])+n(r['deadFemaleBirth']),
-    'weaned':n(r['liveMaleWeaning'])+n(r['liveFemaleWeaning']),
-  };
-
-  static Map<String,int> aggregate(Iterable<Map<String,dynamic>> records){
-    const keys=[
-      'liveMaleBirth','liveFemaleBirth','deadMaleBirth','deadFemaleBirth',
-      'liveMaleWeaning','liveFemaleWeaning',
-    ];
-    final result=<String,int>{for(final key in keys) key:0};
-    for(final record in records){
-      for(final key in keys){result[key]=(result[key]??0)+n(record[key]);}
+  // Birth inputs are counts born BEFORE deaths. Each death is deducted once.
+  static Map<String,int> totals(Map<String,dynamic> r){
+    if(r['_computedTotals']==true)return Map<String,int>.from(r['totals'] as Map);
+    int positive(dynamic v)=>n(v)<0?0:n(v);
+    final result=<String,int>{};
+    for(final sex in ['Male','Female']){
+      final born=positive(r['live${sex}Birth']);
+      final dead=positive(r['dead${sex}Birth']).clamp(0,born);
+      final alive=born-dead;
+      final recorded=(r['weaningDate']??'').toString().isNotEmpty;
+      final loss=recorded?(r.containsKey('dead${sex}Weaning')
+          ?positive(r['dead${sex}Weaning']).clamp(0,alive)
+          :(alive-positive(r['live${sex}Weaning'])).clamp(0,alive)):0;
+      result['born$sex']=born;
+      result['dead$sex']=dead;
+      result['live$sex']=alive;
+      result['loss$sex']=loss;
+      result['weaned$sex']=recorded?alive-loss:0;
     }
+    result['born']=result['bornMale']!+result['bornFemale']!;
+    result['deadBirth']=result['deadMale']!+result['deadFemale']!;
+    result['liveBirth']=result['liveMale']!+result['liveFemale']!;
+    result['maleTotal']=result['liveMale']!;
+    result['femaleTotal']=result['liveFemale']!;
+    result['lossWeaning']=result['lossMale']!+result['lossFemale']!;
+    result['weaned']=result['weanedMale']!+result['weanedFemale']!;
     return result;
   }
 
+  static Map<String,dynamic> aggregate(Iterable<Map<String,dynamic>> records){
+    final sums=<String,int>{};
+    for(final record in records){
+      totals(record).forEach((key,value)=>sums[key]=(sums[key]??0)+value);
+    }
+    return {'_computedTotals':true,'totals':sums};
+  }
+
+  static String? countError(Map<String,dynamic> r){
+    for(final sex in ['Male','Female']){
+      final label=sex=='Male'?'mâles':'femelles';
+      final born=n(r['live${sex}Birth']);
+      final dead=n(r['dead${sex}Birth']);
+      final loss=n(r['dead${sex}Weaning']);
+      if(born<0||dead<0||loss<0)return 'Les nombres doivent être positifs ou nuls.';
+      if(dead>born)return 'Les $label morts à la naissance dépassent les $label nés.';
+      if(loss>born-dead)return 'Les décès de $label avant le sevrage dépassent les survivants à la naissance.';
+      if(loss>0&&(r['weaningDate']??'').toString().isEmpty)return 'Renseignez la date de sevrage pour enregistrer ces décès.';
+    }
+    return null;
+  }
+
   static Map<String,double> sexProfile(Iterable<Map<String,dynamic>> records){
-    final sums=aggregate(records);
-    final male=n(sums['liveMaleBirth'])+n(sums['deadMaleBirth']);
-    final female=n(sums['liveFemaleBirth'])+n(sums['deadFemaleBirth']);
+    final sums=totals(aggregate(records));
+    final male=n(sums['maleTotal']);
+    final female=n(sums['femaleTotal']);
     final total=male+female;
     if(total==0)return {'male':0,'female':0,'balance':0};
     final malePct=male*100/total;
@@ -3160,7 +3190,7 @@ class _HomePageState extends State<HomePage>{
       final hit=selected.first;
       final colorCount=ReproductionStore.n(hit['male'])+ReproductionStore.n(hit['female']);
       if(colorCount<=0)continue;
-      final total=entry.value.fold<int>(0,(sum,b)=>sum+ReproductionStore.n(ReproductionStore.totals(b)['born']));
+      final total=entry.value.fold<int>(0,(sum,b)=>sum+ReproductionStore.n(ReproductionStore.totals(b)['liveBirth']));
       if(total<=0)continue;
       out.add({
         'maleId':maleId,
@@ -6325,11 +6355,8 @@ class _RabbitPageState extends State<RabbitPage>{
 
   Widget _reproductionProfile(List<Map<String,dynamic>> records){
     final p=ReproductionStore.sexProfile(records);
-    final sums=ReproductionStore.aggregate(records);
-    final sexed=ReproductionStore.n(sums['liveMaleBirth'])+
-        ReproductionStore.n(sums['deadMaleBirth'])+
-        ReproductionStore.n(sums['liveFemaleBirth'])+
-        ReproductionStore.n(sums['deadFemaleBirth']);
+    final sums=ReproductionStore.totals(ReproductionStore.aggregate(records));
+    final sexed=ReproductionStore.n(sums['liveBirth']);
     if(sexed==0){
       return Container(
         padding:const EdgeInsets.all(12),
@@ -6384,14 +6411,15 @@ class _RabbitPageState extends State<RabbitPage>{
   }
 
   Widget _breedingChart(Map<String,dynamic> data,{bool cumulative=false}){
-    final liveMale=ReproductionStore.n(data['liveMaleBirth']);
-    final liveFemale=ReproductionStore.n(data['liveFemaleBirth']);
-    final deadMale=ReproductionStore.n(data['deadMaleBirth']);
-    final deadFemale=ReproductionStore.n(data['deadFemaleBirth']);
-    final weanedMale=ReproductionStore.n(data['liveMaleWeaning']);
-    final weanedFemale=ReproductionStore.n(data['liveFemaleWeaning']);
-    final lossMale=liveMale>weanedMale?liveMale-weanedMale:0;
-    final lossFemale=liveFemale>weanedFemale?liveFemale-weanedFemale:0;
+    final t=ReproductionStore.totals(data);
+    final liveMale=t['liveMale']??0;
+    final liveFemale=t['liveFemale']??0;
+    final deadMale=t['deadMale']??0;
+    final deadFemale=t['deadFemale']??0;
+    final weanedMale=t['weanedMale']??0;
+    final weanedFemale=t['weanedFemale']??0;
+    final lossMale=t['lossMale']??0;
+    final lossFemale=t['lossFemale']??0;
     final values=[liveMale+liveFemale,deadMale+deadFemale,weanedMale+weanedFemale,lossMale+lossFemale];
     final maxValue=values.fold<int>(1,(m,v)=>v>m?v:m);
     return Container(
@@ -8233,6 +8261,9 @@ class _BreedingDialogState extends State<BreedingDialog>{
     d=Map<String,dynamic>.from(widget.record);
     currentIsMale=widget.currentRabbit['sex']=='Mâle';
     for(final k in ['liveMaleBirth','liveFemaleBirth','deadMaleBirth','deadFemaleBirth','liveMaleWeaning','liveFemaleWeaning']){d[k]=ReproductionStore.n(d[k]);}
+    final counts=ReproductionStore.totals(d);
+    d.putIfAbsent('deadMaleWeaning',()=>counts['lossMale']??0);
+    d.putIfAbsent('deadFemaleWeaning',()=>counts['lossFemale']??0);
     d['colors']=ReproductionStore.colorsOf(d);
   }
 
@@ -8346,7 +8377,15 @@ class _BreedingDialogState extends State<BreedingDialog>{
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Choisissez la date de saillie et le partenaire.')));
             return;
           }
+          final error=ReproductionStore.countError(d);
+          if(error!=null){
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(error)));
+            return;
+          }
           if(!validateColors())return;
+          final counts=ReproductionStore.totals(d);
+          d['liveMaleWeaning']=counts['weanedMale'];
+          d['liveFemaleWeaning']=counts['weanedFemale'];
           if(currentIsMale){d['maleId']=widget.currentRabbit['id'];}else{d['femaleId']=widget.currentRabbit['id'];}
           widget.onSave(d);
         },child:const Text('ENREGISTRER',style:TextStyle(color:warmGoldText,fontWeight:FontWeight.w700)))],
@@ -8368,13 +8407,13 @@ class _BreedingDialogState extends State<BreedingDialog>{
         const SizedBox(height:22),
         const Text('À la naissance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
         const SizedBox(height:10),
-        countField('Mâles vivants','liveMaleBirth'),
+        countField('Mâles nés (avant déduction des décès)','liveMaleBirth'),
         const SizedBox(height:10),
-        countField('Femelles vivantes','liveFemaleBirth'),
+        countField('Femelles nées (avant déduction des décès)','liveFemaleBirth'),
         const SizedBox(height:10),
-        countField('Mâles morts','deadMaleBirth'),
+        countField('Mâles morts à la naissance','deadMaleBirth'),
         const SizedBox(height:10),
-        countField('Femelles mortes','deadFemaleBirth'),
+        countField('Femelles mortes à la naissance','deadFemaleBirth'),
         const SizedBox(height:22),
         PremiumCard(child:Padding(
           padding:const EdgeInsets.all(12),
@@ -8420,12 +8459,13 @@ class _BreedingDialogState extends State<BreedingDialog>{
           ]),
         )),
         const SizedBox(height:22),
+        const Text('Ne comptez ici que les nouveaux décès, sans reprendre les morts à la naissance.'),
         const Text('Au sevrage',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
         dateField('Date de sevrage','weaningDate'),
         const SizedBox(height:10),
-        countField('Mâles vivants au sevrage','liveMaleWeaning'),
+        countField('Mâles morts entre naissance et sevrage','deadMaleWeaning'),
         const SizedBox(height:10),
-        countField('Femelles vivantes au sevrage','liveFemaleWeaning'),
+        countField('Femelles mortes entre naissance et sevrage','deadFemaleWeaning'),
         const SizedBox(height:20),
         Builder(builder:(_){
           final t=ReproductionStore.totals(d);
@@ -8436,7 +8476,8 @@ class _BreedingDialogState extends State<BreedingDialog>{
             Text('Vivants à la naissance : ${t['liveBirth']}'),
             Text('Morts à la naissance : ${t['deadBirth']}'),
             Text('Mâles : ${t['maleTotal']} • Femelles : ${t['femaleTotal']}'),
-            Text('Vivants au sevrage : ${t['weaned']}'),
+            Text('Décès entre naissance et sevrage : ${t['lossWeaning']}'),
+            Text((d['weaningDate']??'').toString().isEmpty?'Sevrage non renseigné':'Vivants au sevrage : ${t['weaned']} (♂ ${t['weanedMale']} • ♀ ${t['weanedFemale']})'),
           ])));
         }),
       ])),
