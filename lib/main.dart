@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart' as m;
 import 'package:flutter/rendering.dart';
@@ -7974,7 +7975,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
           padding:const EdgeInsets.all(12),
           decoration:BoxDecoration(color:gold.withValues(alpha:.10),borderRadius:BorderRadius.circular(14),border:Border.all(color:gold)),
           child:const Text(
-            'À recopier à la main : « Je m’engage expressément à respecter, durant toute sa vie, les besoins physiologiques, comportementaux et médicaux de mon lapin. »',
+            'À recopier à la main : « Je m’engage expressément à respecter durant toute sa vie les besoins physiologiques, comportementaux et médicaux de mon lapin. »',
             style:TextStyle(fontWeight:FontWeight.w700,color:brown,height:1.35),
           ),
         ),
@@ -7988,7 +7989,7 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
               const Expanded(child:Text('Une mention manuscrite est déjà enregistrée. Dessinez ci-dessous uniquement pour la remplacer.',style:TextStyle(fontSize:12,color:Colors.black54))),
             ]),
           ),
-        HandwritingPad(key:mentionKey,height:150,label:'Recopiez ici la mention avec le doigt ou un stylet'),
+        HandwritingPad(key:mentionKey,height:450,label:'Recopiez ici la mention avec le doigt ou un stylet'),
 
         const SizedBox(height:18),
         TextFormField(initialValue:d['engagementPlace']??'',decoration:const InputDecoration(labelText:'Fait à'),onChanged:(v)=>d['engagementPlace']=v),
@@ -8028,19 +8029,36 @@ class HandwritingPad extends StatefulWidget{
   @override State<HandwritingPad> createState()=>HandwritingPadState();
 }
 
-class HandwritingPadState extends State<HandwritingPad>{
+class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveClientMixin{
   final boundaryKey=GlobalKey();
   final strokes=<List<Offset>>[];
+  int? activePointer;
+  List<Offset>? activeStroke;
 
-  bool get hasInk=>strokes.any((s)=>s.length>1);
+  @override bool get wantKeepAlive=>true;
+  bool get hasInk=>strokes.any((s)=>s.isNotEmpty);
 
-  void start(DragStartDetails d)=>setState(()=>strokes.add([d.localPosition]));
-  void update(DragUpdateDetails d){
-    if(strokes.isEmpty)return;
-    setState(()=>strokes.last.add(d.localPosition));
+  void start(PointerDownEvent event){
+    if(activePointer!=null)return;
+    activePointer=event.pointer;
+    activeStroke=[event.localPosition];
+    setState(()=>strokes.add(activeStroke!));
+  }
+  void update(PointerMoveEvent event){
+    if(event.pointer!=activePointer||activeStroke==null)return;
+    final box=boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    if(box==null)return;
+    final point=Offset(event.localPosition.dx.clamp(0.0,box.size.width),
+        event.localPosition.dy.clamp(0.0,box.size.height));
+    setState(()=>activeStroke!.add(point));
+  }
+  void end(PointerEvent event){
+    if(event.pointer!=activePointer)return;
+    activePointer=null;
+    activeStroke=null;
   }
 
-  void clear()=>setState(()=>strokes.clear());
+  void clear()=>setState((){strokes.clear();activePointer=null;activeStroke=null;});
 
   Future<Uint8List?> exportPng()async{
     final boundary=boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -8050,14 +8068,28 @@ class HandwritingPadState extends State<HandwritingPad>{
     return data?.buffer.asUint8List();
   }
 
-  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+  @override Widget build(BuildContext context){
+    super.build(context);
+    return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     Row(children:[
       Expanded(child:Text(widget.label,style:const TextStyle(fontSize:11,color:Colors.black54))),
       TextButton.icon(onPressed:clear,icon:const Icon(Icons.refresh,size:17),label:const Text('Effacer')),
     ]),
-    GestureDetector(
-      onPanStart:start,
-      onPanUpdate:update,
+    // Claim writing gestures immediately so vertical pen strokes do not scroll
+    // the certificate. The surrounding page remains vertically scrollable.
+    RawGestureDetector(
+      behavior:HitTestBehavior.opaque,
+      gestures:<Type,GestureRecognizerFactory>{
+        EagerGestureRecognizer:GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+          EagerGestureRecognizer.new,(instance){},
+        ),
+      },
+      child:Listener(
+        behavior:HitTestBehavior.opaque,
+        onPointerDown:start,
+        onPointerMove:update,
+        onPointerUp:end,
+        onPointerCancel:end,
       child:RepaintBoundary(
         key:boundaryKey,
         child:Container(
@@ -8074,8 +8106,10 @@ class HandwritingPadState extends State<HandwritingPad>{
           ),
         ),
       ),
+      ),
     ),
   ]);
+  }
 }
 
 class HandwritingPainter extends CustomPainter{
@@ -8090,7 +8124,11 @@ class HandwritingPainter extends CustomPainter{
       ..strokeJoin=StrokeJoin.round
       ..style=PaintingStyle.stroke;
     for(final stroke in strokes){
-      if(stroke.length<2)continue;
+      if(stroke.isEmpty)continue;
+      if(stroke.length==1){
+        canvas.drawCircle(stroke.first,1.1,Paint()..color=ink);
+        continue;
+      }
       final path=Path()..moveTo(stroke.first.dx,stroke.first.dy);
       for(final p in stroke.skip(1))path.lineTo(p.dx,p.dy);
       canvas.drawPath(path,paint);

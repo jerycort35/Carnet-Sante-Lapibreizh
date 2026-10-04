@@ -1,12 +1,21 @@
-# LapiGestion V3.1.39
+# Correctif ciblé V3.1.40
 
-- Nés = mâles nés + femelles nées, sans ajouter les morts.
-- Vivants à la naissance = nés − morts à la naissance, par sexe.
-- Vivants au sevrage = survivants à la naissance − décès supplémentaires jusqu’au sevrage, par sexe.
-- Les décès sont saisis dans deux rubriques distinctes. Les champs de vivants au sevrage deviennent des résultats calculés automatiquement.
-- Validation : aucun décès négatif, aucun décès supérieur aux effectifs du même sexe ; date de sevrage obligatoire pour enregistrer ses décès.
-- Bilans, PDF, graphiques individuels/cumulés et profil par sexe utilisent les résultats corrigés. Les couleurs portent sur les survivants à la naissance.
-- Sans date de sevrage, aucun décès avant sevrage n’est inventé. Les totaux cumulés calculent chaque portée séparément avant addition.
-- Les données anciennes sont conservées ; voir INSTALLATION.txt pour leur interprétation et la vérification des anciennes saisies.
+## Périmètre vérifié
 
-Validation : 24 tests Flutter réussis, dont 6 tests du calcul des portées et les 18 tests précédents (documents multipages, sauvegardes et interface). Analyse : aucune erreur, 26 diagnostics préexistants. Aucun APK Android construit ; vérification sur téléphone après génération par ton workflow.
+Import des événements gestuels ; taille verticale et consigne de la mention ; classe HandwritingPadState et son peintre. Aucune modification aux autres écrans, aux calculs des portées, aux documents, à la sauvegarde/restauration ou au générateur PDF. Le numéro de version passe de +39 à +40.
+
+Chaque appui ouvre un nouveau tracé. Les mouvements complètent ce tracé ; lever ou annuler le pointeur le termine sans verrouiller la zone. La zone reçoit immédiatement les gestes d’écriture, dont les traits verticaux. Les marges et le reste de la page permettent toujours le défilement. Chaque cadre conserve son état quand il sort du champ visible. Les points isolés restent visibles. Effacer concerne uniquement le cadre choisi.
+
+Mention : 150 → 450 pixels de hauteur (×3). Largeur et paddings inchangés. Signature : hauteur conservée à 130 pixels. Les éléments suivants descendent dans la liste verticale existante.
+
+## Tests effectués
+
+26 tests Flutter réussis : les 24 tests précédents et deux parcours complets du certificat, l’un avec événements touch, l’autre avec événements stylus. Les parcours manuscrits finaux ont également été rejoués après amélioration du texte de démonstration.
+
+Dans chaque parcours : plusieurs mots simulés sur plusieurs lignes ; 28 tracés avec levées successives, puis un 29e après retour ; défilement dans la marge jusqu’à la signature ; 10 tracés dans la signature ; conservation exacte des tracés initiaux ; retour et complément de la mention ; indépendance des cadres ; effacement ciblé ; absence de déplacement de la page pendant l’écriture ; contrôle des dimensions et de la séparation verticale ; accès au bouton final ; export PNG avec encre visible, y compris pour le cadre hors écran ; aucune exception Flutter.
+
+Captures issues du véritable écran Flutter, avec écriture de démonstration. Analyse statique : aucune erreur, 26 diagnostics préexistants. Le diff joint et les assertions de périmètre vérifient l’absence de modification hors correctif.
+
+## Limite matérielle
+
+Les événements doigt et stylet sont simulés par Flutter Test. Aucun appareil physique ni stylet matériel disponible ; le test matériel sur téléphone et la génération APK restent à réaliser après installation. Le générateur PDF existant est conservé ; la disponibilité des deux images à exporter a été testée.

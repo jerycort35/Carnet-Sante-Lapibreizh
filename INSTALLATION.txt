@@ -1,7 +1,9 @@
-LapiGestion V3.1.37 — version Flutter 1.0.0+37
+LapiGestion V3.1.40 — Flutter 1.0.0+40
 
-Extrais tous les dossiers du ZIP à la racine de ton dépôt local, en remplaçant les fichiers existants. Ajoute les nouveaux fichiers d’images et conserve lib/premium_ui.dart. Ne crée pas de dossier lib (1) ou assets (1).
-Fais toi-même le commit avec MESSAGE_COMMIT.txt puis le push. Le workflow Android existant doit fabriquer l’APK signé. Installe cet APK par-dessus l’application actuelle pour conserver tes données.
-Aucune écriture GitHub, aucun fichier Android ou workflow modifié. La signature existante doit être conservée.
+Remplace les fichiers correspondants de ton dépôt local par ceux de ce ZIP. Fais toi-même le commit et le push avec le message de MESSAGE_COMMIT.txt. Génère ensuite l’APK via ton workflow Android habituel, puis installe-le par-dessus l’application actuelle avec la même signature. Fais une sauvegarde préalable et ne désinstalle pas l’application.
 
-Les captures dans VALIDATION sont celles de cette version, obtenues réellement dans Flutter, sans téléphone ajouté. La photo de test est vide et les données sont fictives.
+Ce correctif porte uniquement sur les deux zones manuscrites du certificat : tracés successifs, indépendance, conservation pendant le défilement et mention de 450 pixels de hauteur au lieu de 150. Largeur identique, signature toujours à 130 pixels. Défile dans les marges ou hors des surfaces blanches ; les gestes dans les surfaces blanches servent à écrire.
+
+Les autres fonctionnalités sont celles de V3.1.39, notamment les documents multipages et la correction des décès des portées. Aucune écriture GitHub ni compilation APK effectuée ici.
+
+Tests réels d’interface Flutter avec événements tactiles et stylet simulés ; aucun téléphone physique connecté. Il reste à vérifier l’usage réel au doigt et au stylet sur ton appareil après installation.
