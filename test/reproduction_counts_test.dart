@@ -8,6 +8,24 @@ void main(){
     'weaningDate':'04/10/2026',
     'deadMaleWeaning':1,'deadFemaleWeaning':1,
   };
+  test('Screenshot: colors of six remaining males and four females are valid',(){
+    final r={'liveMaleBirth':8,'liveFemaleBirth':4,'deadMaleBirth':1,'deadFemaleBirth':0,
+      'deadMaleWeaning':1,'deadFemaleWeaning':0,'weaningDate':'02/07/2026',
+      'colors':[{'color':'Noir','male':4,'female':4},{'color':'Noir uni','male':2,'female':0}]};
+    expect(ReproductionStore.colorCountBasis(r),'remaining');
+    expect(ReproductionStore.totals(r)['remaining'],10);
+    r['colors']=[{'color':'Noir','male':5,'female':4},{'color':'Noir uni','male':2,'female':0}];
+    expect(ReproductionStore.colorCountBasis(r),'birth');
+    r['colors']=[{'color':'Noir','male':5,'female':4}];
+    expect(ReproductionStore.colorCountBasis(r),isNull);
+  });
+  test('Color distributions must match both sexes at the same stage',(){
+    final r=record()..['colors']=[{'color':'Noir','male':4,'female':3}];
+    expect(ReproductionStore.colorCountBasis(r),isNull);
+    r['colors']=[{'color':'Noir','male':3,'female':3}];
+    expect(ReproductionStore.colorCountBasis(r),'remaining');
+    r['colors']=[];expect(ReproductionStore.colorCountBasis(r),'none');
+  });
   test('Deaths subtract once from the initial eleven births',(){
     final t=ReproductionStore.totals(record());
     expect(t['born'],11);expect(t['liveBirth'],8);

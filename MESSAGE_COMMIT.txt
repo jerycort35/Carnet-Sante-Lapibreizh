@@ -1,1 +1,1 @@
-Améliorer la précision manuscrite avec zoom et priorité stylet - LapiGestion V3.1.44
+Corriger la validation des couleurs après décès au sevrage - LapiGestion V3.1.45

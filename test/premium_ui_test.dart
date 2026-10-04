@@ -325,6 +325,28 @@ void main() {
     expect(tester.takeException(),isNull);
   });
 
+  for(final historical in [false,true]){
+    testWidgets('Couleurs : capture utilisateur et historique enregistrables $historical',(tester)async{
+      final male=emptyRabbit()..addAll({'id':'m','sex':'Mâle','name':'Pitchoune'});
+      final female=emptyRabbit()..addAll({'id':'f','sex':'Femelle','name':'Femelle'});
+      final colors=[{'color':'Noir','male':historical?5:4,'female':4},{'color':'Noir uni','male':2,'female':0}];
+      final record=<String,dynamic>{'maleId':'m','femaleId':'f','matingDate':'01/05/2026',
+        'birthDate':'01/06/2026','weaningDate':'02/07/2026','liveMaleBirth':8,'liveFemaleBirth':4,
+        'deadMaleBirth':1,'deadFemaleBirth':0,'deadMaleWeaning':1,'deadFemaleWeaning':0,'colors':colors};
+      Map<String,dynamic>? saved;
+      await begin(tester,BreedingDialog(currentRabbit:female,allRabbits:[male,female],record:record,onSave:(v)async{saved=v;}));
+      await tester.scrollUntilVisible(find.text('Total couleurs : ♂ ${historical?7:6}   •   ♀ 4   •   ${historical?11:10} lapereau(x)'),200,scrollable:find.byType(Scrollable).first);
+      await tester.ensureVisible(find.text('Total couleurs : ♂ ${historical?7:6}   •   ♀ 4   •   ${historical?11:10} lapereau(x)'));await tester.pumpAndSettle();
+      await capture(tester,historical?'couleurs_naissance':'couleurs_restants');
+      await tester.tap(find.text('ENREGISTRER'));await tester.pumpAndSettle();
+      expect(saved,isNotNull);expect(saved!['colors'],colors);
+      expect(saved!['colorsCountBasis'],historical?'birth':'remaining');
+      expect(ReproductionStore.totals(saved!)['remaining'],10);
+      expect(find.textContaining('Vérifiez les couleurs'),findsNothing);
+      expect(tester.takeException(),isNull);
+    });
+  }
+
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 1.3]) {
       testWidgets('Accueil et identité sans débordement : $width / $scale',

@@ -1,9 +1,9 @@
-LapiGestion V3.1.44 — Flutter 1.0.0+44
+LapiGestion V3.1.45 — Flutter 1.0.0+45
 
-ZIP unique du code source, contenant également les correctifs précédents : documents multipages, décès au sevrage et dorures. Remplacer les fichiers correspondants dans ton dépôt local, puis compiler l’APK avec ton workflow habituel. Aucun APK construit ici, aucun changement effectué sur GitHub. Installer avec la même signature, sans désinstaller ; sauvegarder les données au préalable.
+Archive source unique cumulative : précision manuscrite et zoom, documents multipages, dorures, calcul des décès et correction du blocage des couleurs. Remplacer les fichiers correspondants dans ton dépôt local, puis compiler l’APK avec ton workflow habituel. Message de commit inclus. Aucun changement GitHub ni APK construit ici.
 
-Mention manuscrite et signature : bouton Agrandir pour écrire (flèches diagonales), éditeur plein écran avec zoom initial 2×, réglable entre 1× et 4×. Pour poursuivre sur d’autres lignes, toucher Écrire pour activer Déplacer, faire glisser la feuille, puis toucher Déplacer pour revenir à Écrire. Valider reporte les tracés dans le cadre d’origine ; fermer avec la croix annule les modifications de l’éditeur. Les dimensions du certificat restent identiques. Annuler le dernier trait est indépendant pour chaque cadre ; Effacer reste disponible.
+Le cas fourni (8 mâles nés, 4 femelles nées, 1 mâle mort à la naissance et 1 mâle mort au sevrage) donne 6 mâles et 4 femelles restants. Les couleurs Noir : 4 mâles/4 femelles et Noir uni : 2 mâles/0 femelle sont désormais enregistrables.
 
-Le stylet prend priorité lorsqu’une paume touche avant lui pendant un tracé. Les tracés terminés sont conservés. Le rendu réutilise les courbes terminées pour limiter le travail pendant une longue phrase. Les coordonnées originales, les points finaux, la sauvegarde et l’export sont conservés.
+Les couleurs doivent représenter une répartition complète par sexe des vivants restants OU une répartition complète des vivants à la naissance pour conserver l’historique existant. Le stade reconnu est affiché et mémorisé. Les deux sexes doivent correspondre au même stade ; les totaux incohérents restent refusés. Aucune couleur ni décès modifié automatiquement. Les décès restent déduits une seule fois.
 
-Tests Flutter automatisés : 37 tests réussis, dont simulations au doigt et au stylet. Aucun essai sur téléphone ou stylet physique : le ressenti sur ton appareil reste à vérifier après installation. Les capteurs du téléphone ne peuvent pas être améliorés par ce correctif.
+Installation avec la même signature, sans désinstaller ; sauvegarder tes données avant mise à jour.

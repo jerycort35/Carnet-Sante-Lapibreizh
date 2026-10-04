@@ -1713,6 +1713,17 @@ class ReproductionStore {
     return {'male':male,'female':female,'total':male+female};
   }
 
+  // Accept a complete sex-specific distribution at one identifiable stage.
+  // Never mix male birth counts with female remaining counts, or guess colors.
+  static String? colorCountBasis(Map<String,dynamic> r){
+    final colors=colorSexTotals(colorsOf(r));
+    if(colors['total']==0)return 'none';
+    final t=totals(r);
+    if(colors['male']==t['remainingMale']&&colors['female']==t['remainingFemale'])return 'remaining';
+    if(colors['male']==t['liveMale']&&colors['female']==t['liveFemale'])return 'birth';
+    return null;
+  }
+
   static int n(dynamic value)=>value is int?value:int.tryParse('$value')??0;
 
   // Birth inputs are counts born BEFORE deaths. Each death is deducted once.
@@ -8495,9 +8506,9 @@ class _BreedingDialogState extends State<BreedingDialog>{
     final colors=ReproductionStore.colorSexTotals(colorEntries);
     if(colors['total']==0)return true;
     final totals=ReproductionStore.totals(d);
-    if(colors['male']!=totals['liveMale']||colors['female']!=totals['liveFemale']){
+    if(ReproductionStore.colorCountBasis(d)==null){
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
-        'Vérifiez les couleurs : ${colors['male']} mâle(s) / ${colors['female']} femelle(s) saisis, mais la portée contient ${totals['liveMale']} mâle(s) / ${totals['liveFemale']} femelle(s) vivants à la naissance.',
+        'Vérifiez les couleurs : ${colors['male']} mâle(s) / ${colors['female']} femelle(s) saisis, attendus pour les vivants restants : ${totals['remainingMale']} mâle(s) / ${totals['remainingFemale']} femelle(s). Pour conserver les couleurs à la naissance : ${totals['liveMale']} mâle(s) / ${totals['liveFemale']} femelle(s).',
       )));
       return false;
     }
@@ -8540,6 +8551,7 @@ class _BreedingDialogState extends State<BreedingDialog>{
             return;
           }
           if(!validateColors())return;
+          d['colorsCountBasis']=ReproductionStore.colorCountBasis(d);
           final counts=ReproductionStore.totals(d);
           d['liveMaleWeaning']=counts['weanedMale'];
           d['liveFemaleWeaning']=counts['weanedFemale'];
@@ -8595,13 +8607,13 @@ class _BreedingDialogState extends State<BreedingDialog>{
               return Container(
                 margin:const EdgeInsets.only(bottom:7),
                 decoration:BoxDecoration(color:gold.withValues(alpha:.08),borderRadius:BorderRadius.circular(12),border:Border.all(color:gold.withValues(alpha:.42))),
-                child:ListTile(
+                child:Material(color:Colors.transparent,child:ListTile(
                   dense:true,
                   onTap:()=>editColor(i),
                   title:Text((item['color']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
                   subtitle:Text('♂ ${ReproductionStore.n(item['male'])}   •   ♀ ${ReproductionStore.n(item['female'])}   •   total ${ReproductionStore.n(item['male'])+ReproductionStore.n(item['female'])}'),
                   trailing:IconButton(tooltip:'Supprimer cette couleur',onPressed:()=>deleteColor(i),icon:const Icon(Icons.close,color:Colors.red,size:21)),
-                ),
+                )),
               );
             }),
             const SizedBox(height:4),
@@ -8610,7 +8622,13 @@ class _BreedingDialogState extends State<BreedingDialog>{
               const SizedBox(height:8),
               Builder(builder:(_){
                 final ct=ReproductionStore.colorSexTotals(colorEntries);
-                return Text('Total couleurs : ♂ ${ct['male']}   •   ♀ ${ct['female']}   •   ${ct['total']} lapereau(x)',style:const TextStyle(fontWeight:FontWeight.w800,color:brown));
+                final basis=ReproductionStore.colorCountBasis(d);
+                final stage=basis=='remaining'?'Vivants restants':basis=='birth'?'Vivants à la naissance':'Répartition à vérifier';
+                return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text('Total couleurs : ♂ ${ct['male']}   •   ♀ ${ct['female']}   •   ${ct['total']} lapereau(x)',style:const TextStyle(fontWeight:FontWeight.w800,color:brown)),
+                  Text(stage,style:const TextStyle(color:brown)),
+                  const Text('Renseignez les couleurs des vivants restants, ou conservez la répartition complète à la naissance.',style:TextStyle(fontSize:11,color:Colors.black54)),
+                ]);
               }),
             ],
           ]),

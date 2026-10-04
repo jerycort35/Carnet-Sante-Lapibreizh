@@ -1,9 +1,9 @@
-# Validation V3.1.44
+# Correctif V3.1.45
 
-Correction limitée aux surfaces manuscrites : zoom plein écran, mode déplacement distinct du dessin, annulation du dernier trait, priorité stylet sur contact tactile en cours et cache de courbes terminées. Pas de filtrage destructif des coordonnées ni de seuil supprimant les petits mouvements. Zoom inverse correctement appliqué grâce à globalToLocal ; à 2×, un déplacement de 100×60 pixels correspond à 50×30 dans l’encre originale. Largeur des cadres et hauteurs 450/130 préservées ; export PNG existant conservé.
+Cause identifiée dans validateColors : comparaison exclusive avec liveMale/liveFemale (survivants à la naissance) alors que le bilan restant et les couleurs saisis après le sevrage correspondaient à remainingMale/remainingFemale. La capture montre 6/4 correctement saisis et un contrôle attendant à tort 7/4 pour ce stade.
 
-37 tests Flutter réussis : tracés successifs, 600 positions subpixel, points finaux, mention/signature indépendantes, défilement, export PNG, zoom tactile/stylet, déplacement sans encre, validation et annulation de l’éditeur, paume avant stylet, conservation de l’encre terminée et annulation locale. Contrôles précédents documents, reproduction et interface réussis. Captures de vrais widgets Flutter simulés, inspectées visuellement. Analyse : aucune erreur, 25 diagnostics préexistants.
+Correction ciblée : validation d’une paire complète mâles/femelles correspondant aux survivants restants ou à l’historique naissance. Aucun mélange des deux stades accepté. Aucune redistribution automatique des couleurs. Étiquette du stade sous le total des couleurs et colorsCountBasis enregistré pour identifier la répartition. Calculs de survivants et fonctionnalités manuscrites inchangés.
 
-Limite : événements tactiles et stylet simulés ; aucun matériel physique connecté. L’amélioration du ressenti sur l’appareil de l’utilisateur ne peut pas être certifiée ici. Le zoom permet des gestes plus amples sans changer les dimensions finales. Il ne modifie pas la fréquence ni la qualité du capteur matériel.
+Tests : scénario exact fourni avec deux couleurs, décès naissance et sevrage, enregistrement réel du formulaire, maintien exact des couleurs et des 10 survivants ; historique naissance enregistrable ; rejet des totaux incomplets et des paires mélangeant les stades. Tests précédents calculs reproduction et interface également exécutés. Voir tests_v45.txt. Analyse sans erreur ; diagnostics préexistants dans analyze_v45.txt. Captures Flutter du formulaire inspectées. Aucun appareil physique connecté.
 
-Dorures premium_ui.dart inchangées, aucun changement de logique reproduction, documents ou autres fonctionnalités. Archive simple ZIP_STORED DOS, extraite et comparée octet par octet.
+ZIP_STORED DOS extrait et comparé octet par octet. Aucun APK construit ici.
