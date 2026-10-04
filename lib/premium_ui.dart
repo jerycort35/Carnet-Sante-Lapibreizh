@@ -82,10 +82,24 @@ class PremiumGoldFramePainter extends CustomPainter {
       final height=size.height.clamp(0.0,48.0).toDouble();
       final left=(height*.62).clamp(0.0,size.width*.3).toDouble();
       final right=(height*.25).clamp(0.0,size.width*.2).toDouble();
-      canvas.drawImageRect(image,Rect.fromLTRB(art.left,art.top,w*.235,art.bottom),
-        Rect.fromLTWH(0,0,left,height),paint);
-      canvas.drawImageRect(image,Rect.fromLTRB(w*.88,art.top,art.right,art.bottom),
-        Rect.fromLTWH(size.width-right,0,right,height),paint);
+      final leftSource=Rect.fromLTRB(art.left,art.top,w*.235,art.bottom);
+      final rightSource=Rect.fromLTRB(w*.88,art.top,art.right,art.bottom);
+      if(kind==LapiFrameKind.field && size.height>height){
+        // Use complete corner flourishes for tall fields; slicing through a
+        // button's leaves would create visible, abruptly cut ornaments.
+        final card=LapiFrameAssets.instance.images['lapi_frame_card_alpha.png'];
+        if(card!=null){
+          final cw=card.width.toDouble(),ch=card.height.toDouble();
+          final factor=left/155;
+          canvas.drawImageRect(card,Rect.fromLTRB(cw*.674,0,cw,ch*.395),
+            Rect.fromLTWH(size.width-128*factor,0,128*factor,75*factor),paint);
+          canvas.drawImageRect(card,Rect.fromLTRB(0,ch*.368,cw*.394,ch),
+            Rect.fromLTWH(0,size.height-120*factor,155*factor,120*factor),paint);
+        }
+      }else{
+        canvas.drawImageRect(image,leftSource,Rect.fromLTWH(0,0,left,height),paint);
+        canvas.drawImageRect(image,rightSource,Rect.fromLTWH(size.width-right,0,right,height),paint);
+      }
     } else {
       final factor=(size.height/190).clamp(0.0,.34).toDouble();
       canvas.drawImageRect(image,Rect.fromLTRB(w*.674,0,w,h*.395),

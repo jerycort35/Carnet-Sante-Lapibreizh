@@ -1,21 +1,11 @@
-# Correctif ciblé V3.1.40
+# V3.1.42 — Dorures des champs hauts
 
-## Périmètre vérifié
+Cause : les ornements issus du cadre de bouton étaient dessinés sur une hauteur plafonnée à 48 pixels, depuis le haut du champ. Le bas du décor se retrouvait au milieu d’un champ de plusieurs lignes.
 
-Import des événements gestuels ; taille verticale et consigne de la mention ; classe HandwritingPadState et son peintre. Aucune modification aux autres écrans, aux calculs des portées, aux documents, à la sauvegarde/restauration ou au générateur PDF. Le numéro de version passe de +39 à +40.
+Correction : pour les champs dépassant 48 pixels, des ornements complets de cadre sont positionnés aux vrais coins supérieur droit et inférieur gauche, sans couper ou étirer les feuilles. La bordure verticale existante assure la continuité. Le dessin des boutons et des champs plus petits conserve son comportement précédent.
 
-Chaque appui ouvre un nouveau tracé. Les mouvements complètent ce tracé ; lever ou annuler le pointeur le termine sans verrouiller la zone. La zone reçoit immédiatement les gestes d’écriture, dont les traits verticaux. Les marges et le reste de la page permettent toujours le défilement. Chaque cadre conserve son état quand il sort du champ visible. Les points isolés restent visibles. Effacer concerne uniquement le cadre choisi.
+Code fonctionnel main.dart identique à V3.1.41, vérifié par comparaison binaire au ZIP livré. Modification uniquement du peintre décoratif partagé, du numéro de version et d’un test d’interface.
 
-Mention : 150 → 450 pixels de hauteur (×3). Largeur et paddings inchangés. Signature : hauteur conservée à 130 pixels. Les éléments suivants descendent dans la liste verticale existante.
+Validation : 15 tests d’interface Flutter réussis, dont un nouveau parcours des notes d’adoption. Champ vide de trois lignes puis sept lignes : hauteur augmente, largeur identique, contenu enregistré inchangé, aucune exception. Les tests préexistants contrôlent la saisie, navigation et absence de débordements sur plusieurs largeurs et tailles de texte. Deux captures réelles jointes.
 
-## Tests effectués
-
-26 tests Flutter réussis : les 24 tests précédents et deux parcours complets du certificat, l’un avec événements touch, l’autre avec événements stylus. Les parcours manuscrits finaux ont également été rejoués après amélioration du texte de démonstration.
-
-Dans chaque parcours : plusieurs mots simulés sur plusieurs lignes ; 28 tracés avec levées successives, puis un 29e après retour ; défilement dans la marge jusqu’à la signature ; 10 tracés dans la signature ; conservation exacte des tracés initiaux ; retour et complément de la mention ; indépendance des cadres ; effacement ciblé ; absence de déplacement de la page pendant l’écriture ; contrôle des dimensions et de la séparation verticale ; accès au bouton final ; export PNG avec encre visible, y compris pour le cadre hors écran ; aucune exception Flutter.
-
-Captures issues du véritable écran Flutter, avec écriture de démonstration. Analyse statique : aucune erreur, 26 diagnostics préexistants. Le diff joint et les assertions de périmètre vérifient l’absence de modification hors correctif.
-
-## Limite matérielle
-
-Les événements doigt et stylet sont simulés par Flutter Test. Aucun appareil physique ni stylet matériel disponible ; le test matériel sur téléphone et la génération APK restent à réaliser après installation. Le générateur PDF existant est conservé ; la disponibilité des deux images à exporter a été testée.
+Analyse statique sans erreur ; diagnostics préexistants indiqués dans analyze_v42.txt. Aucun test physique sur téléphone et aucun APK construit.

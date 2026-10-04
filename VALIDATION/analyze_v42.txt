@@ -1,0 +1,29 @@
+Analyzing project...                                            
+
+warning • Unnecessary cast. Try removing the cast • lib/main.dart:555:20 • unnecessary_cast
+warning • Unnecessary cast. Try removing the cast • lib/main.dart:562:28 • unnecessary_cast
+   info • Statements in a while should be enclosed in a block. Try wrapping the statement in a block • lib/main.dart:2992:40 • curly_braces_in_flow_control_structures
+warning • The declaration '_dashStat' isn't referenced. Try removing the declaration of '_dashStat' • lib/main.dart:3076:10 • unused_element
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:3299:15 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:3306:15 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/main.dart:4070:30 • curly_braces_in_flow_control_structures
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:4172:15 • deprecated_member_use
+warning • Unnecessary cast. Try removing the cast • lib/main.dart:4353:56 • unnecessary_cast
+warning • The '!' will have no effect because the receiver can't be null. Try removing the '!' operator • lib/main.dart:5289:95 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null. Try removing the '!' operator • lib/main.dart:5296:97 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null. Try removing the '!' operator • lib/main.dart:5512:104 • unnecessary_non_null_assertion
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:6032:15 • deprecated_member_use
+   info • Statements in a while should be enclosed in a block. Try wrapping the statement in a block • lib/main.dart:7123:40 • curly_braces_in_flow_control_structures
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:7377:13 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:7387:13 • deprecated_member_use
+   info • Unnecessary braces in a string interpolation. Try removing the braces • lib/main.dart:7574:17 • unnecessary_brace_in_string_interps
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/main.dart:7591:17 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/main.dart:7591:45 • curly_braces_in_flow_control_structures
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8291:11 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8298:11 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8433:5 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8468:11 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8603:9 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:8733:9 • deprecated_member_use
+
+25 issues found. (ran in 10.2s)

@@ -8034,31 +8034,47 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
   final strokes=<List<Offset>>[];
   int? activePointer;
   List<Offset>? activeStroke;
+  final inkRepaint=ValueNotifier<int>(0);
 
   @override bool get wantKeepAlive=>true;
   bool get hasInk=>strokes.any((s)=>s.isNotEmpty);
 
+  Offset? pointFor(PointerEvent event){
+    final box=boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    if(box==null||!box.hasSize)return null;
+    // Map the physical contact to the canvas, independently of page scrolling.
+    final local=box.globalToLocal(event.position);
+    return Offset(local.dx.clamp(0.0,box.size.width),
+        local.dy.clamp(0.0,box.size.height));
+  }
   void start(PointerDownEvent event){
     if(activePointer!=null)return;
+    final point=pointFor(event);if(point==null)return;
     activePointer=event.pointer;
-    activeStroke=[event.localPosition];
-    setState(()=>strokes.add(activeStroke!));
+    activeStroke=[point];
+    strokes.add(activeStroke!);
+    inkRepaint.value++;
   }
-  void update(PointerMoveEvent event){
+  void append(PointerEvent event){
     if(event.pointer!=activePointer||activeStroke==null)return;
-    final box=boundaryKey.currentContext?.findRenderObject() as RenderBox?;
-    if(box==null)return;
-    final point=Offset(event.localPosition.dx.clamp(0.0,box.size.width),
-        event.localPosition.dy.clamp(0.0,box.size.height));
-    setState(()=>activeStroke!.add(point));
+    final point=pointFor(event);if(point==null)return;
+    if(activeStroke!.last==point)return;
+    activeStroke!.add(point);
+    // Repaint ink only: do not rebuild widgets for every input sample.
+    inkRepaint.value++;
   }
+  void update(PointerMoveEvent event)=>append(event);
   void end(PointerEvent event){
     if(event.pointer!=activePointer)return;
+    if(event is PointerUpEvent)append(event);
     activePointer=null;
     activeStroke=null;
   }
-
-  void clear()=>setState((){strokes.clear();activePointer=null;activeStroke=null;});
+  void clear(){
+    strokes.clear();activePointer=null;activeStroke=null;
+    inkRepaint.value++;
+  }
+  @override void dispose(){inkRepaint.dispose();super.dispose();}
 
   Future<Uint8List?> exportPng()async{
     final boundary=boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -8101,7 +8117,7 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
           ),
           clipBehavior:Clip.antiAlias,
           child:CustomPaint(
-            painter:HandwritingPainter(strokes),
+            painter:HandwritingPainter(strokes,repaint:inkRepaint),
             child:const SizedBox.expand(),
           ),
         ),
@@ -8114,7 +8130,26 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
 
 class HandwritingPainter extends CustomPainter{
   final List<List<Offset>> strokes;
-  const HandwritingPainter(this.strokes);
+  HandwritingPainter(this.strokes,{super.repaint});
+
+  static Path strokePath(List<Offset> points){
+    final path=Path();if(points.isEmpty)return path;
+    path.moveTo(points.first.dx,points.first.dy);
+    if(points.length==2){path.lineTo(points.last.dx,points.last.dy);return path;}
+    // Midpoint curves remove polygonal corners without delaying input or
+    // averaging away small letters. Raw contact samples remain unchanged.
+    for(var i=1;i<points.length-1;i++){
+      // Sparse samples must keep their corners rather than round off letters.
+      if((points[i]-points[i-1]).distance>8||(points[i+1]-points[i]).distance>8){
+        path.lineTo(points[i].dx,points[i].dy);
+        continue;
+      }
+      final midpoint=(points[i]+points[i+1])/2;
+      path.quadraticBezierTo(points[i].dx,points[i].dy,midpoint.dx,midpoint.dy);
+    }
+    if(points.length>1)path.lineTo(points.last.dx,points.last.dy);
+    return path;
+  }
 
   @override void paint(Canvas canvas,Size size){
     final paint=Paint()
@@ -8129,9 +8164,7 @@ class HandwritingPainter extends CustomPainter{
         canvas.drawCircle(stroke.first,1.1,Paint()..color=ink);
         continue;
       }
-      final path=Path()..moveTo(stroke.first.dx,stroke.first.dy);
-      for(final p in stroke.skip(1))path.lineTo(p.dx,p.dy);
-      canvas.drawPath(path,paint);
+      canvas.drawPath(strokePath(stroke),paint);
     }
   }
 

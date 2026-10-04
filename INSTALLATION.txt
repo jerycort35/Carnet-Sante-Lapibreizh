@@ -1,9 +1,9 @@
-LapiGestion V3.1.40 — Flutter 1.0.0+40
+LapiGestion V3.1.42 — deux correctifs réunis
 
-Remplace les fichiers correspondants de ton dépôt local par ceux de ce ZIP. Fais toi-même le commit et le push avec le message de MESSAGE_COMMIT.txt. Génère ensuite l’APK via ton workflow Android habituel, puis installe-le par-dessus l’application actuelle avec la même signature. Fais une sauvegarde préalable et ne désinstalle pas l’application.
+Ce ZIP unique comprend la précision manuscrite V3.1.41 ET les dorures corrigées V3.1.42. Il contient directement les fichiers à remplacer ; il ne faut pas installer deux ZIP successivement.
 
-Ce correctif porte uniquement sur les deux zones manuscrites du certificat : tracés successifs, indépendance, conservation pendant le défilement et mention de 450 pixels de hauteur au lieu de 150. Largeur identique, signature toujours à 130 pixels. Défile dans les marges ou hors des surfaces blanches ; les gestes dans les surfaces blanches servent à écrire.
+Remplace les fichiers correspondants à la racine de ton dépôt local, puis effectue toi-même le commit et le push avec le message de MESSAGE_COMMIT.txt. Génère l’APK avec ton workflow habituel et installe-le par-dessus la version actuelle avec la même signature. Fais une sauvegarde préalable, sans désinstaller l’application.
 
-Les autres fonctionnalités sont celles de V3.1.39, notamment les documents multipages et la correction des décès des portées. Aucune écriture GitHub ni compilation APK effectuée ici.
+Inclus : tracés au doigt/stylet plus fluides, petits déplacements et extrémités conservés, deux cadres manuscrits indépendants, mention de hauteur 450 pixels, dorures complètes des champs multilignes. Les autres fonctionnalités précédentes sont conservées.
 
-Tests réels d’interface Flutter avec événements tactiles et stylet simulés ; aucun téléphone physique connecté. Il reste à vérifier l’usage réel au doigt et au stylet sur ton appareil après installation.
+Aucun APK compilé ni écriture GitHub ici. Tests tactiles et stylet simulés ; confort matériel à confirmer sur le téléphone.

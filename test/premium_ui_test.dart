@@ -281,6 +281,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Notes adoption : cadre extensible et saisie conservée', (tester) async {
+    Map<String,dynamic>? saved;
+    await begin(tester,AdoptionDialog(data:emptyRabbit(),onSave:(v)async{saved=v;}));
+    const label='Notes de départ / informations utiles';
+    await tester.scrollUntilVisible(find.text(label),200,scrollable:find.byType(Scrollable).first);
+    final field=find.widgetWithText(TextFormField,label);
+    await tester.ensureVisible(field);await tester.pumpAndSettle();
+    final initial=tester.getSize(field);
+    await capture(tester,'notes_adoption_vide');
+    const text='Ligne 1\nLigne 2\nLigne 3\nLigne 4\nLigne 5\nLigne 6\nLigne 7';
+    await tester.enterText(field,text);await tester.pumpAndSettle();
+    await tester.ensureVisible(field);await tester.pumpAndSettle();
+    expect(tester.getSize(field).height,greaterThan(initial.height));
+    expect(tester.getSize(field).width,initial.width);
+    await capture(tester,'notes_adoption_multilignes');
+    await tester.tap(find.text('ENREGISTRER'));await tester.pumpAndSettle();
+    expect(saved?['adoptionNotes'],text);expect(tester.takeException(),isNull);
+  });
+
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 1.3]) {
       testWidgets('Accueil et identité sans débordement : $width / $scale',
