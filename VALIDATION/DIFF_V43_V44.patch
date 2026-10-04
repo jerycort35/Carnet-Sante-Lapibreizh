@@ -1,0 +1,169 @@
+--- V43/lib/main.dart
++++ V44/lib/main.dart
+@@ -8030,7 +8030,10 @@
+ class HandwritingPad extends StatefulWidget{
+   final double height;
+   final String label;
+-  const HandwritingPad({super.key,required this.height,required this.label});
++  final List<List<Offset>>? initialStrokes;
++  final bool showTools,drawingEnabled;
++  const HandwritingPad({super.key,required this.height,required this.label,
++    this.initialStrokes,this.showTools=true,this.drawingEnabled=true});
+   @override State<HandwritingPad> createState()=>HandwritingPadState();
+ }
+ 
+@@ -8038,9 +8041,27 @@
+   final boundaryKey=GlobalKey();
+   final strokes=<List<Offset>>[];
+   int? activePointer;
++  PointerDeviceKind? activeKind;
+   List<Offset>? activeStroke;
+   final inkRepaint=ValueNotifier<int>(0);
+ 
++  @override void initState(){
++    super.initState();
++    strokes.addAll((widget.initialStrokes??[]).map((s)=>List<Offset>.of(s)));
++  }
++  List<List<Offset>> copyStrokes()=>strokes.map((s)=>List<Offset>.of(s)).toList();
++  void undo(){
++    if(strokes.isNotEmpty)strokes.removeLast();
++    activePointer=null;activeKind=null;activeStroke=null;inkRepaint.value++;
++  }
++  Future<void> expand()async{
++    final box=boundaryKey.currentContext?.findRenderObject() as RenderBox?;
++    if(box==null)return;
++    final result=await showDialog<List<List<Offset>>>(context:context,
++      builder:(_)=>HandwritingEditor(canvasSize:box.size,initialStrokes:copyStrokes()));
++    if(!mounted||result==null)return;
++    clear();strokes.addAll(result.map((s)=>List<Offset>.of(s)));inkRepaint.value++;
++  }
+   @override bool get wantKeepAlive=>true;
+   bool get hasInk=>strokes.any((s)=>s.isNotEmpty);
+ 
+@@ -8053,8 +8074,15 @@
+         local.dy.clamp(0.0,box.size.height));
+   }
+   void start(PointerDownEvent event){
+-    if(activePointer!=null)return;
++    if(!widget.drawingEnabled)return;
++    final pen=event.kind==PointerDeviceKind.stylus||event.kind==PointerDeviceKind.invertedStylus;
++    if(activePointer!=null){
++      // A pen takes priority over a palm that touched the surface first.
++      if(!pen||activeKind!=PointerDeviceKind.touch)return;
++      strokes.remove(activeStroke);
++    }
+     final point=pointFor(event);if(point==null)return;
++    activeKind=event.kind;
+     activePointer=event.pointer;
+     activeStroke=[point];
+     strokes.add(activeStroke!);
+@@ -8072,7 +8100,7 @@
+   void end(PointerEvent event){
+     if(event.pointer!=activePointer)return;
+     if(event is PointerUpEvent)append(event);
+-    activePointer=null;
++    activePointer=null;activeKind=null;
+     activeStroke=null;
+   }
+   void clear(){
+@@ -8092,19 +8120,21 @@
+   @override Widget build(BuildContext context){
+     super.build(context);
+     return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+-    Row(children:[
++    if(widget.showTools)Row(children:[
+       Expanded(child:Text(widget.label,style:const TextStyle(fontSize:11,color:Colors.black54))),
++      IconButton(onPressed:expand,tooltip:'Agrandir pour écrire',icon:const Icon(Icons.open_in_full,size:18)),
++      IconButton(onPressed:undo,tooltip:'Annuler le dernier trait',icon:const Icon(Icons.undo,size:18)),
+       TextButton.icon(onPressed:clear,icon:const Icon(Icons.refresh,size:17),label:const Text('Effacer')),
+     ]),
+     // Claim writing gestures immediately so vertical pen strokes do not scroll
+     // the certificate. The surrounding page remains vertically scrollable.
+     RawGestureDetector(
+       behavior:HitTestBehavior.opaque,
+-      gestures:<Type,GestureRecognizerFactory>{
++      gestures:widget.drawingEnabled?<Type,GestureRecognizerFactory>{
+         EagerGestureRecognizer:GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+           EagerGestureRecognizer.new,(instance){},
+         ),
+-      },
++      }:<Type,GestureRecognizerFactory>{},
+       child:Listener(
+         behavior:HitTestBehavior.opaque,
+         onPointerDown:start,
+@@ -8133,9 +8163,55 @@
+   }
+ }
+ 
++class HandwritingEditor extends StatefulWidget{
++  final Size canvasSize;
++  final List<List<Offset>> initialStrokes;
++  const HandwritingEditor({super.key,required this.canvasSize,required this.initialStrokes});
++  @override State<HandwritingEditor> createState()=>_HandwritingEditorState();
++}
++class _HandwritingEditorState extends State<HandwritingEditor>{
++  final padKey=GlobalKey<HandwritingPadState>();
++  final transform=TransformationController(Matrix4.diagonal3Values(2,2,1));
++  bool moving=false;
++  void zoom(double factor){
++    final next=transform.value.clone();
++    final old=next.getMaxScaleOnAxis();
++    final target=(old*factor).clamp(1.0,4.0);
++    next.scaleByDouble(target/old,target/old,1,1);
++    setState(()=>transform.value=next);
++  }
++  @override void dispose(){transform.dispose();super.dispose();}
++  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
++    appBar:AppBar(title:const Text('Écriture agrandie'),
++      leading:IconButton(tooltip:'Annuler',icon:const Icon(Icons.close),onPressed:()=>Navigator.pop(context)),
++      actions:[TextButton(onPressed:()=>Navigator.pop(context,padKey.currentState!.copyStrokes()),child:const Text('Valider',style:TextStyle(color:gold,fontWeight:FontWeight.bold)))]),
++    body:SafeArea(child:Column(children:[
++      Wrap(crossAxisAlignment:WrapCrossAlignment.center,children:[
++        TextButton.icon(onPressed:()=>setState(()=>moving=!moving),
++          icon:Icon(moving?Icons.pan_tool:Icons.edit),label:Text(moving?'Déplacer':'Écrire')),
++        IconButton(tooltip:'Réduire',onPressed:()=>zoom(0.8),icon:const Icon(Icons.zoom_out)),
++        Text('${transform.value.getMaxScaleOnAxis().toStringAsFixed(1)}×'),
++        IconButton(tooltip:'Agrandir',onPressed:()=>zoom(1.25),icon:const Icon(Icons.zoom_in)),
++        IconButton(tooltip:'Annuler le dernier trait',onPressed:()=>padKey.currentState?.undo(),icon:const Icon(Icons.undo)),
++        IconButton(tooltip:'Effacer',onPressed:()=>padKey.currentState?.clear(),icon:const Icon(Icons.refresh)),
++      ]),
++      Padding(padding:const EdgeInsets.all(8),child:Text(moving?
++        'Faites glisser la feuille pour atteindre les lignes suivantes. Revenez à Écrire pour continuer.':
++        'Écrivez avec des gestes plus amples. Touchez Écrire pour passer en mode Déplacer.')),
++      Expanded(child:ColoredBox(color:const Color(0xffeee8da),child:InteractiveViewer(
++        transformationController:transform,constrained:false,minScale:1,maxScale:4,
++        panEnabled:moving,scaleEnabled:moving,
++        child:SizedBox(width:widget.canvasSize.width,child:HandwritingPad(
++          key:padKey,height:widget.canvasSize.height,label:'',showTools:false,
++          drawingEnabled:!moving,initialStrokes:widget.initialStrokes))))),
++    ])),
++  ));
++}
++
+ class HandwritingPainter extends CustomPainter{
+   final List<List<Offset>> strokes;
+   HandwritingPainter(this.strokes,{super.repaint});
++  final _paths=<List<Offset>,({int count,Path path})>{};
+ 
+   static Path strokePath(List<Offset> points){
+     final path=Path();if(points.isEmpty)return path;
+@@ -8163,13 +8239,18 @@
+       ..strokeCap=StrokeCap.round
+       ..strokeJoin=StrokeJoin.round
+       ..style=PaintingStyle.stroke;
++    _paths.removeWhere((stroke,entry)=>!strokes.contains(stroke));
+     for(final stroke in strokes){
+       if(stroke.isEmpty)continue;
+       if(stroke.length==1){
+         canvas.drawCircle(stroke.first,1.1,Paint()..color=ink);
+         continue;
+       }
+-      canvas.drawPath(strokePath(stroke),paint);
++      var cached=_paths[stroke];
++      if(cached==null||cached.count!=stroke.length){
++        cached=(count:stroke.length,path:strokePath(stroke));_paths[stroke]=cached;
++      }
++      canvas.drawPath(cached.path,paint);
+     }
+   }
+ 

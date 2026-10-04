@@ -1725,20 +1725,23 @@ class ReproductionStore {
       final dead=positive(r['dead${sex}Birth']).clamp(0,born);
       final alive=born-dead;
       final recorded=(r['weaningDate']??'').toString().isNotEmpty;
-      final loss=recorded?(r.containsKey('dead${sex}Weaning')
+      final loss=r.containsKey('dead${sex}Weaning')
           ?positive(r['dead${sex}Weaning']).clamp(0,alive)
-          :(alive-positive(r['live${sex}Weaning'])).clamp(0,alive)):0;
+          :recorded?(alive-positive(r['live${sex}Weaning'])).clamp(0,alive):0;
+      final weaningRecorded=recorded||positive(r['deadMaleWeaning'])+positive(r['deadFemaleWeaning'])>0;
       result['born$sex']=born;
       result['dead$sex']=dead;
       result['live$sex']=alive;
       result['loss$sex']=loss;
-      result['weaned$sex']=recorded?alive-loss:0;
+      result['remaining$sex']=alive-loss;
+      result['weaned$sex']=weaningRecorded?alive-loss:0;
     }
     result['born']=result['bornMale']!+result['bornFemale']!;
     result['deadBirth']=result['deadMale']!+result['deadFemale']!;
     result['liveBirth']=result['liveMale']!+result['liveFemale']!;
-    result['maleTotal']=result['liveMale']!;
-    result['femaleTotal']=result['liveFemale']!;
+    result['maleTotal']=result['remainingMale']!;
+    result['femaleTotal']=result['remainingFemale']!;
+    result['remaining']=result['remainingMale']!+result['remainingFemale']!;
     result['lossWeaning']=result['lossMale']!+result['lossFemale']!;
     result['weaned']=result['weanedMale']!+result['weanedFemale']!;
     return result;
@@ -1761,7 +1764,6 @@ class ReproductionStore {
       if(born<0||dead<0||loss<0)return 'Les nombres doivent être positifs ou nuls.';
       if(dead>born)return 'Les $label morts à la naissance dépassent les $label nés.';
       if(loss>born-dead)return 'Les décès de $label avant le sevrage dépassent les survivants à la naissance.';
-      if(loss>0&&(r['weaningDate']??'').toString().isEmpty)return 'Renseignez la date de sevrage pour enregistrer ces décès.';
     }
     return null;
   }
@@ -5684,7 +5686,8 @@ class _RabbitPageState extends State<RabbitPage>{
                   decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromHex('#D4AF67')),borderRadius:pw.BorderRadius.circular(6)),
                   child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[
                     pw.Text('${b['matingDate']??'Date non renseignée'} • $partner',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),
-                    pw.Text('Nés : ${t['born']} • Vivants : ${t['liveBirth']} • Morts : ${t['deadBirth']}'),
+                    pw.Text('Nés : ${t['born']} • Vivants à la naissance : ${t['liveBirth']} • Morts à la naissance : ${t['deadBirth']}'),
+                    pw.Text('Vivants restants : ${t['remaining']} • Mâles : ${t['remainingMale']} • Femelles : ${t['remainingFemale']} • Décès jusqu’au sevrage : ${t['lossWeaning']}'),
                     if(((b['weaningDate']??'') as String).isNotEmpty)pw.Text('Sevrage : ${b['weaningDate']} • Vivants : ${t['weaned']}'),
                   ]),
                 );
@@ -6357,7 +6360,7 @@ class _RabbitPageState extends State<RabbitPage>{
   Widget _reproductionProfile(List<Map<String,dynamic>> records){
     final p=ReproductionStore.sexProfile(records);
     final sums=ReproductionStore.totals(ReproductionStore.aggregate(records));
-    final sexed=ReproductionStore.n(sums['liveBirth']);
+    final sexed=ReproductionStore.n(sums['remaining']);
     if(sexed==0){
       return Container(
         padding:const EdgeInsets.all(12),
@@ -6421,7 +6424,7 @@ class _RabbitPageState extends State<RabbitPage>{
     final weanedFemale=t['weanedFemale']??0;
     final lossMale=t['lossMale']??0;
     final lossFemale=t['lossFemale']??0;
-    final values=[liveMale+liveFemale,deadMale+deadFemale,weanedMale+weanedFemale,lossMale+lossFemale];
+    final values=[liveMale+liveFemale,deadMale+deadFemale,weanedMale+weanedFemale,lossMale+lossFemale,t['remaining']??0];
     final maxValue=values.fold<int>(1,(m,v)=>v>m?v:m);
     return Container(
       padding:const EdgeInsets.fromLTRB(12,12,12,2),
@@ -6437,6 +6440,7 @@ class _RabbitPageState extends State<RabbitPage>{
         _chartRow(label:'Morts à la naissance',male:deadMale,female:deadFemale,color:gold,maxValue:maxValue),
         _chartRow(label:'Vivants au sevrage',male:weanedMale,female:weanedFemale,color:const Color(0xFF1E6A49),maxValue:maxValue),
         _chartRow(label:'Pertes avant sevrage',male:lossMale,female:lossFemale,color:const Color(0xFF8D6E63),maxValue:maxValue),
+        _chartRow(label:'Vivants restants',male:t['remainingMale']??0,female:t['remainingFemale']??0,color:const Color(0xFF1E6A49),maxValue:maxValue),
       ]),
     );
   }
@@ -6693,7 +6697,8 @@ class _RabbitPageState extends State<RabbitPage>{
               title:Text('${b['matingDate']?.toString().isEmpty==false?b['matingDate']:'Date à compléter'} • $partner',style:const TextStyle(fontWeight:FontWeight.bold)),
               subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 if(((b['birthDate']??'') as String).isNotEmpty)Text('Naissance : ${b['birthDate']}'),
-                Text('Nés : ${t['born']} • vivants : ${t['liveBirth']} • morts : ${t['deadBirth']}'),
+                Text('Nés : ${t['born']} • vivants à la naissance : ${t['liveBirth']} • morts à la naissance : ${t['deadBirth']}'),
+                Text('Vivants restants : ${t['remaining']} • décès jusqu’au sevrage : ${t['lossWeaning']}'),
                 Text('Mâles : ${t['maleTotal']} • femelles : ${t['femaleTotal']}'),
                 if(((b['weaningDate']??'') as String).isNotEmpty)Text('Sevrage : ${b['weaningDate']} • vivants : ${t['weaned']}'),
               ]),
@@ -8025,7 +8030,10 @@ class _EngagementCertificateDialogState extends State<EngagementCertificateDialo
 class HandwritingPad extends StatefulWidget{
   final double height;
   final String label;
-  const HandwritingPad({super.key,required this.height,required this.label});
+  final List<List<Offset>>? initialStrokes;
+  final bool showTools,drawingEnabled;
+  const HandwritingPad({super.key,required this.height,required this.label,
+    this.initialStrokes,this.showTools=true,this.drawingEnabled=true});
   @override State<HandwritingPad> createState()=>HandwritingPadState();
 }
 
@@ -8033,9 +8041,27 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
   final boundaryKey=GlobalKey();
   final strokes=<List<Offset>>[];
   int? activePointer;
+  PointerDeviceKind? activeKind;
   List<Offset>? activeStroke;
   final inkRepaint=ValueNotifier<int>(0);
 
+  @override void initState(){
+    super.initState();
+    strokes.addAll((widget.initialStrokes??[]).map((s)=>List<Offset>.of(s)));
+  }
+  List<List<Offset>> copyStrokes()=>strokes.map((s)=>List<Offset>.of(s)).toList();
+  void undo(){
+    if(strokes.isNotEmpty)strokes.removeLast();
+    activePointer=null;activeKind=null;activeStroke=null;inkRepaint.value++;
+  }
+  Future<void> expand()async{
+    final box=boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    if(box==null)return;
+    final result=await showDialog<List<List<Offset>>>(context:context,
+      builder:(_)=>HandwritingEditor(canvasSize:box.size,initialStrokes:copyStrokes()));
+    if(!mounted||result==null)return;
+    clear();strokes.addAll(result.map((s)=>List<Offset>.of(s)));inkRepaint.value++;
+  }
   @override bool get wantKeepAlive=>true;
   bool get hasInk=>strokes.any((s)=>s.isNotEmpty);
 
@@ -8048,8 +8074,15 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
         local.dy.clamp(0.0,box.size.height));
   }
   void start(PointerDownEvent event){
-    if(activePointer!=null)return;
+    if(!widget.drawingEnabled)return;
+    final pen=event.kind==PointerDeviceKind.stylus||event.kind==PointerDeviceKind.invertedStylus;
+    if(activePointer!=null){
+      // A pen takes priority over a palm that touched the surface first.
+      if(!pen||activeKind!=PointerDeviceKind.touch)return;
+      strokes.remove(activeStroke);
+    }
     final point=pointFor(event);if(point==null)return;
+    activeKind=event.kind;
     activePointer=event.pointer;
     activeStroke=[point];
     strokes.add(activeStroke!);
@@ -8067,7 +8100,7 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
   void end(PointerEvent event){
     if(event.pointer!=activePointer)return;
     if(event is PointerUpEvent)append(event);
-    activePointer=null;
+    activePointer=null;activeKind=null;
     activeStroke=null;
   }
   void clear(){
@@ -8087,19 +8120,21 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
   @override Widget build(BuildContext context){
     super.build(context);
     return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-    Row(children:[
+    if(widget.showTools)Row(children:[
       Expanded(child:Text(widget.label,style:const TextStyle(fontSize:11,color:Colors.black54))),
+      IconButton(onPressed:expand,tooltip:'Agrandir pour écrire',icon:const Icon(Icons.open_in_full,size:18)),
+      IconButton(onPressed:undo,tooltip:'Annuler le dernier trait',icon:const Icon(Icons.undo,size:18)),
       TextButton.icon(onPressed:clear,icon:const Icon(Icons.refresh,size:17),label:const Text('Effacer')),
     ]),
     // Claim writing gestures immediately so vertical pen strokes do not scroll
     // the certificate. The surrounding page remains vertically scrollable.
     RawGestureDetector(
       behavior:HitTestBehavior.opaque,
-      gestures:<Type,GestureRecognizerFactory>{
+      gestures:widget.drawingEnabled?<Type,GestureRecognizerFactory>{
         EagerGestureRecognizer:GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
           EagerGestureRecognizer.new,(instance){},
         ),
-      },
+      }:<Type,GestureRecognizerFactory>{},
       child:Listener(
         behavior:HitTestBehavior.opaque,
         onPointerDown:start,
@@ -8128,9 +8163,55 @@ class HandwritingPadState extends State<HandwritingPad> with AutomaticKeepAliveC
   }
 }
 
+class HandwritingEditor extends StatefulWidget{
+  final Size canvasSize;
+  final List<List<Offset>> initialStrokes;
+  const HandwritingEditor({super.key,required this.canvasSize,required this.initialStrokes});
+  @override State<HandwritingEditor> createState()=>_HandwritingEditorState();
+}
+class _HandwritingEditorState extends State<HandwritingEditor>{
+  final padKey=GlobalKey<HandwritingPadState>();
+  final transform=TransformationController(Matrix4.diagonal3Values(2,2,1));
+  bool moving=false;
+  void zoom(double factor){
+    final next=transform.value.clone();
+    final old=next.getMaxScaleOnAxis();
+    final target=(old*factor).clamp(1.0,4.0);
+    next.scaleByDouble(target/old,target/old,1,1);
+    setState(()=>transform.value=next);
+  }
+  @override void dispose(){transform.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>Dialog.fullscreen(child:Scaffold(
+    appBar:AppBar(title:const Text('Écriture agrandie'),
+      leading:IconButton(tooltip:'Annuler',icon:const Icon(Icons.close),onPressed:()=>Navigator.pop(context)),
+      actions:[TextButton(onPressed:()=>Navigator.pop(context,padKey.currentState!.copyStrokes()),child:const Text('Valider',style:TextStyle(color:gold,fontWeight:FontWeight.bold)))]),
+    body:SafeArea(child:Column(children:[
+      Wrap(crossAxisAlignment:WrapCrossAlignment.center,children:[
+        TextButton.icon(onPressed:()=>setState(()=>moving=!moving),
+          icon:Icon(moving?Icons.pan_tool:Icons.edit),label:Text(moving?'Déplacer':'Écrire')),
+        IconButton(tooltip:'Réduire',onPressed:()=>zoom(0.8),icon:const Icon(Icons.zoom_out)),
+        Text('${transform.value.getMaxScaleOnAxis().toStringAsFixed(1)}×'),
+        IconButton(tooltip:'Agrandir',onPressed:()=>zoom(1.25),icon:const Icon(Icons.zoom_in)),
+        IconButton(tooltip:'Annuler le dernier trait',onPressed:()=>padKey.currentState?.undo(),icon:const Icon(Icons.undo)),
+        IconButton(tooltip:'Effacer',onPressed:()=>padKey.currentState?.clear(),icon:const Icon(Icons.refresh)),
+      ]),
+      Padding(padding:const EdgeInsets.all(8),child:Text(moving?
+        'Faites glisser la feuille pour atteindre les lignes suivantes. Revenez à Écrire pour continuer.':
+        'Écrivez avec des gestes plus amples. Touchez Écrire pour passer en mode Déplacer.')),
+      Expanded(child:ColoredBox(color:const Color(0xffeee8da),child:InteractiveViewer(
+        transformationController:transform,constrained:false,minScale:1,maxScale:4,
+        panEnabled:moving,scaleEnabled:moving,
+        child:SizedBox(width:widget.canvasSize.width,child:HandwritingPad(
+          key:padKey,height:widget.canvasSize.height,label:'',showTools:false,
+          drawingEnabled:!moving,initialStrokes:widget.initialStrokes))))),
+    ])),
+  ));
+}
+
 class HandwritingPainter extends CustomPainter{
   final List<List<Offset>> strokes;
   HandwritingPainter(this.strokes,{super.repaint});
+  final _paths=<List<Offset>,({int count,Path path})>{};
 
   static Path strokePath(List<Offset> points){
     final path=Path();if(points.isEmpty)return path;
@@ -8158,13 +8239,18 @@ class HandwritingPainter extends CustomPainter{
       ..strokeCap=StrokeCap.round
       ..strokeJoin=StrokeJoin.round
       ..style=PaintingStyle.stroke;
+    _paths.removeWhere((stroke,entry)=>!strokes.contains(stroke));
     for(final stroke in strokes){
       if(stroke.isEmpty)continue;
       if(stroke.length==1){
         canvas.drawCircle(stroke.first,1.1,Paint()..color=ink);
         continue;
       }
-      canvas.drawPath(strokePath(stroke),paint);
+      var cached=_paths[stroke];
+      if(cached==null||cached.count!=stroke.length){
+        cached=(count:stroke.length,path:strokePath(stroke));_paths[stroke]=cached;
+      }
+      canvas.drawPath(cached.path,paint);
     }
   }
 
@@ -8409,9 +8495,9 @@ class _BreedingDialogState extends State<BreedingDialog>{
     final colors=ReproductionStore.colorSexTotals(colorEntries);
     if(colors['total']==0)return true;
     final totals=ReproductionStore.totals(d);
-    if(colors['male']!=totals['maleTotal']||colors['female']!=totals['femaleTotal']){
+    if(colors['male']!=totals['liveMale']||colors['female']!=totals['liveFemale']){
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
-        'Vérifiez les couleurs : ${colors['male']} mâle(s) / ${colors['female']} femelle(s) saisis, mais la portée contient ${totals['maleTotal']} mâle(s) / ${totals['femaleTotal']} femelle(s).',
+        'Vérifiez les couleurs : ${colors['male']} mâle(s) / ${colors['female']} femelle(s) saisis, mais la portée contient ${totals['liveMale']} mâle(s) / ${totals['liveFemale']} femelle(s) vivants à la naissance.',
       )));
       return false;
     }
@@ -8548,7 +8634,8 @@ class _BreedingDialogState extends State<BreedingDialog>{
             Text('Morts à la naissance : ${t['deadBirth']}'),
             Text('Mâles : ${t['maleTotal']} • Femelles : ${t['femaleTotal']}'),
             Text('Décès entre naissance et sevrage : ${t['lossWeaning']}'),
-            Text((d['weaningDate']??'').toString().isEmpty?'Sevrage non renseigné':'Vivants au sevrage : ${t['weaned']} (♂ ${t['weanedMale']} • ♀ ${t['weanedFemale']})'),
+            Text('Vivants restants : ${t['remaining']} (♂ ${t['remainingMale']} • ♀ ${t['remainingFemale']})'),
+            Text((d['weaningDate']??'').toString().isEmpty&&t['lossWeaning']==0?'Sevrage non renseigné':'Vivants au sevrage : ${t['weaned']} (♂ ${t['weanedMale']} • ♀ ${t['weanedFemale']})'),
           ])));
         }),
       ])),

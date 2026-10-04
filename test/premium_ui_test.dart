@@ -300,6 +300,31 @@ void main() {
     expect(saved?['adoptionNotes'],text);expect(tester.takeException(),isNull);
   });
 
+  testWidgets('Sevrage : décès déduits du bilan puis sauvegardés sans date', (tester) async {
+    final male=emptyRabbit()..addAll({'id':'m','sex':'Mâle','name':'Mâle'});
+    final female=emptyRabbit()..addAll({'id':'f','sex':'Femelle','name':'Femelle'});
+    final record=<String,dynamic>{'maleId':'m','femaleId':'f','matingDate':'04/10/2026',
+      'birthDate':'','weaningDate':'','liveMaleBirth':5,'liveFemaleBirth':6,
+      'deadMaleBirth':1,'deadFemaleBirth':2,'deadMaleWeaning':1,'deadFemaleWeaning':1,'colors':[]};
+    Map<String,dynamic>? saved;
+    await begin(tester,BreedingDialog(currentRabbit:male,allRabbits:[male,female],record:record,onSave:(v)async{saved=v;}));
+    const label='Mâles morts entre naissance et sevrage';
+    await tester.scrollUntilVisible(find.text(label),250,scrollable:find.byType(Scrollable).first);
+    final field=find.widgetWithText(DropdownButtonFormField<int>,label);
+    await tester.ensureVisible(field);await tester.pumpAndSettle();
+    await tester.tap(field);await tester.pumpAndSettle();
+    await tester.tap(find.text('2').last);await tester.pumpAndSettle();
+    const result='Vivants restants : 5 (♂ 2 • ♀ 3)';
+    await tester.scrollUntilVisible(find.text(result),200,scrollable:find.byType(Scrollable).first);
+    expect(find.text(result),findsOneWidget);
+    await capture(tester,'sevrage_survivants');
+    await tester.tap(find.text('ENREGISTRER'));await tester.pumpAndSettle();
+    expect(saved?['deadMaleWeaning'],2);expect(saved?['liveMaleWeaning'],2);
+    expect(saved?['liveFemaleWeaning'],3);
+    expect(ReproductionStore.totals(saved!)['remaining'],5);
+    expect(tester.takeException(),isNull);
+  });
+
   for (final width in [320.0, 390.0, 768.0]) {
     for (final scale in [1.0, 1.3]) {
       testWidgets('Accueil et identité sans débordement : $width / $scale',

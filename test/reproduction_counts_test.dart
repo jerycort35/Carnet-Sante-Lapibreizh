@@ -11,14 +11,34 @@ void main(){
   test('Deaths subtract once from the initial eleven births',(){
     final t=ReproductionStore.totals(record());
     expect(t['born'],11);expect(t['liveBirth'],8);
-    expect(t['maleTotal'],4);expect(t['femaleTotal'],4);
+    expect(t['liveMale'],4);expect(t['liveFemale'],4);
+    expect(t['maleTotal'],3);expect(t['femaleTotal'],3);expect(t['remaining'],6);
     expect(t['weaned'],6);expect(t['weanedMale'],3);expect(t['weanedFemale'],3);
   });
-  test('Missing weaning does not invent deaths',(){
+  test('Declared weaning deaths subtract immediately even without a date',(){
     final r=record()..['weaningDate']='';
     final t=ReproductionStore.totals(r);
-    expect(t['lossWeaning'],0);expect(t['liveBirth'],8);
-    expect(ReproductionStore.countError(r),isNotNull);
+    expect(t['lossWeaning'],2);expect(t['liveBirth'],8);expect(t['remaining'],6);
+    expect(t['weaned'],6);expect(ReproductionStore.countError(r),isNull);
+  });
+  test('Unrecorded weaning never invents deaths',(){
+    final r=record()..['weaningDate']=''..remove('deadMaleWeaning')..remove('deadFemaleWeaning');
+    expect(ReproductionStore.totals(r)['remaining'],8);
+    expect(ReproductionStore.totals(r)['lossWeaning'],0);
+  });
+  test('Each additional sex-specific death reduces remaining survivors once',(){
+    final r=record();
+    expect(ReproductionStore.totals(r)['remaining'],6);
+    r['deadMaleWeaning']=2;
+    expect(ReproductionStore.totals(r)['remaining'],5);
+    expect(ReproductionStore.totals(r)['remainingMale'],2);
+    expect(ReproductionStore.totals(r)['remainingFemale'],3);
+    r['deadFemaleWeaning']=3;
+    final t=ReproductionStore.totals(r);
+    expect(t['remaining'],3);expect(t['remainingFemale'],1);
+    expect(t['born'],11);expect(t['liveBirth'],8);
+    r['liveMaleWeaning']=t['weanedMale'];r['liveFemaleWeaning']=t['weanedFemale'];
+    expect(ReproductionStore.totals(r),t);
   });
   test('Reject deaths exceeding the same-sex population',(){
     expect(ReproductionStore.countError(record()..['deadMaleBirth']=6),isNotNull);

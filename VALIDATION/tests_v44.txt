@@ -1,0 +1,41 @@
+00:00 +0: loading /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart
+00:00 +0: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: (setUpAll)
+00:00 +0: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:00 +1: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:00 +2: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:00 +3: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:00 +4: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:01 +5: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:01 +6: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:01 +7: /workspace/scratch/010a071bd376/project/test/handwriting_zoom_test.dart: Zoom 2x, déplacement sans encre, validation touch
+00:01 +8: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +9: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +10: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +11: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +12: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +13: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +14: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +15: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +16: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +17: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:02 +18: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:03 +19: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:04 +20: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:06 +21: /workspace/scratch/010a071bd376/project/test/presentation_capture_test.dart: Captures des formulaires réels pour la présentation
+00:06 +22: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil compact et filtres actifs conservent leurs actions
+00:07 +23: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Identité : champs conservés et sélection sauvegardée
+00:08 +24: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Fiche : barre haute reste en place pendant le défilement
+00:09 +25: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Le résumé santé ouvre et réduit son historique complet
+00:11 +26: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Tous les blocs accueil défilent sans erreur
+00:18 +27: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Tous les blocs fiche restent accessibles après la refonte
+00:19 +28: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Adoption conserve la sélection et ses champs
+00:20 +29: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Notes adoption : cadre extensible et saisie conservée
+00:21 +30: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Sevrage : décès déduits du bilan puis sauvegardés sans date
+00:22 +31: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 320.0 / 1.0
+00:23 +32: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 320.0 / 1.3
+00:24 +33: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 390.0 / 1.0
+00:25 +34: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 390.0 / 1.3
+00:26 +35: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 768.0 / 1.0
+00:27 +36: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: Accueil et identité sans débordement : 768.0 / 1.3
+00:29 +37: /workspace/scratch/010a071bd376/project/test/premium_ui_test.dart: (tearDownAll)
+00:29 +37: All tests passed!

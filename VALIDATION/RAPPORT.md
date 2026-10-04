@@ -1,11 +1,9 @@
-# V3.1.42 — Dorures des champs hauts
+# Validation V3.1.44
 
-Cause : les ornements issus du cadre de bouton étaient dessinés sur une hauteur plafonnée à 48 pixels, depuis le haut du champ. Le bas du décor se retrouvait au milieu d’un champ de plusieurs lignes.
+Correction limitée aux surfaces manuscrites : zoom plein écran, mode déplacement distinct du dessin, annulation du dernier trait, priorité stylet sur contact tactile en cours et cache de courbes terminées. Pas de filtrage destructif des coordonnées ni de seuil supprimant les petits mouvements. Zoom inverse correctement appliqué grâce à globalToLocal ; à 2×, un déplacement de 100×60 pixels correspond à 50×30 dans l’encre originale. Largeur des cadres et hauteurs 450/130 préservées ; export PNG existant conservé.
 
-Correction : pour les champs dépassant 48 pixels, des ornements complets de cadre sont positionnés aux vrais coins supérieur droit et inférieur gauche, sans couper ou étirer les feuilles. La bordure verticale existante assure la continuité. Le dessin des boutons et des champs plus petits conserve son comportement précédent.
+37 tests Flutter réussis : tracés successifs, 600 positions subpixel, points finaux, mention/signature indépendantes, défilement, export PNG, zoom tactile/stylet, déplacement sans encre, validation et annulation de l’éditeur, paume avant stylet, conservation de l’encre terminée et annulation locale. Contrôles précédents documents, reproduction et interface réussis. Captures de vrais widgets Flutter simulés, inspectées visuellement. Analyse : aucune erreur, 25 diagnostics préexistants.
 
-Code fonctionnel main.dart identique à V3.1.41, vérifié par comparaison binaire au ZIP livré. Modification uniquement du peintre décoratif partagé, du numéro de version et d’un test d’interface.
+Limite : événements tactiles et stylet simulés ; aucun matériel physique connecté. L’amélioration du ressenti sur l’appareil de l’utilisateur ne peut pas être certifiée ici. Le zoom permet des gestes plus amples sans changer les dimensions finales. Il ne modifie pas la fréquence ni la qualité du capteur matériel.
 
-Validation : 15 tests d’interface Flutter réussis, dont un nouveau parcours des notes d’adoption. Champ vide de trois lignes puis sept lignes : hauteur augmente, largeur identique, contenu enregistré inchangé, aucune exception. Les tests préexistants contrôlent la saisie, navigation et absence de débordements sur plusieurs largeurs et tailles de texte. Deux captures réelles jointes.
-
-Analyse statique sans erreur ; diagnostics préexistants indiqués dans analyze_v42.txt. Aucun test physique sur téléphone et aucun APK construit.
+Dorures premium_ui.dart inchangées, aucun changement de logique reproduction, documents ou autres fonctionnalités. Archive simple ZIP_STORED DOS, extraite et comparée octet par octet.
