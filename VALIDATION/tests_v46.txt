@@ -1,0 +1,16 @@
+00:00 +0: loading /workspace/scratch/010a071bd376/project/test/reproduction_availability_test.dart
+00:00 +0: /workspace/scratch/010a071bd376/project/test/reproduction_availability_test.dart: Active treatment with no end, future start and expired treatment
+00:00 +1: /workspace/scratch/010a071bd376/project/test/reproduction_availability_test.dart: Rest boundary and other females do not restrict this female
+00:00 +2: /workspace/scratch/010a071bd376/project/test/reproduction_availability_test.dart: Annual quota reached, cutoff included and old births excluded
+00:00 +3: /workspace/scratch/010a071bd376/project/test/reproduction_availability_test.dart: All reasons accumulate; matching history is untouched
+00:00 +4: /workspace/scratch/010a071bd376/project/test/color_restrictions_ui_test.dart: (setUpAll)
+00:00 +4: /workspace/scratch/010a071bd376/project/test/color_restrictions_ui_test.dart: Croisements bloqués visibles avec tous les motifs et plus de cinq résultats
+before warm
+after warm
+before widget
+after widget
+before refresh
+after refresh
+after images
+00:02 +5: /workspace/scratch/010a071bd376/project/test/color_restrictions_ui_test.dart: (tearDownAll)
+00:02 +5: All tests passed!

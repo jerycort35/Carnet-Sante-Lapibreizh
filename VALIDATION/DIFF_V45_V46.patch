@@ -1,0 +1,151 @@
+--- V45/lib/main.dart
++++ V46/lib/main.dart
+@@ -2832,6 +2832,43 @@
+   }
+ }
+ 
++// Explain existing reproduction restrictions without removing color matches.
++class ReproductionAvailability{
++  static List<String> reasons({required Map<String,dynamic> female,
++    required Iterable<Map<String,dynamic>> records,required int maxLitters,
++    required int restDays,DateTime? now}){
++    final today=now??DateTime.now();
++    final out=<String>[];
++    for(final raw in ((female['medications'] as List?)??[])){
++      final med=Map<String,dynamic>.from(raw as Map);
++      final start=Notifications.parseDate(med['startDate'] as String?);
++      final end=Notifications.parseDate(med['endDate'] as String?);
++      if(start==null)continue;
++      final startDay=DateTime(start.year,start.month,start.day);
++      final endDay=end==null?null:DateTime(end.year,end.month,end.day,23,59);
++      if(!startDay.isAfter(today)&&(endDay==null||!endDay.isBefore(today))){
++        out.add('Traitement médical actif chez la femelle. Attendre la fin du traitement et l’avis du vétérinaire.');
++        break;
++      }
++    }
++    final cutoff=today.subtract(const Duration(days:365));
++    final births=records.where((b)=>b['femaleId']==female['id'])
++      .map((b)=>Notifications.parseDate(b['birthDate'] as String?)).whereType<DateTime>().toList();
++    final count12m=births.where((d)=>!d.isBefore(cutoff)).length;
++    if(count12m>=maxLitters){
++      out.add('Quota annuel atteint : $count12m portée(s) sur les 12 derniers mois, pour un maximum de $maxLitters.');
++    }
++    if(restDays>0&&births.isNotEmpty){
++      births.sort();
++      final elapsed=today.difference(births.last).inDays;
++      if(elapsed<restDays){
++        out.add('Période de repos non terminée : ${restDays-elapsed} jour(s) restant(s), pour un repos minimum de $restDays jours après la dernière naissance.');
++      }
++    }
++    return out;
++  }
++}
++
+ class HomePage extends StatefulWidget { const HomePage({super.key}); @override State<HomePage> createState()=>_HomePageState(); }
+ class _HomePageState extends State<HomePage>{
+   List<Map<String,dynamic>> rabbits=[]; List<Map<String,dynamic>> breedings=[]; bool loading=true; String appMode='Éleveur';
+@@ -3139,38 +3176,6 @@
+     ]);
+   }
+ 
+-  bool _femaleHasActiveTreatment(Map<String,dynamic> female){
+-    final today=DateTime.now();
+-    for(final raw in ((female['medications'] as List?)??[])){
+-      final med=Map<String,dynamic>.from(raw as Map);
+-      final start=Notifications.parseDate(med['startDate'] as String?);
+-      final end=Notifications.parseDate(med['endDate'] as String?);
+-      if(start==null)continue;
+-      final startDay=DateTime(start.year,start.month,start.day);
+-      final endDay=end==null?null:DateTime(end.year,end.month,end.day,23,59);
+-      if(!startDay.isAfter(today)&&(endDay==null||!endDay.isBefore(today)))return true;
+-    }
+-    return false;
+-  }
+-
+-  bool _femaleAvailableForReproduction(String femaleId){
+-    final female=_rabbitById(femaleId);
+-    if(female==null)return false;
+-    if(_femaleHasActiveTreatment(female))return false;
+-    final now=DateTime.now();
+-    final cutoff=now.subtract(const Duration(days:365));
+-    final femaleRecords=breedings.where((b)=>b['femaleId']==femaleId).toList();
+-    final births=femaleRecords.map((b)=>Notifications.parseDate(b['birthDate'] as String?)).whereType<DateTime>().toList();
+-    final count12m=births.where((d)=>!d.isBefore(cutoff)).length;
+-    if(count12m>=reproMaxLitters)return false;
+-    if(reproRestDays>0&&births.isNotEmpty){
+-      births.sort();
+-      final last=births.last;
+-      if(now.difference(last).inDays<reproRestDays)return false;
+-    }
+-    return true;
+-  }
+-
+   String _homePairBreed(String maleId,String femaleId){
+     final male=_rabbitById(maleId);
+     final female=_rabbitById(femaleId);
+@@ -3195,7 +3200,10 @@
+     for(final entry in groups.entries){
+       final ids=entry.key.split('|');
+       final maleId=ids[0],femaleId=ids[1];
+-      if(!_femaleAvailableForReproduction(femaleId))continue;
++      final female=_rabbitById(femaleId);
++      if(female==null)continue;
++      final restrictions=ReproductionAvailability.reasons(female:female,records:breedings,
++          maxLitters:reproMaxLitters,restDays:reproRestDays);
+       final pairBreed=_homePairBreed(maleId,femaleId);
+       if(desiredBreed.isNotEmpty&&pairBreed!=desiredBreed)continue;
+       final colors=ReproductionStore.aggregateColors(entry.value);
+@@ -3209,6 +3217,7 @@
+       out.add({
+         'maleId':maleId,
+         'femaleId':femaleId,
++        'restrictions':restrictions,
+         'count':colorCount,
+         'male':ReproductionStore.n(hit['male']),
+         'female':ReproductionStore.n(hit['female']),
+@@ -3330,15 +3339,15 @@
+             )),
+           ]),
+           const SizedBox(height:9),
+-          const Text('Les femelles sous traitement actif, au repos ou ayant atteint le quota annuel sont automatiquement écartées.',style:TextStyle(fontSize:10.5,color:Colors.black54,fontWeight:FontWeight.w700)),
++          const Text('Les croisements correspondants restent affichés. Un avertissement rouge indique chaque motif empêchant de les réaliser pour le moment.',style:TextStyle(fontSize:10.5,color:Colors.black54,fontWeight:FontWeight.w700)),
+           const SizedBox(height:12),
+           if(results.isEmpty)
+             Container(
+               padding:const EdgeInsets.all(12),
+               decoration:BoxDecoration(color:gold.withValues(alpha:.07),borderRadius:BorderRadius.circular(13)),
+-              child:Text('Aucun croisement « $desiredBreed » actuellement disponible n’a encore produit « $desiredColor » dans les données enregistrées.',textAlign:TextAlign.center,style:const TextStyle(color:Colors.black54)),
++              child:Text('Aucun croisement « $desiredBreed » n’a encore produit « $desiredColor » dans les données enregistrées.',textAlign:TextAlign.center,style:const TextStyle(color:Colors.black54)),
+             )
+-          else...results.take(5).map((item){
++          else...results.map((item){
+             final rate=((item['rate'] as double)*100).round();
+             return Container(
+               margin:const EdgeInsets.only(bottom:9),
+@@ -3354,6 +3363,26 @@
+                 Text('${item['count']} $desiredColor sur ${item['total']} lapereaux • $rate % observés',textAlign:TextAlign.center,style:const TextStyle(fontSize:11.5,fontWeight:FontWeight.w900,color:brown)),
+                 Text(desiredBreed,style:const TextStyle(fontSize:10,color:Colors.black54,fontWeight:FontWeight.w700)),
+                 Text('♂ ${item['male']} • ♀ ${item['female']} • ${item['litters']} portée${item['litters']==1 ? '' : 's'}',style:const TextStyle(fontSize:10.5,color:Colors.black54)),
++                if((item['restrictions'] as List<String>).isNotEmpty)...[
++                  const SizedBox(height:10),
++                  Container(
++                    width:double.infinity,padding:const EdgeInsets.all(12),
++                    decoration:BoxDecoration(color:const Color(0xFFFFEBEE),
++                      borderRadius:BorderRadius.circular(10),border:Border.all(color:const Color(0xFFB71C1C),width:2)),
++                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
++                      const Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
++                        Icon(Icons.warning_amber_rounded,color:Color(0xFFB71C1C),size:26),
++                        SizedBox(width:8),
++                        Expanded(child:Text('NE PAS RÉALISER CE CROISEMENT POUR LE MOMENT',
++                          style:TextStyle(color:Color(0xFFB71C1C),fontSize:13,fontWeight:FontWeight.w900))),
++                      ]),
++                      const SizedBox(height:6),
++                      for(final reason in item['restrictions'] as List<String>)
++                        Padding(padding:const EdgeInsets.only(top:4),child:Text('• $reason',
++                          style:const TextStyle(color:Color(0xFFB71C1C),fontSize:13,fontWeight:FontWeight.w700))),
++                    ]),
++                  ),
++                ],
+               ]),
+             );
+           }),

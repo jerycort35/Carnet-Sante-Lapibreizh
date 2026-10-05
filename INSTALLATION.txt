@@ -1,9 +1,9 @@
-LapiGestion V3.1.45 — Flutter 1.0.0+45
+LapiGestion V3.1.46 — Flutter 1.0.0+46
 
-Archive source unique cumulative : précision manuscrite et zoom, documents multipages, dorures, calcul des décès et correction du blocage des couleurs. Remplacer les fichiers correspondants dans ton dépôt local, puis compiler l’APK avec ton workflow habituel. Message de commit inclus. Aucun changement GitHub ni APK construit ici.
+ZIP source unique cumulatif : toutes les corrections précédentes sont incluses. Remplacer les fichiers correspondants dans ton dépôt local, puis compiler avec ton workflow Android habituel. Message de commit inclus. Aucun APK construit ici ni changement effectué sur GitHub. Sauvegarder les données avant installation et conserver la même signature, sans désinstaller.
 
-Le cas fourni (8 mâles nés, 4 femelles nées, 1 mâle mort à la naissance et 1 mâle mort au sevrage) donne 6 mâles et 4 femelles restants. Les couleurs Noir : 4 mâles/4 femelles et Noir uni : 2 mâles/0 femelle sont désormais enregistrables.
+Recherche une couleur : tous les croisements correspondant à la race sélectionnée ET à la couleur recherchée dans les portées enregistrées restent affichés, sans limite de nombre. Les résultats historiques et leur classement restent conservés.
 
-Les couleurs doivent représenter une répartition complète par sexe des vivants restants OU une répartition complète des vivants à la naissance pour conserver l’historique existant. Le stade reconnu est affiché et mémorisé. Les deux sexes doivent correspondre au même stade ; les totaux incohérents restent refusés. Aucune couleur ni décès modifié automatiquement. Les décès restent déduits une seule fois.
+Un encadré rouge très visible indique NE PAS RÉALISER CE CROISEMENT POUR LE MOMENT et tous les motifs applicables : traitement médical actif chez la femelle ; quota de portées atteint sur les 12 derniers mois ; repos minimum non terminé avec nombre de jours restants. Plusieurs motifs peuvent apparaître ensemble. Aucun critère de protection supprimé. Un croisement ne devient pas disponible parce qu’il est visible.
 
-Installation avec la même signature, sans désinstaller ; sauvegarder tes données avant mise à jour.
+Les critères de race et couleur ne sont pas élargis. Les données historiques ne sont pas modifiées. Un traitement terminé ou une restriction levée fait disparaître son avertissement lors du rechargement normal des données ou du changement des réglages. Les résultats observés ne garantissent pas la couleur d’une prochaine portée.

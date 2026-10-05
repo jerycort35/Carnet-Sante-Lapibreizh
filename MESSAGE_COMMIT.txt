@@ -1,1 +1,1 @@
-Corriger la validation des couleurs après décès au sevrage - LapiGestion V3.1.45
+Afficher tous les croisements correspondants avec leurs restrictions en rouge - LapiGestion V3.1.46
