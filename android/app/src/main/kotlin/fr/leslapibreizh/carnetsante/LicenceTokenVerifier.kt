@@ -21,7 +21,7 @@ object LicenceTokenVerifier {
   val p=JSONObject(String(decode(payload),Charsets.UTF_8))
   require(p.getString("iss")=="lapigestion"&&p.getString("aud")=="fr.leslapibreizh.carnetsante") { "Licence d’une autre application" }
   require(p.getString("device")==device) { "Licence d’une autre installation" }
-  val tier=p.getString("tier");require(tier in listOf("1","2","3","4","owner")) { "Niveau incorrect" }
+  val tier=p.getString("tier");require(tier in listOf("trial","1","2","3","4","owner")) { "Niveau incorrect" }
   require(p.getString("id").matches(Regex("[a-f0-9-]{36}"))&&p.getInt("revision")>0) { "Licence incorrecte" }
   val issued=p.getLong("iat")
   if(tier=="owner")require(p.isNull("exp")) { "Profil propriétaire incorrect" }

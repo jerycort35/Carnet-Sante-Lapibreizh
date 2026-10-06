@@ -123,6 +123,13 @@ class _LicencePageState extends State<LicencePage> {
                         Text(p.label,
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold)),
+                        if (p.trial && p.claims?['exp'] is int)
+                          Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                  'Essai complet jusqu’au ${DateTime.fromMillisecondsSinceEpoch((p.claims!['exp'] as int) * 1000).toLocal().toString().substring(0, 16)}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700))),
                         const SizedBox(height: 12),
                         const Text(
                             'Accès offert en remerciement d’une donation vérifiée manuellement par Les Lapibreizh. Aucun paiement dans l’application.'),

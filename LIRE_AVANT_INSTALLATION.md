@@ -24,3 +24,7 @@ Ce dossier complète le projet actuel ; il ne crée pas une nouvelle application
 - `test/`, `VALIDATION_47/` : tests et résultats, distincts des données de production.
 
 **Aucune APK finale signée n’est incluse.** La clé privée Android reste dans ton workflow actuel. Aucun déploiement, aucun push GitHub, aucune installation sur ton téléphone n’a été effectué depuis cet environnement.
+
+
+## Ajout Essai 7 jours
+Cette version ajoute une clé `trial` : accès complet pendant 7 jours à partir de la première activation, sur une seule installation. Avant de déployer le nouveau Worker sur une base existante, appliquer `lapigestion-admin/migrations/0002_trial_7_days.sql` une seule fois. Les licences existantes et l’accès propriétaire sont conservés.

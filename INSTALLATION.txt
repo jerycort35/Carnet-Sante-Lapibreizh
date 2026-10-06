@@ -1,3 +1,7 @@
 LapiGestion V3.1.47 — Flutter 1.0.0+47
 
 Lire LIRE_AVANT_INSTALLATION.md AVANT de pousser les fichiers ou générer une APK. Configurer d’abord Cloudflare, télécharger le fichier public licence_config.dart et créer l’accès propriétaire. Le service et la console sont dans lapigestion-admin/. Le workflow et la signature existants doivent rester inchangés. Aucun APK final signé dans cette archive.
+
+
+## Ajout Essai 7 jours
+Cette version ajoute une clé `trial` : accès complet pendant 7 jours à partir de la première activation, sur une seule installation. Avant de déployer le nouveau Worker sur une base existante, appliquer `lapigestion-admin/migrations/0002_trial_7_days.sql` une seule fois. Les licences existantes et l’accès propriétaire sont conservés.

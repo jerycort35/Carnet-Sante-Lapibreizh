@@ -1,1 +1,1 @@
-LapiGestion V3.1.47 — Licences, accès propriétaire permanent et console Cloudflare séparée
+LapiGestion : ajout essai complet 7 jours avec expiration fixe, console admin et migration D1

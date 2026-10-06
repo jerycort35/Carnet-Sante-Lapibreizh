@@ -1,0 +1,154 @@
+
+> test
+> node --test test/*.test.mjs
+
+TAP version 13
+# (node:1007) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Activation authentifiée et signature réelle : trial
+ok 1 - Activation authentifiée et signature réelle : trial
+  ---
+  duration_ms: 32.371004
+  type: 'test'
+  ...
+# Subtest: Activation authentifiée et signature réelle : 1
+ok 2 - Activation authentifiée et signature réelle : 1
+  ---
+  duration_ms: 7.382238
+  type: 'test'
+  ...
+# Subtest: Activation authentifiée et signature réelle : 2
+ok 3 - Activation authentifiée et signature réelle : 2
+  ---
+  duration_ms: 7.489036
+  type: 'test'
+  ...
+# Subtest: Activation authentifiée et signature réelle : 3
+ok 4 - Activation authentifiée et signature réelle : 3
+  ---
+  duration_ms: 6.013013
+  type: 'test'
+  ...
+# Subtest: Activation authentifiée et signature réelle : 4
+ok 5 - Activation authentifiée et signature réelle : 4
+  ---
+  duration_ms: 6.260851
+  type: 'test'
+  ...
+# Subtest: Activation authentifiée et signature réelle : owner
+ok 6 - Activation authentifiée et signature réelle : owner
+  ---
+  duration_ms: 7.985554
+  type: 'test'
+  ...
+# Subtest: Console refuse accès anonyme
+ok 7 - Console refuse accès anonyme
+  ---
+  duration_ms: 1.533889
+  type: 'test'
+  ...
+# Subtest: JWT signé : refuse autre audience, autre mail et expiration
+ok 8 - JWT signé : refuse autre audience, autre mail et expiration
+  ---
+  duration_ms: 4.853491
+  type: 'test'
+  ...
+# Subtest: JWT avec signature forgée refusé
+ok 9 - JWT avec signature forgée refusé
+  ---
+  duration_ms: 2.469519
+  type: 'test'
+  ...
+# Subtest: Mutations refusées sans Origin/CSRF
+ok 10 - Mutations refusées sans Origin/CSRF
+  ---
+  duration_ms: 1.993612
+  type: 'test'
+  ...
+# Subtest: Clés uniques et stockées seulement sous forme hachée
+ok 11 - Clés uniques et stockées seulement sous forme hachée
+  ---
+  duration_ms: 3.559348
+  type: 'test'
+  ...
+# Subtest: Clé invalide ne crée pas d’activation
+ok 12 - Clé invalide ne crée pas d’activation
+  ---
+  duration_ms: 8.280933
+  type: 'test'
+  ...
+# Subtest: Partage sur une autre installation refusé
+ok 13 - Partage sur une autre installation refusé
+  ---
+  duration_ms: 9.538211
+  type: 'test'
+  ...
+# Subtest: Nonce inexistant et fausse preuve refusés
+ok 14 - Nonce inexistant et fausse preuve refusés
+  ---
+  duration_ms: 5.79494
+  type: 'test'
+  ...
+# Subtest: Révocation et changement de niveau appliqués au renouvellement
+ok 15 - Révocation et changement de niveau appliqués au renouvellement
+  ---
+  duration_ms: 16.546884
+  type: 'test'
+  ...
+# Subtest: Propriétaire séparé et unique : promotion et révocation refusées
+ok 16 - Propriétaire séparé et unique : promotion et révocation refusées
+  ---
+  duration_ms: 6.938608
+  type: 'test'
+  ...
+# Subtest: Réinstallation : nouvelle clé, ancienne clé invalidée
+ok 17 - Réinstallation : nouvelle clé, ancienne clé invalidée
+  ---
+  duration_ms: 11.027454
+  type: 'test'
+  ...
+# Subtest: Sauvegarde conserve licences et audit sans clé en clair
+ok 18 - Sauvegarde conserve licences et audit sans clé en clair
+  ---
+  duration_ms: 2.825729
+  type: 'test'
+  ...
+# Subtest: Limitation des tentatives publiques
+ok 19 - Limitation des tentatives publiques
+  ---
+  duration_ms: 10.208847
+  type: 'test'
+  ...
+# Subtest: Deux applications Access avec audiences explicites acceptées
+ok 20 - Deux applications Access avec audiences explicites acceptées
+  ---
+  duration_ms: 1.552477
+  type: 'test'
+  ...
+# Subtest: Un défi authentifié ne peut pas être réutilisé
+ok 21 - Un défi authentifié ne peut pas être réutilisé
+  ---
+  duration_ms: 5.72794
+  type: 'test'
+  ...
+# Subtest: Essai 7 jours : accès complet, expiration fixe et non renouvelable
+ok 22 - Essai 7 jours : accès complet, expiration fixe et non renouvelable
+  ---
+  duration_ms: 11.15274
+  type: 'test'
+  ...
+# Subtest: Essai : récupération sur nouvel appareil ne remet pas les 7 jours à zéro
+ok 23 - Essai : récupération sur nouvel appareil ne remet pas les 7 jours à zéro
+  ---
+  duration_ms: 8.306561
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 859.603123

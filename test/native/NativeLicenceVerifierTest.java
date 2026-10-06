@@ -13,7 +13,7 @@ public class NativeLicenceVerifierTest {
  static void reject(JSONObject p,long w,long old)throws Exception{try{verify(sign(p),w,old);throw new AssertionError("Accepted forbidden token");}catch(IllegalArgumentException expected){}}
  public static void main(String[] args)throws Exception {
   KeyPairGenerator g=KeyPairGenerator.getInstance("RSA");g.initialize(2048);signer=g.generateKeyPair();publicKey=encode(signer.getPublic().getEncoded());
-  for(String tier:new String[]{"1","2","3","4","owner"})test("profile "+tier,()->verify(sign(claim(tier)),wall,0));
+  for(String tier:new String[]{"trial","1","2","3","4","owner"})test("profile "+tier,()->verify(sign(claim(tier)),wall,0));
   test("forged signature",()->{JSONObject token=sign(claim("4"));token.put("signature",encode(new byte[256]));try{verify(token,wall,0);throw new AssertionError();}catch(IllegalArgumentException expected){}});
   test("different installation",()->reject(claim("4").put("device","another"),wall,0));
   test("different application",()->reject(claim("4").put("aud","other"),wall,0));

@@ -3,13 +3,13 @@ const b64=b=>Buffer.from(b).toString('base64url'),enc=new TextEncoder();let sign
 async function pair(){return crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);}
 signing=await pair();access=await pair();device=await pair();device2=await pair();const ajwk=await crypto.subtle.exportKey('jwk',access.publicKey);ajwk.kid='test';
 globalThis.fetch=async()=>new Response(JSON.stringify({keys:[ajwk]}));
-function fixture(){const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../migrations/0001_licences.sql',import.meta.url),'utf8'));const DB={prepare(sql){let params=[];return {bind(...v){params=v;return this;},async first(){return db.prepare(sql).get(...params)||null;},async all(){return {results:db.prepare(sql).all(...params)};},async run(){return db.prepare(sql).run(...params);}};},async batch(list){return Promise.all(list.map(x=>x.run()));}};return {db,env:{DB,PUBLIC_ORIGIN:'https://licences.test',ACCESS_TEAM:'https://test.cloudflareaccess.com',ACCESS_AUD:'expected',ADMIN_EMAIL:'admin@test.example',RATE_PEPPER:'testing-only',SIGNING_PRIVATE_JWK:null,ASSETS:{fetch:async()=>new Response('console')}}};}
+function fixture(){const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../migrations/0001_licences.sql',import.meta.url),'utf8'));db.exec(readFileSync(new URL('../migrations/0002_trial_7_days.sql',import.meta.url),'utf8'));const DB={prepare(sql){let params=[];return {bind(...v){params=v;return this;},async first(){return db.prepare(sql).get(...params)||null;},async all(){return {results:db.prepare(sql).all(...params)};},async run(){return db.prepare(sql).run(...params);}};},async batch(list){return Promise.all(list.map(x=>x.run()));}};return {db,env:{DB,PUBLIC_ORIGIN:'https://licences.test',ACCESS_TEAM:'https://test.cloudflareaccess.com',ACCESS_AUD:'expected',ADMIN_EMAIL:'admin@test.example',RATE_PEPPER:'testing-only',SIGNING_PRIVATE_JWK:null,ASSETS:{fetch:async()=>new Response('console')}}};}
 async function jwt(overrides={}){const t=Math.floor(Date.now()/1000),head=b64(JSON.stringify({alg:'RS256',kid:'test'})),p=b64(JSON.stringify({iss:'https://test.cloudflareaccess.com',aud:['expected'],email:'admin@test.example',type:'app',iat:t,exp:t+3600,...overrides}));return `${head}.${p}.${b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',access.privateKey,enc.encode(`${head}.${p}`)))}`;}
 async function request(env,path,method='GET',data,token){env.SIGNING_PRIVATE_JWK=JSON.stringify(await crypto.subtle.exportKey('jwk',signing.privateKey));const h={'Content-Type':'application/json','CF-Connecting-IP':'127.0.0.1'};if(token){h['Cf-Access-Jwt-Assertion']=token;h.Origin=env.PUBLIC_ORIGIN;h['X-Lapi-Admin']='1';}const res=await worker.fetch(new Request(env.PUBLIC_ORIGIN+path,{method,headers:h,...(data?{body:JSON.stringify(data)}:{})}),env);return {status:res.status,data:await res.json()};}
 async function create(env,tier='4'){return (await request(env,tier==='owner'?'/api/admin/owner':'/api/admin/licences','POST',{recipient:'Test uniquement',tier,confirm:'PROPRIETAIRE'},await jwt())).data;}
 async function auth(env,key,installation=device,action='activate',patch={}){const ch=(await request(env,'/api/challenge','POST',{})).data.nonce;const spki=b64(await crypto.subtle.exportKey('spki',installation.publicKey));const proof=b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',installation.privateKey,enc.encode(`${ch}\n${action}\n${key}\n${spki}`)));return request(env,'/api/authorize','POST',{nonce:ch,spki,proof,credential:key,action,...patch});}
 async function claims(token){assert.equal(await crypto.subtle.verify('RSASSA-PKCS1-v1_5',signing.publicKey,Buffer.from(token.signature,'base64url'),enc.encode(token.payload)),true);return JSON.parse(Buffer.from(token.payload,'base64url'));}
-for(const tier of ['1','2','3','4','owner'])test(`Activation authentifiée et signature réelle : ${tier}`,async()=>{const {env}=fixture(),c=await create(env,tier),r=await auth(env,c.key);assert.equal(r.status,200);const p=await claims(r.data);assert.equal(p.tier,tier);assert.equal(p.aud,'fr.leslapibreizh.carnetsante');assert.equal(tier==='owner'?p.exp===null:p.exp-p.iat===7*86400,true);});
+for(const tier of ['trial','1','2','3','4','owner'])test(`Activation authentifiée et signature réelle : ${tier}`,async()=>{const {env}=fixture(),c=await create(env,tier),r=await auth(env,c.key);assert.equal(r.status,200);const p=await claims(r.data);assert.equal(p.tier,tier);assert.equal(p.aud,'fr.leslapibreizh.carnetsante');assert.equal(tier==='owner'?p.exp===null:p.exp-p.iat===7*86400,true);});
 test('Console refuse accès anonyme',async()=>{assert.equal((await request(fixture().env,'/api/admin/licences')).status,401);});
 test('JWT signé : refuse autre audience, autre mail et expiration',async()=>{for(const change of [{aud:['wrong']},{email:'someone@test.example'},{exp:1}])assert.equal((await request(fixture().env,'/api/admin/licences','GET',null,await jwt(change))).status,403);});
 test('JWT avec signature forgée refusé',async()=>{const parts=(await jwt()).split('.');parts[2]=b64(new Uint8Array(256));assert.equal((await request(fixture().env,'/api/admin/licences','GET',null,parts.join('.'))).status,401);});
@@ -26,3 +26,23 @@ test('Limitation des tentatives publiques',async()=>{const {env}=fixture();for(l
 test('Deux applications Access avec audiences explicites acceptées',async()=>{const {env}=fixture();env.ACCESS_AUD='expected,second';assert.equal((await request(env,'/api/admin/licences','GET',null,await jwt({aud:['second']}))).status,200);});
 
 test('Un défi authentifié ne peut pas être réutilisé',async()=>{const {env}=fixture(),c=await create(env);const nonce=(await request(env,'/api/challenge','POST',{})).data.nonce;const spki=b64(await crypto.subtle.exportKey('spki',device.publicKey)),proof=b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',device.privateKey,enc.encode(`${nonce}\nactivate\n${c.key}\n${spki}`)));const b={nonce,spki,proof,credential:c.key,action:'activate'};assert.equal((await request(env,'/api/authorize','POST',b)).status,200);assert.equal((await request(env,'/api/authorize','POST',b)).status,409);});
+
+
+test('Essai 7 jours : accès complet, expiration fixe et non renouvelable',async()=>{
+ const {env,db}=fixture(),c=await create(env,'trial');
+ const first=await auth(env,c.key);assert.equal(first.status,200);const p1=await claims(first.data);
+ assert.equal(p1.tier,'trial');assert.equal(p1.exp-p1.iat,7*86400);
+ const row1=db.prepare('SELECT activated_at,device_hash FROM licences WHERE id=?').get(c.id);assert.ok(row1.activated_at);assert.ok(row1.device_hash);
+ const refreshed=await auth(env,c.id,device,'refresh');assert.equal(refreshed.status,200);const p2=await claims(refreshed.data);
+ assert.equal(p2.exp,p1.exp);
+ db.prepare('UPDATE licences SET activated_at=? WHERE id=?').run(Math.floor(Date.now()/1000)-7*86400-1,c.id);
+ const expired=await auth(env,c.id,device,'refresh');assert.equal(expired.status,403);assert.match(expired.data.error,/essai/i);
+});
+
+test('Essai : récupération sur nouvel appareil ne remet pas les 7 jours à zéro',async()=>{
+ const {env,db}=fixture(),c=await create(env,'trial');await auth(env,c.key);
+ const before=db.prepare('SELECT activated_at FROM licences WHERE id=?').get(c.id).activated_at;
+ const r=await request(env,`/api/admin/licences/${c.id}`,'PATCH',{action:'recover'},await jwt());
+ const second=await auth(env,r.data.key,device2);assert.equal(second.status,200);
+ const after=db.prepare('SELECT activated_at FROM licences WHERE id=?').get(c.id).activated_at;assert.equal(after,before);
+});

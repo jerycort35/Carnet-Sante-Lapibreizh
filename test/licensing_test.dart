@@ -42,14 +42,24 @@ void main() {
     expect(await Store.load(), isEmpty);
     expect(await ReproductionStore.load(), isEmpty);
   });
-  for (final tier in ['1', '2', '3', '4', 'owner'])
+  for (final tier in ['trial', '1', '2', '3', '4', 'owner'])
     test('Droits précis du profil $tier', () {
       final p = policy(tier);
       expect(p.usable, true);
-      expect(p.breeding, ['3', '4', 'owner'].contains(tier));
+      expect(p.breeding, ['trial', '3', '4', 'owner'].contains(tier));
       expect(p.rabbitLimit, tier == '1' ? 1 : null);
       expect(p.breederLimit, tier == '3' ? 2 : null);
     });
+
+  test('Essai 7 jours : accès complet tant que non expiré', () {
+    final p = policy('trial');
+    expect(p.usable, true);
+    expect(p.breeding, true);
+    expect(p.rabbitLimit, isNull);
+    expect(p.breederLimit, isNull);
+    expect(p.label, contains('Essai 7 jours'));
+    expect(const LicencePolicy({'tier': 'trial', 'exp': 1}).usable, false);
+  });
   test('Niveau 1 limite réellement les créations, même après réinstallation',
       () async {
     await installTestLicence('1');
@@ -58,7 +68,7 @@ void main() {
         throwsA(isA<LicenceException>()));
     expect((await Store.snapshot()).length, 1);
   });
-  for (final tier in ['2', '3', '4', 'owner'])
+  for (final tier in ['trial', '2', '3', '4', 'owner'])
     test('Fiches illimitées $tier', () async {
       await installTestLicence(tier);
       await Store.save(List.generate(50, (i) => rabbit('$i')));
@@ -86,8 +96,8 @@ void main() {
         throwsA(isA<LicenceException>()));
     expect((await Store.snapshot()).length, 2);
   });
-  test('Niveau 4 et propriétaire : reproducteurs illimités', () async {
-    for (final tier in ['4', 'owner']) {
+  test('Essai, niveau 4 et propriétaire : reproducteurs illimités', () async {
+    for (final tier in ['trial', '4', 'owner']) {
       await installTestLicence(tier);
       await Store.save(List.generate(10, (i) => rabbit('$i', active: true)));
       expect((await Store.snapshot()).where(LicencePolicy.active).length, 10);

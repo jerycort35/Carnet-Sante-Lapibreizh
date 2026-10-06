@@ -1,6 +1,6 @@
 const enc=new TextEncoder();
 export const AUD='fr.leslapibreizh.carnetsante';
-export const tiers=['1','2','3','4','owner'];
+export const tiers=['trial','1','2','3','4','owner'];
 const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 const un64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 const now=()=>Math.floor(Date.now()/1000);
@@ -38,7 +38,7 @@ function key(){return 'LG-'+Array.from(crypto.getRandomValues(new Uint8Array(32)
 export function normalizeKey(v){return String(v||'').toUpperCase().replace(/[-\s]/g,'');}
 async function issue(env,row,device){
  if(!env.SIGNING_PRIVATE_JWK)fail('Clé de signature du service absente.',503);
- const payload={iss:'lapigestion',aud:AUD,id:row.id,tier:row.tier,revision:row.revision,device,iat:now(),exp:row.tier==='owner'?null:now()+7*86400};
+ const issued=now();let exp=null;if(row.tier==='trial'){if(!row.activated_at)fail('Activation de l’essai incomplète.',409);exp=row.activated_at+7*86400;if(exp<=issued)fail('La période d’essai de 7 jours est terminée.',403);}else if(row.tier!=='owner')exp=issued+7*86400;const payload={iss:'lapigestion',aud:AUD,id:row.id,tier:row.tier,revision:row.revision,device,iat:issued,exp};
  const data=b64(enc.encode(JSON.stringify(payload)));
  const k=await crypto.subtle.importKey('jwk',JSON.parse(env.SIGNING_PRIVATE_JWK),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
  return {payload:data,signature:b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',k,enc.encode(data)))};
@@ -56,7 +56,7 @@ export async function authorize(req,env){
  if(!row)fail('Clé inexistante ou incorrecte.',404);if(row.status!=='active')fail('Licence révoquée.',403);
  if(b.action==='refresh'&&!row.device_hash)fail('Activation requise.',409);
  if(row.device_hash&&row.device_hash!==device)fail('Licence déjà liée à une autre installation. Contacte Les Lapibreizh.',409);
- const linked=await statement(env,"UPDATE licences SET device_hash=?,updated_at=? WHERE id=? AND status='active' AND (device_hash IS NULL OR device_hash=?) RETURNING *",device,now(),row.id,device).first();
+ const linked=await statement(env,"UPDATE licences SET device_hash=?,activated_at=CASE WHEN activated_at IS NULL THEN ? ELSE activated_at END,updated_at=? WHERE id=? AND status='active' AND (device_hash IS NULL OR device_hash=?) RETURNING *",device,now(),now(),row.id,device).first();
  if(!linked)fail('Licence indisponible. Recommence.',409);
  // A final read avoids issuing a stale level after a concurrent administrative change.
  const current=await statement(env,'SELECT * FROM licences WHERE id=?',row.id).first();
@@ -64,7 +64,7 @@ export async function authorize(req,env){
  return json(await issue(env,current,device));
 }
 async function adminApi(req,env,actor,path){
- if(req.method==='GET'&&path==='/api/admin/licences')return json((await statement(env,'SELECT id,recipient,tier,status,revision,device_hash,created_at,updated_at FROM licences ORDER BY created_at DESC').all()).results);
+ if(req.method==='GET'&&path==='/api/admin/licences')return json((await statement(env,'SELECT id,recipient,tier,status,revision,device_hash,activated_at,created_at,updated_at FROM licences ORDER BY created_at DESC').all()).results);
  if(req.method==='GET'&&path==='/api/admin/backup')return json({format:'lapigestion_licences_v1',createdAt:new Date().toISOString(),licences:(await statement(env,'SELECT * FROM licences').all()).results,audit:(await statement(env,'SELECT * FROM audit').all()).results});
  if(req.method==='POST'&&(path==='/api/admin/licences'||path==='/api/admin/owner')){
   const b=await body(req);const tier=path.endsWith('/owner')?'owner':String(b.tier);const recipient=String(b.recipient||'').trim();
@@ -79,7 +79,7 @@ async function adminApi(req,env,actor,path){
   if(b.action==='recover'||b.action==='rotate'){
    activationKey=key();await statement(env,'UPDATE licences SET key_hash=?,device_hash=?,revision=revision+1,updated_at=? WHERE id=?',await sha(normalizeKey(activationKey)),b.action==='recover'?null:row.device_hash,now(),row.id).run();
   }else if(b.action==='level'){
-   if(row.tier==='owner'||!['1','2','3','4'].includes(String(b.tier)))fail('Le profil propriétaire est séparé des niveaux utilisateurs.');
+   if(row.tier==='owner'||!['1','2','3','4'].includes(String(b.tier)))fail('Choisis un niveau utilisateur définitif 1 à 4.');
    await statement(env,'UPDATE licences SET tier=?,revision=revision+1,updated_at=? WHERE id=?',String(b.tier),now(),row.id).run();
   }else if(['revoke','reactivate'].includes(b.action)){
    if(row.tier==='owner')fail('Le profil propriétaire permanent ne peut pas être révoqué.');

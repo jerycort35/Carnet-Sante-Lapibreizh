@@ -4,9 +4,9 @@ Ne touche pas au Worker Les Lapibreizh. Utilise uniquement le projet **lapigesti
 
 ## Méthode depuis le tableau de bord Cloudflare
 
-1. Crée une base D1 **lapigestion-licences**. Dans sa console SQL, exécute tout `lapigestion-admin/migrations/0001_licences.sql` **une seule fois sur une base neuve**. Ce schéma ne contient aucune licence ni donnée de démonstration.
+1. Crée une base D1 **lapigestion-licences**. Dans sa console SQL, exécute `lapigestion-admin/migrations/0001_licences.sql` puis `0002_trial_7_days.sql` **dans cet ordre sur une base neuve**. Ce schéma ne contient aucune licence ni donnée de démonstration.
 2. Dans les paramètres du Worker `lapigestion-admin`, ajoute un binding D1 nommé exactement **DB**, vers cette base. Note l’URL HTTPS exacte du Worker, sans slash final.
-3. Dans Cloudflare Zero Trust / Access, prépare une application self-hosted privée pour ce Worker, avec deux destinations : son domaine + chemin `/admin/*` et son domaine + chemin `/api/admin/*`. Laisse `/api/challenge` et `/api/authorize` publics pour l’APK. Si ton interface Access impose deux applications séparées, crée les deux et conserve leurs deux audiences AUD.
+3. Dans Cloudflare Zero Trust / Access, protège le Worker pour l’administration et conserve deux exceptions publiques de chemin (`overrides`) : `/api/challenge` et `/api/authorize`. Ces deux routes doivent rester publiques pour l’APK ; `/admin/*` et `/api/admin/*` restent protégés.
 4. La règle Allow doit autoriser **uniquement ton adresse e-mail**. Ne mets pas de règle Everyone ou Bypass. Privilégie un fournisseur d’identité avec authentification à deux facteurs. Tu peux aussi utiliser le code à usage unique envoyé par Access à l’adresse autorisée ; sécurise alors cette messagerie avec une authentification forte.
 5. Dans les variables texte du Worker, renseigne :
 
@@ -31,6 +31,12 @@ Ne touche pas au Worker Les Lapibreizh. Utilise uniquement le projet **lapigesti
 11. Dans la console, crée ton profil propriétaire et conserve sa clé. Vérifie également la création d’une licence utilisateur et le téléchargement d’une sauvegarde JSON. Les clés de test créées sur le service réel sont de vraies licences : révoque-les si elles ne servent plus.
 12. Ajoute un déclencheur Cron `17 * * * *` au Worker pour purger les défis expirés et compteurs temporaires.
 13. Intègre les fichiers de l’application au dépôt actuel et génère l’APK avec **le workflow existant**. Aucun nouveau workflow à ajouter. Fais les tests sur téléphone avant distribution.
+
+## Mise à niveau d’une base déjà en service
+
+Pour une installation LapiGestion déjà fonctionnelle avec des licences existantes, **n’exécute pas de nouveau `0001`**. Applique uniquement `lapigestion-admin/migrations/0002_trial_7_days.sql` une fois. Cette migration conserve les licences, ajoute le niveau `trial` et mémorise la date de première activation.
+
+Le mode `trial` donne l’accès complet pendant 7 jours exactement à partir de la première activation. Une réinstallation ou une nouvelle clé de récupération ne remet pas le compteur à zéro. À expiration, l’utilisateur peut activer une licence définitive de niveau 1 à 4.
 
 ## Alternative depuis un ordinateur
 

@@ -16,19 +16,21 @@ class LicencePolicy {
   const LicencePolicy(this.claims);
   String get tier => claims?['tier']?.toString() ?? '';
   bool get owner => tier == 'owner' && usable;
+  bool get trial => tier == 'trial';
   bool get usable =>
       claims != null &&
-      ['1', '2', '3', '4', 'owner'].contains(tier) &&
+      ['trial', '1', '2', '3', '4', 'owner'].contains(tier) &&
       (tier == 'owner'
           ? claims!['exp'] == null
           : (claims!['exp'] is int &&
               (claims!['exp'] as int) >
                   DateTime.now().millisecondsSinceEpoch ~/ 1000));
-  bool get breeding => usable && ['3', '4', 'owner'].contains(tier);
+  bool get breeding => usable && ['trial', '3', '4', 'owner'].contains(tier);
   int? get rabbitLimit => tier == '1' ? 1 : null;
   int? get breederLimit => tier == '3' ? 2 : null;
   String get label =>
       {
+        'trial': 'Essai 7 jours · accès complet',
         '1': 'Adoptant / 1 lapin',
         '2': 'Adoptant illimité',
         '3': 'Complète / 2 reproducteurs actifs',
