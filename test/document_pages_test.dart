@@ -1,3 +1,4 @@
+import 'licence_fixture.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ void main(){
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory folder;
   setUp(()async{
+    await installTestLicence();
     folder=await Directory.systemTemp.createTemp('lapi_document_pages_');
     SharedPreferences.setMockInitialValues({});
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(

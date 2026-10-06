@@ -1,0 +1,4 @@
+import {readFile,writeFile,readdir} from 'node:fs/promises';
+const root=new URL('../',import.meta.url),files={};for(const f of await readdir(new URL('public/admin/',root)))files['/admin/'+f]={body:await readFile(new URL('public/admin/'+f,root),'utf8'),type:f.endsWith('.html')?'text/html':f.endsWith('.css')?'text/css':'text/javascript'};
+let src=await readFile(new URL('src/worker.mjs',root),'utf8');src=src.replace('const response=await env.ASSETS.fetch(req);',`const asset=embedded[path==='/admin/'?'/admin/index.html':path];const response=asset?new Response(asset.body,{headers:{'Content-Type':asset.type+';charset=utf-8'}}):new Response('Introuvable',{status:404});`);
+await writeFile(new URL('worker-dashboard.mjs',root),`const embedded=${JSON.stringify(files)};\n${src}`);console.log('worker-dashboard.mjs généré : console incluse.');

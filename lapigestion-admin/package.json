@@ -1,0 +1,1 @@
+{"name":"lapigestion-admin","private":true,"type":"module","engines":{"node":">=22.13"},"scripts":{"test":"node --test test/*.test.mjs","keys":"node scripts/generate-keys.mjs","bundle":"node scripts/dashboard-bundle.mjs","deploy":"wrangler deploy"},"devDependencies":{"wrangler":"^4.0.0"}}

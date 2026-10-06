@@ -1,0 +1,4 @@
+00:00 +0: loading /workspace/scratch/010a071bd376/project/test/licence_gate_test.dart
+00:00 +0: Propriétaire : accueil complet et retour Android dans le navigateur interne
+00:01 +1: Perte des droits ferme les pages internes et conserve les fiches
+00:02 +2: All tests passed!

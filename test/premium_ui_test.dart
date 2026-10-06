@@ -1,3 +1,4 @@
+import 'licence_fixture.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -23,7 +24,8 @@ void main() {
       await loader.load();
     }
   });
-  setUp(() {
+  setUp(() async {
+    await installTestLicence();
     final rabbit = emptyRabbit()
       ..addAll({
         'id': 'ui_test_rabbit',

@@ -1,0 +1,448 @@
+--- V46/lib/main.dart
++++ V47/lib/main.dart
+@@ -1,3 +1,5 @@
++import 'dart:async';
++import 'licensing.dart';
+ import 'dart:convert';
+ import 'dart:io';
+ import 'dart:typed_data';
+@@ -26,6 +28,8 @@
+ import 'package:url_launcher/url_launcher.dart';
+ 
+ part 'premium_ui.dart';
++part 'licence_ui.dart';
++final licenceMessenger = GlobalKey<ScaffoldMessengerState>();
+ 
+ const gold = Color(0xFFD4AF67);
+ const ink = Color(0xFF171512);
+@@ -44,16 +48,19 @@
+ const softGoldLine = Color(0xFFDCC47B);
+ 
+ Future<void> main() async {
++ runZonedGuarded(() async {
+   WidgetsFlutterBinding.ensureInitialized();
+   await Notifications.init();
+   await LapiFrameAssets.instance.load();
+   runApp(const LapibreizhApp());
++ },(error,stack){if(error is LicenceException){licenceMessenger.currentState?.showSnackBar(SnackBar(content:Text(error.message)));}else{FlutterError.reportError(FlutterErrorDetails(exception:error,stack:stack));}});
+ }
+ 
+ class LapibreizhApp extends StatelessWidget {
+   const LapibreizhApp({super.key});
+   @override Widget build(BuildContext context) => MaterialApp(
+     debugShowCheckedModeBanner: false,
++    scaffoldMessengerKey: licenceMessenger,
+     title: 'LapiGestion',
+     theme: ThemeData(
+       useMaterial3: true,
+@@ -200,7 +207,7 @@
+     Navigator.of(context).pushReplacement(
+       PageRouteBuilder(
+         transitionDuration:const Duration(milliseconds:450),
+-        pageBuilder:(_,animation,secondaryAnimation)=>const HomePage(),
++        pageBuilder:(_,animation,secondaryAnimation)=>const LicenceGate(),
+         transitionsBuilder:(_,animation,secondaryAnimation,child)=>FadeTransition(
+           opacity:CurvedAnimation(parent:animation,curve:Curves.easeOut),
+           child:child,
+@@ -528,18 +535,30 @@
+     if(changed)await p.setString(key,jsonEncode(list));
+     return list;
+   }
+-  static Future<void> save(List<Map<String,dynamic>> v) async { final p=await SharedPreferences.getInstance(); await p.setString(key,jsonEncode(v)); }
++  static Future<List<Map<String,dynamic>>> snapshot() async {final p=await SharedPreferences.getInstance();return ((jsonDecode(p.getString(key)??'[]')) as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();}
++  static Future<void> requireWritable() async {LicenceService.instance.policy.requireWritable((await snapshot()).length);}
++  static Future<void> save(List<Map<String,dynamic>> v,{bool restoring=false}) async {
++   final p=await SharedPreferences.getInstance();final previous=await snapshot();
++   for(final r in v){if(r['sterilized']=='Stérilisé(e)'||r['adoptionStatus']=='Adopté / parti'||!['Mâle','Femelle'].contains(r['sex']))r['activeBreeder']=false;}
++   LicenceService.instance.policy.checkRabbits(previous,v,restoring:restoring);
++   await p.setString(key,jsonEncode(v));
++  }
+ }
+ 
+ 
+ class AppModeStore {
+   static const key='lapibreizh_app_mode_v2';
+   static Future<String> load() async {
++    if(!LicenceService.instance.policy.breeding)return 'Adoptant';
++    return storedValue();
++  }
++  static Future<String> storedValue() async {
+     final p=await SharedPreferences.getInstance();
+     final value=p.getString(key);
+     return value=='Adoptant'?'Adoptant':'Éleveur';
+   }
+   static Future<void> save(String value) async {
++    LicenceService.instance.policy.requireUsable();if(value!='Adoptant')LicenceService.instance.policy.requireBreeding();
+     final p=await SharedPreferences.getInstance();
+     await p.setString(key,value=='Adoptant'?'Adoptant':'Éleveur');
+   }
+@@ -558,6 +577,7 @@
+   }
+ 
+   static Future<void> save({required int maxLitters,required int restDays}) async {
++    LicenceService.instance.policy.requireBreeding();
+     final p=await SharedPreferences.getInstance();
+     await p.setInt(_maxKey,maxLitters.clamp(1,6) as int);
+     await p.setInt(_restKey,restDays<0 ? 0 : restDays);
+@@ -1622,7 +1642,8 @@
+     return (jsonDecode(s) as List).map((e)=>Map<String,dynamic>.from(e)).toList();
+   }
+ 
+-  static Future<void> save(List<Map<String,dynamic>> v) async {
++  static Future<void> save(List<Map<String,dynamic>> v,{bool restoring=false}) async {
++    LicenceService.instance.policy.checkReproduction(await load(),v,await Store.snapshot(),restoring:restoring);
+     final p=await SharedPreferences.getInstance();
+     await p.setString(key,jsonEncode(v));
+   }
+@@ -1636,6 +1657,7 @@
+   }
+ 
+   static Future<void> remove(String id) async {
++    LicenceService.instance.policy.requireBreeding();
+     final all=await load();
+     all.removeWhere((e)=>e['id']==id);
+     await save(all);
+@@ -1992,7 +2014,7 @@
+   static Future<File> createBackup() async {
+     final rabbits=await Store.load();
+     final reproduction=await ReproductionStore.load();
+-    final mode=await AppModeStore.load();
++    final mode=await AppModeStore.storedValue();
+     final files=<String,dynamic>{};
+ 
+     for(final rabbit in rabbits){
+@@ -2039,6 +2061,7 @@
+         .map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+     final rawFiles=Map<String,dynamic>.from((decoded['files'] as Map?)??{});
+     final restoredPaths=<String,String>{};
++    LicenceService.instance.policy.checkRabbits(await Store.snapshot(),rabbits,restoring:true);
+ 
+     Future<String> restorePath(String oldPath,String category) async {
+       if(oldPath.isEmpty)return '';
+@@ -2097,9 +2120,9 @@
+       }
+     }
+ 
+-    await Store.save(rabbits);
+-    await ReproductionStore.save(reproduction);
+-    await AppModeStore.save((decoded['appMode']??'Éleveur') as String);
++    await Store.save(rabbits,restoring:true);
++    await ReproductionStore.save(reproduction,restoring:true);
++    await AppModeStore.save(LicenceService.instance.policy.breeding?(decoded['appMode']??'Éleveur') as String:'Adoptant');
+     await Notifications.refreshAll(rabbits);
+   }
+ }
+@@ -3032,7 +3055,7 @@
+     if(mounted)setState(()=>loading=false);
+   }
+   Future<void> setAppMode(String mode) async {await AppModeStore.save(mode);if(mounted)setState(()=>appMode=mode);}
+-  Future<void> addRabbit() async { final r=emptyRabbit(); rabbits.add(r); await Store.save(rabbits); if(!mounted)return; await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:rabbits.length-1))); await refresh(); }
++  Future<void> addRabbit() async { final r=emptyRabbit(); final next=[...rabbits,r]; await Store.save(next); rabbits=next; if(!mounted)return; await Navigator.push(context,MaterialPageRoute(builder:(_)=>RabbitPage(index:rabbits.length-1))); await refresh(); }
+ 
+   DateTime? _nextTreatmentDue(Map<String,dynamic> item){
+     final months=(item['reminderMonths']??0) as int;
+@@ -3204,6 +3227,7 @@
+       if(female==null)continue;
+       final restrictions=ReproductionAvailability.reasons(female:female,records:breedings,
+           maxLitters:reproMaxLitters,restDays:reproRestDays);
++      if(LicenceService.instance.policy.breederLimit!=null&&(!LicencePolicy.active(_rabbitById(maleId)??{})||!LicencePolicy.active(female)))restrictions.add('Ce couple n’est pas déclaré parmi les reproducteurs actifs autorisés.');
+       final pairBreed=_homePairBreed(maleId,femaleId);
+       if(desiredBreed.isNotEmpty&&pairBreed!=desiredBreed)continue;
+       final colors=ReproductionStore.aggregateColors(entry.value);
+@@ -4174,15 +4198,15 @@
+               ),
+               Padding(
+                 padding:const EdgeInsets.fromLTRB(10,8,10,8),
+-                child:LapiSurface(child:Padding(
++                child:Column(children:[TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const LicencePage())),icon:const Icon(Icons.verified_user_outlined),label:Text('Mon accès · ${LicenceService.instance.policy.label}')),if(LicenceService.instance.policy.rabbitLimit==1&&rabbits.length>1)const Text('Une seule fiche autorisée : sauvegarde tes données avant de choisir la fiche à conserver.',style:TextStyle(color:Colors.red)),LapiSurface(child:Padding(
+                   padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                   child:LayoutBuilder(builder:(context,c){
+                     final controls=SizedBox(
+                       width:184,
+                       child:PremiumSegmentedButton<String>(
+-                        segments:const [
+-                          ButtonSegment(value:'Éleveur',label:Text('Élevage')),
+-                          ButtonSegment(value:'Adoptant',label:Text('Adoptant')),
++                        segments:[
++                          ButtonSegment(value:'Éleveur',label:const Text('Élevage'),enabled:LicenceService.instance.policy.breeding),
++                          const ButtonSegment(value:'Adoptant',label:Text('Adoptant')),
+                         ],
+                         selected:{appMode},showSelectedIcon:false,
+                         onSelectionChanged:homeOrganizing?null:(v)=>setAppMode(v.first),
+@@ -4203,7 +4227,7 @@
+                     }
+                     return Row(children:[Expanded(child:title),const SizedBox(width:8),controls]);
+                   }),
+-                )),
++                ))]),
+               ),
+             ],
+           )),
+@@ -4233,7 +4257,7 @@
+ }
+ 
+ ImageProvider? fileImage(dynamic p){if(p is String&&p.isNotEmpty&&File(p).existsSync())return FileImage(File(p));return null;}
+-Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','breed':'','color':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherColor':'','fatherBirth':'','motherName':'','motherBreed':'','motherColor':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':<String>[],'passport':<String>[],'adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
++Map<String,dynamic> emptyRabbit()=>{'id':'r_${DateTime.now().microsecondsSinceEpoch}','name':'','sex':'','sterilized':'','activeBreeder':false,'breed':'','color':'','birth':'','weaning':'','identification':'','tattoo':'','photo':'','fatherName':'','fatherBreed':'','fatherColor':'','fatherBirth':'','motherName':'','motherBreed':'','motherColor':'','motherBirth':'','vaccines':[],'dewormings':[],'appointments':[],'weights':[],'competitions':[],'medications':[],'healthBook':<String>[],'passport':<String>[],'adoptionStatus':'À l’élevage','adopterName':'','adopterContact':'','departureDate':'','adoptionNotes':'','healthBookGiven':false,'healthCertificateGiven':false,'adoptionInfoGiven':false,'engagementRecipientName':'','engagementRecipientAddress':'','engagementRecipientEmail':'','engagementDeliveryDate':'','engagementSignedDate':'','engagementPlace':'','engagementIssuerName':'','engagementIssuerQualification':'','engagementIssuerReference':'','engagementMentionImage':'','engagementSignatureImage':'','engagementCertificatePdf':'','engagementAccepted':false};
+ 
+ class RabbitPage extends StatefulWidget{final int index;const RabbitPage({super.key,required this.index});@override State<RabbitPage> createState()=>_RabbitPageState();}
+ class _RabbitPageState extends State<RabbitPage>{
+@@ -4259,6 +4283,7 @@
+   Future<void> refreshBreedings()async{breedings=await ReproductionStore.load();if(mounted)setState((){});}
+   Future<void> persist()async{all[widget.index]=r!;await Store.save(all);if(mounted)setState((){});}
+   Future<String> pickSquareRabbitPhoto()async{
++    await Store.requireWritable();
+     final x=await picker.pickImage(source:ImageSource.gallery,imageQuality:100);
+     if(x==null)return '';
+     final bytes=await File(x.path).readAsBytes();
+@@ -4269,6 +4294,7 @@
+   }
+ 
+   Future<void> replaceRabbitPhoto()async{
++    await Store.requireWritable();
+     final saved=await pickSquareRabbitPhoto();
+     if(saved.isEmpty)return;
+     final old=(r!['photo']??'') as String;
+@@ -4278,6 +4304,7 @@
+   }
+ 
+   Future<void> removeRabbitPhoto()async{
++    await Store.requireWritable();
+     final old=(r!['photo']??'') as String;
+     if(old.isEmpty)return;
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+@@ -4309,6 +4336,7 @@
+     )));
+   }
+   Future<void> editIdentity()async{
++    await Store.requireWritable();
+     final data=Map<String,dynamic>.from(r!);
+     await showDialog(context:context,builder:(ctx)=>EditIdentity(data:data,onSave:(v)async{
+       r=v;
+@@ -4332,6 +4360,7 @@
+   }
+ 
+   Future<void> addWeight()async{
++    await Store.requireWritable();
+     final item=<String,dynamic>{
+       'id':'w_${DateTime.now().microsecondsSinceEpoch}',
+       'date':Notifications.formatDate(DateTime.now()),
+@@ -4352,6 +4381,7 @@
+   }
+ 
+   Future<void> editWeight(Map<String,dynamic> weight)async{
++    await Store.requireWritable();
+     final list=r!['weights'] as List;
+     final id=(weight['id']??'') as String;
+     var index=id.isEmpty?-1:list.indexWhere((e)=>(e as Map)['id']==id);
+@@ -4372,6 +4402,7 @@
+   }
+ 
+   Future<void> removeWeight(Map<String,dynamic> weight)async{
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(
+       context:context,
+       builder:(c)=>AlertDialog(
+@@ -4578,6 +4609,7 @@
+   }
+ 
+   Future<void> addMedication()async{
++    await Store.requireWritable();
+     final item=<String,dynamic>{
+       'id':'m_${DateTime.now().microsecondsSinceEpoch}',
+       'name':'','reason':'','dose':'','route':'Voie orale',
+@@ -4596,6 +4628,7 @@
+   }
+ 
+   Future<void> editMedication(Map<String,dynamic> item)async{
++    await Store.requireWritable();
+     final list=r!['medications'] as List;
+     final id=(item['id']??'') as String;
+     final index=list.indexWhere((e)=>(e as Map)['id']==id);
+@@ -4627,6 +4660,7 @@
+   }
+ 
+   Future<void> deleteMedication(Map<String,dynamic> item)async{
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+       title:const Text('Supprimer ce traitement ?'),
+       content:const Text('Les rappels et les copies internes de la photo / ordonnance seront également supprimés.'),
+@@ -4763,6 +4797,7 @@
+   }
+ 
+   Future<void> addTreatment(String key,String title)async{
++    await Store.requireWritable();
+     final item={
+       'date':'','product':'','photo':'',
+       'reminderMonths':0,'reminderDays':[0],'recurring':true,
+@@ -4781,6 +4816,7 @@
+   }
+ 
+   Future<void> editTreatment(String key,int index,String title)async{
++    await Store.requireWritable();
+     final list=r![key] as List;
+     final current=Map<String,dynamic>.from(list[index]);
+     await showDialog(context:context,builder:(ctx)=>TreatmentDialog(title:title,item:current,onSave:(v)async{
+@@ -4797,6 +4833,7 @@
+   }
+ 
+   Future<void> removeTreatment(String key,int index)async{
++    await Store.requireWritable();
+     final list=r![key] as List;
+     final item=Map<String,dynamic>.from(list[index]);
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+@@ -4812,6 +4849,7 @@
+   }
+ 
+   Future<void> addAppointment()async{
++    await Store.requireWritable();
+     final item={
+       'date':'','time':'09:00','vet':'','reason':'','description':'',
+       'reminderDays':[1],
+@@ -4826,6 +4864,7 @@
+   }
+ 
+   Future<void> editAppointment(Map<String,dynamic> appointment)async{
++    await Store.requireWritable();
+     final list=r!['appointments'] as List;
+     final index=list.indexOf(appointment);
+     if(index<0)return;
+@@ -4840,6 +4879,7 @@
+   }
+ 
+   Future<void> removeAppointment(Map<String,dynamic> appointment)async{
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+       title:const Text('Supprimer ce rendez-vous ?'),
+       content:const Text('La notification associée sera également supprimée.'),
+@@ -4858,6 +4898,8 @@
+   }
+ 
+   Future<void> addBreeding()async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final sex=(r!['sex']??'') as String;
+     if(sex!='Mâle'&&sex!='Femelle')return;
+     final partners=all.where((x)=>x['id']!=r!['id']&&x['sex']==(sex=='Mâle'?'Femelle':'Mâle')).toList();
+@@ -4881,6 +4923,8 @@
+   }
+ 
+   Future<void> editBreeding(Map<String,dynamic> record)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     await showDialog(context:context,builder:(ctx)=>BreedingDialog(
+       currentRabbit:r!,allRabbits:all,record:Map<String,dynamic>.from(record),
+       onSave:(v)async{await ReproductionStore.upsert(v);await refreshBreedings();if(ctx.mounted)Navigator.pop(ctx);}
+@@ -4888,6 +4932,8 @@
+   }
+ 
+   Future<void> deleteBreeding(Map<String,dynamic> record)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+       title:const Text('Supprimer cette saillie ?'),
+       content:const Text('Elle disparaîtra automatiquement de la fiche du mâle et de la femelle.'),
+@@ -4899,6 +4945,8 @@
+   }
+ 
+   Future<void> editAdoption()async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final data=Map<String,dynamic>.from(r!);
+     await showDialog(context:context,builder:(ctx)=>AdoptionDialog(data:data,onSave:(v)async{
+       r=v;
+@@ -4933,6 +4981,8 @@
+   }
+ 
+   Future<void> addCompetition()async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final item=<String,dynamic>{
+       'id':'c_${DateTime.now().microsecondsSinceEpoch}',
+       'date':Notifications.formatDate(DateTime.now()),
+@@ -4956,6 +5006,8 @@
+   }
+ 
+   Future<void> editCompetition(Map<String,dynamic> competition)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final list=r!['competitions'] as List;
+     final id=(competition['id']??'') as String;
+     final index=list.indexWhere((e)=>(e as Map)['id']==id);
+@@ -4975,6 +5027,8 @@
+   }
+ 
+   Future<void> deleteCompetition(Map<String,dynamic> competition)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(
+       context:context,
+       builder:(c)=>AlertDialog(
+@@ -5355,6 +5409,8 @@
+   }
+ 
+   Future<void> editEngagementCertificate()async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final data=Map<String,dynamic>.from(r!);
+     await showDialog(
+       context:context,
+@@ -5399,6 +5455,7 @@
+   }
+ 
+   Future<void> attachPhotos(String key)async{
++    await Store.requireWritable();
+     final images=await picker.pickMultiImage(imageQuality:95);
+     if(images.isEmpty)return;
+     final added=<String>[];
+@@ -5412,6 +5469,7 @@
+   }
+ 
+   Future<void> attach(String key,{int? replaceIndex})async{
++    await Store.requireWritable();
+     final res=await FilePicker.platform.pickFiles(type:FileType.any,allowMultiple:replaceIndex==null);
+     if(res==null)return;
+     final pages=documentPages(r!,key);
+@@ -5474,6 +5532,7 @@
+   }
+ 
+   Future<void> removeDocument(String key,{int index=0})async{
++    await Store.requireWritable();
+     final pages=documentPages(r!,key);
+     if(index<0||index>=pages.length)return;
+     final path=pages[index];
+@@ -6601,6 +6660,8 @@
+   }
+ 
+   Future<void> _editRecordColor(Map<String,dynamic> record,int index)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final colors=ReproductionStore.colorsOf(record);
+     if(index<0||index>=colors.length)return;
+     final used=colors.asMap().entries.where((e)=>e.key!=index).map((e)=>(e.value['color']??'').toString()).toSet();
+@@ -6613,6 +6674,8 @@
+   }
+ 
+   Future<void> _deleteRecordColor(Map<String,dynamic> record,int index)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final colors=ReproductionStore.colorsOf(record);
+     if(index<0||index>=colors.length)return;
+     final label=(colors[index]['color']??'cette couleur').toString();
+@@ -6629,6 +6692,8 @@
+   }
+ 
+   Future<void> _clearRecordColors(Map<String,dynamic> record)async{
++    LicenceService.instance.policy.requireBreeding();
++    await Store.requireWritable();
+     final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(
+       title:const Text('Supprimer toutes les couleurs ?'),
+       content:const Text('Toutes les colonnes de couleurs de cette portée seront supprimées.'),
+@@ -7758,6 +7823,7 @@
+           selected:{if((d['sterilized']??'').toString().isNotEmpty)d['sterilized']},
+           showSelectedIcon:false,onSelectionChanged:(v)=>setState(()=>d['sterilized']=v.first),
+         ),
++        if(LicenceService.instance.policy.breeding)SwitchListTile(title:const Text('Reproducteur actif'),subtitle:const Text('Mâles et femelles réunis · Non stérilisé et présent à l’élevage'),value:LicencePolicy.active(d),onChanged:(v)=>setState(()=>d['activeBreeder']=v)),
+         raceColorFields('breed','color'),
+         field('Numéro d’identification (facultatif)','identification'),
+         field('Numéro de tatouage (facultatif)','tattoo'),

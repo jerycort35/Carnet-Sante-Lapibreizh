@@ -1,0 +1,9 @@
+PASS création et clé visible
+PASS propriétaire séparé et bouton unique
+PASS commande révocation
+PASS modification niveau
+PASS récupération réinstallation
+PASS recherche
+PASS affichage mobile sans débordement
+PASS génération paramètres et configuration publique sans secret
+8 parcours navigateur passés ; API simulée, aucune licence réelle créée.

@@ -1,0 +1,9 @@
+{
+  "source_commit": "943fbd59419c30884b9e523831b0bc8860a80a4a",
+  "files_unchanged_sha256": {
+    "android/app/build.gradle": "e16d9f74f424c76f0bdc1a40b7dbcca3410ed8151ea9f91d34ac153c24f9e41b",
+    "android/app/src/main/AndroidManifest.xml": "1991f3564de6d7d0fd8808a99b00ef7882343683ceb2f0478b7a19d97c2a2724",
+    ".github/workflows/build_apk.yml": "66f112328bc63173f1d92dcf09a6977bffdf297eb015a4eb8fbbb506aeedaa3a",
+    "lib/premium_ui.dart": "8697eea6bb542e26ff1d0e56143dcf8be529814eff65fcd548c8c2f6e31d97dc"
+  }
+}

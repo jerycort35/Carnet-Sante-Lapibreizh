@@ -1,0 +1,28 @@
+✔ Activation authentifiée et signature réelle : 1 (27.952258ms)
+✔ Activation authentifiée et signature réelle : 2 (12.444137ms)
+✔ Activation authentifiée et signature réelle : 3 (11.279669ms)
+✔ Activation authentifiée et signature réelle : 4 (7.778242ms)
+✔ Activation authentifiée et signature réelle : owner (6.691732ms)
+✔ Console refuse accès anonyme (1.150906ms)
+✔ JWT signé : refuse autre audience, autre mail et expiration (5.157429ms)
+✔ JWT avec signature forgée refusé (2.12217ms)
+✔ Mutations refusées sans Origin/CSRF (3.040276ms)
+✔ Clés uniques et stockées seulement sous forme hachée (8.054214ms)
+✔ Clé invalide ne crée pas d’activation (4.068376ms)
+✔ Partage sur une autre installation refusé (12.949348ms)
+✔ Nonce inexistant et fausse preuve refusés (10.117096ms)
+✔ Révocation et changement de niveau appliqués au renouvellement (23.614873ms)
+✔ Propriétaire séparé et unique : promotion et révocation refusées (12.206664ms)
+✔ Réinstallation : nouvelle clé, ancienne clé invalidée (18.973282ms)
+✔ Sauvegarde conserve licences et audit sans clé en clair (4.206654ms)
+✔ Limitation des tentatives publiques (17.046304ms)
+✔ Deux applications Access avec audiences explicites acceptées (1.764559ms)
+✔ Un défi authentifié ne peut pas être réutilisé (6.432599ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 600.314531

@@ -1,3 +1,4 @@
+import 'licence_fixture.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -35,7 +36,8 @@ void main() {
       await loader.load();
     }
   });
-  setUp(() {
+  setUp(() async {
+    await installTestLicence();
     final rabbit = emptyRabbit()
       ..addAll({
         'id': 'ui_test_rabbit',
@@ -151,6 +153,7 @@ void main() {
     await tester.runAsync(()async{await Store.load();});
     await begin(tester,const HomePage());
     const warning='NE PAS RÉALISER CE CROISEMENT POUR LE MOMENT';
+    await tester.scrollUntilVisible(find.text('Je recherche une couleur'),250,scrollable:find.byType(Scrollable).first);
     await tester.scrollUntilVisible(find.text(warning).first,250,scrollable:find.byType(Scrollable).first);
     await tester.ensureVisible(find.text(warning).first);await tester.pumpAndSettle();
     expect(find.text(warning),findsNWidgets(6));

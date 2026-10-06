@@ -1,0 +1,15 @@
+PASS profile 1
+PASS profile 2
+PASS profile 3
+PASS profile 4
+PASS profile owner
+PASS forged signature
+PASS different installation
+PASS different application
+PASS expired
+PASS too long offline
+PASS unknown tier
+PASS owner permanent only
+PASS clock rollback
+PASS owner in 100 years
+14 native verification tests passed

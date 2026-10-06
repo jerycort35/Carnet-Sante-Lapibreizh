@@ -1,0 +1,107 @@
+const embedded={"/admin/app.js":{"body":"const $=s=>document.querySelector(s);const levels={'1':'Adoptant / 1 lapin','2':'Adoptant illimité','3':'Complète / 2 reproducteurs actifs','4':'Complète illimitée',owner:'PROPRIÉTAIRE / ADMIN'};let licences=[];\nasync function api(path,method='GET',data){const r=await fetch(`/api/admin/${path}`,{method,headers:{'Content-Type':'application/json','X-Lapi-Admin':'1'},...(data?{body:JSON.stringify(data)}:{})});const j=await r.json();if(!r.ok)throw Error(j.error||'Erreur');return j;}\nconst message=t=>$('#message').textContent=t;\nasync function run(fn){try{await fn();}catch(e){message(e.message);}}\nconst download=(name,data)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};\nfunction showKey(v){$('#result').hidden=false;$('#key').value=v;$('#result').scrollIntoView({behavior:'smooth'});}\nfunction render(){const root=$('#licences');root.replaceChildren();const q=$('#search').value.toLowerCase();for(const l of licences.filter(l=>`${l.recipient} ${l.id}`.toLowerCase().includes(q))){const card=document.createElement('article');card.className='licence';const title=document.createElement('h3');title.textContent=l.recipient;card.append(title);for(const t of [levels[l.tier],l.status==='active'?'Active':'Révoquée',l.device_hash?'Installation liée':'Non activée']){const b=document.createElement('span');b.className='badge'+(t==='Révoquée'?' revoked':'');b.textContent=t;card.append(b);}const id=document.createElement('p');id.textContent=l.id;card.append(id);const button=(text,action)=>{const b=document.createElement('button');b.textContent=text;b.onclick=()=>run(action);card.append(b);};if(l.tier!=='owner'){button(l.status==='active'?'Révoquer':'Réactiver',async()=>{if(!confirm('Confirmer cette modification de licence ?'))return;await api(`licences/${l.id}`,'PATCH',{action:l.status==='active'?'revoke':'reactivate'});await load();});const select=document.createElement('select');for(const [v,text] of Object.entries(levels)){if(v==='owner')continue;select.add(new Option(text,v,v===l.tier,v===l.tier));}card.append(select);button('Changer le niveau',async()=>{await api(`licences/${l.id}`,'PATCH',{action:'level',tier:select.value});await load();});}button('Réinstallation / nouvel appareil',async()=>{if(!confirm('Après vérification de l’identité : libérer cette licence et créer une nouvelle clé ? L’ancienne installation utilisateur perdra ses droits à son prochain contrôle (au plus tard 7 jours). Un ancien accès propriétaire permanent reste valable : protéger les anciens appareils.'))return;showKey((await api(`licences/${l.id}`,'PATCH',{action:'recover'})).key);await load();});button('Remplacer une clé perdue',async()=>{if(!confirm('Remplacer la clé précédente, en conservant l’installation liée ?'))return;showKey((await api(`licences/${l.id}`,'PATCH',{action:'rotate'})).key);await load();});root.append(card);}if(!root.children.length)root.textContent='Aucune licence.';$('#owner').disabled=licences.some(l=>l.tier==='owner');}\nasync function load(){licences=await api('licences');render();}\n$('#create').onsubmit=e=>{e.preventDefault();run(async()=>{const r=await api('licences','POST',{recipient:$('#recipient').value,tier:$('#tier').value});showKey(r.key);await load();message('Licence créée.');});};\n$('#owner').onclick=()=>run(async()=>{const recipient=prompt('Ton nom, pour le profil propriétaire :');if(!recipient)return;if(prompt('Tape PROPRIETAIRE pour confirmer :')!=='PROPRIETAIRE')return;showKey((await api('owner','POST',{recipient,confirm:'PROPRIETAIRE'})).key);await load();});\n$('#search').oninput=render;$('#refresh').onclick=()=>run(load);$('#copy').onclick=()=>run(async()=>{await navigator.clipboard.writeText($('#key').value);message('Clé copiée.');});$('#backup').onclick=()=>run(async()=>{download(`LapiGestion-${new Date().toISOString().slice(0,10)}.backup.json`,JSON.stringify(await api('backup'),null,2));message('Sauvegarde téléchargée. Conserve-la dans un endroit privé.');});run(load);\n","type":"text/javascript"},"/admin/index.html":{"body":"<!doctype html><html lang=\"fr\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"style.css\"><title>LapiGestion Admin</title><main><h1>LapiGestion Admin</h1><p>Les Lapibreizh · Licences attribuées après vérification manuelle d’une donation</p><nav><a href=\"preparation.html\">Préparation du service</a><button id=\"backup\">Sauvegarder les licences</button></nav><section><h2>Nouvelle licence utilisateur</h2><form id=\"create\"><label>Nom de la personne<input id=\"recipient\" required maxlength=\"160\"></label><label>Niveau<select id=\"tier\"><option value=\"1\">1 · Adoptant / 1 lapin</option><option value=\"2\">2 · Adoptant illimité</option><option value=\"3\">3 · Complète / 2 reproducteurs actifs</option><option value=\"4\">4 · Complète illimitée</option></select></label><button>Générer la clé</button></form></section><section id=\"result\" hidden><h2>Clé à conserver et transmettre</h2><p>Cette clé n’est affichée qu’une fois. Tu envoies toi-même l’APK et la clé.</p><textarea id=\"key\" readonly rows=\"4\"></textarea><button id=\"copy\">Copier la clé</button></section><section><h2>Mes licences</h2><label>Rechercher<input id=\"search\" type=\"search\" placeholder=\"Nom ou identifiant\"></label><button id=\"refresh\">Actualiser</button><div id=\"licences\"></div></section><section><h2>Accès propriétaire permanent</h2><p>Un seul profil, distinct des quatre niveaux. Il donne accès à toute l’application, sur ton installation. Il ne donne aucun accès à cette console.</p><button id=\"owner\">Créer mon accès propriétaire</button></section><p id=\"message\" role=\"status\" aria-live=\"polite\"></p></main><script type=\"module\" src=\"app.js\"></script></html>\n","type":"text/html"},"/admin/preparation.html":{"body":"<!doctype html><html lang=\"fr\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"style.css\"><title>Préparer LapiGestion</title><main><a href=\"./\">Retour à la console</a><h1>Préparer le service de licences</h1><p>À utiliser une seule fois, avant la première licence. La clé privée reste dans ce navigateur jusqu’à ce que tu la copies toi-même dans les secrets Cloudflare. Ne la communique jamais et ne la mets jamais dans GitHub ou l’APK.</p><button id=\"generate\">Générer les paramètres</button><section id=\"values\" hidden><label>SIGNING_PRIVATE_JWK — secret Cloudflare<textarea id=\"private\" rows=\"8\" readonly></textarea></label><label>RATE_PEPPER — secret Cloudflare<input id=\"pepper\" readonly></label><button id=\"backup\">Télécharger la sauvegarde privée</button><p>Conserve cette sauvegarde avant de quitter la page. Ne régénère pas ces paramètres après avoir attribué des licences.</p><button id=\"config\">Télécharger licence_config.dart (public)</button><p>Ce fichier public doit remplacer lib/licence_config.dart avant de générer l’APK avec ton workflow actuel.</p></section><p id=\"message\" role=\"status\"></p></main><script type=\"module\" src=\"preparation.js\"></script></html>\n","type":"text/html"},"/admin/preparation.js":{"body":"const $=s=>document.querySelector(s);let saved,publicKey;\nconst b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/=/g,'').replace(/\\+/g,'-').replace(/\\//g,'_');\nfunction download(name,data){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'text/plain'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}\n$('#generate').onclick=async()=>{if(!confirm('Première configuration uniquement. Générer une nouvelle clé peut rendre incompatibles les APK déjà configurées. Continuer ?'))return;try{const keys=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:3072,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const privateJwk=await crypto.subtle.exportKey('jwk',keys.privateKey);publicKey=b64(await crypto.subtle.exportKey('spki',keys.publicKey));const pepper=b64(crypto.getRandomValues(new Uint8Array(32)));saved={format:'lapigestion_keys_v1',origin:location.origin,privateJwk,publicKey,pepper};$('#private').value=JSON.stringify(privateJwk);$('#pepper').value=pepper;$('#values').hidden=false;$('#generate').disabled=true;}catch(e){$('#message').textContent=e.message;}};\n$('#backup').onclick=()=>download('LapiGestion-secrets-PRIVES.json',JSON.stringify(saved,null,2));\n$('#config').onclick=()=>download('licence_config.dart',`// Paramètres publics : aucun secret de fabrication de licence.\\nconst licenceApiOrigin = '${location.origin}';\\nconst licenceSignerSpki = '${publicKey}';\\n`);\n","type":"text/javascript"},"/admin/style.css":{"body":":root{font-family:system-ui,sans-serif;color:#183b2a;background:#f6f2e7}*{box-sizing:border-box}body{margin:0}main{max-width:960px;margin:auto;padding:24px 16px 60px}h1,h2{font-family:Georgia,serif}h1{font-size:32px}h2{font-size:23px}section{background:#fffdf5;border:1px solid #cbb078;border-radius:18px;padding:20px;margin:20px 0;box-shadow:0 5px 20px #263d2410}label{display:block;font-weight:650;margin:12px 0}input,select,textarea{display:block;width:100%;font:inherit;padding:12px;margin:6px 0;border:1px solid #bca16b;border-radius:10px;background:#fffef8;color:#203e2d}textarea{overflow-wrap:anywhere}button{font:inherit;background:#16553a;color:#fffdf5;border:1px solid #cbb078;border-radius:10px;padding:11px 16px;cursor:pointer;margin:5px 8px 5px 0}button:disabled{opacity:.5;cursor:default}a{color:#16553a}.licence{padding:16px 0;border-bottom:1px solid #ddd2b8;overflow-wrap:anywhere}.badge{display:inline-block;padding:5px 10px;border-radius:8px;background:#e4eddf;margin:4px}.revoked{background:#fce2df;color:#8b211b}#message{white-space:pre-wrap;overflow-wrap:anywhere;font-weight:700}pre{white-space:pre-wrap;overflow-wrap:anywhere}nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center}@media(max-width:500px){main{padding:12px}section{padding:14px}h1{font-size:28px}button{max-width:100%}}\n","type":"text/css"}};
+const enc=new TextEncoder();
+export const AUD='fr.leslapibreizh.carnetsante';
+export const tiers=['1','2','3','4','owner'];
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+const un64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const now=()=>Math.floor(Date.now()/1000);
+const random=n=>b64(crypto.getRandomValues(new Uint8Array(n)));
+const sha=async s=>b64(await crypto.subtle.digest('SHA-256',typeof s==='string'?enc.encode(s):s));
+const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
+function json(v,status=200){return new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json;charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
+async function body(req){if(Number(req.headers.get('Content-Length')||0)>16384)fail('Requête trop longue.');const t=await req.text();if(t.length>16384)fail('Requête trop longue.');try{return JSON.parse(t);}catch{fail('JSON incorrect.');}}
+const statement=(env,sql,...a)=>env.DB.prepare(sql).bind(...a);
+async function log(env,actor,action,id){await statement(env,'INSERT INTO audit(at,actor,action,licence_id) VALUES(?,?,?,?)',now(),actor,action,id||null).run();}
+async function rate(req,env,name,max){
+ if(!env.RATE_PEPPER)fail('Service non configuré.',503);
+ const bucket=await sha(`${env.RATE_PEPPER}:${req.headers.get('CF-Connecting-IP')||'unknown'}:${name}:${Math.floor(now()/60)}`);
+ const r=await statement(env,'INSERT INTO rate_limits(bucket,count,expires) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count',bucket,now()+120).first();
+ if(r.count>max)fail('Trop de tentatives. Réessaie dans une minute.',429);
+}
+const jwksCache=new Map();
+export async function admin(req,env){
+ const team=env.ACCESS_TEAM||'';
+ if(!/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(team)||!env.ACCESS_AUD||!env.ADMIN_EMAIL)fail('Authentification administrateur non configurée.',503);
+ const jwt=req.headers.get('Cf-Access-Jwt-Assertion')||'';const parts=jwt.split('.');if(parts.length!==3)fail('Connexion administrateur requise.',401);
+ let h,p;try{h=JSON.parse(new TextDecoder().decode(un64(parts[0])));p=JSON.parse(new TextDecoder().decode(un64(parts[1])));}catch{fail('Session incorrecte.',401);}
+ const auds=env.ACCESS_AUD.split(',').map(x=>x.trim());
+ if(h.alg!=='RS256'||p.iss!==team||p.type!=='app'||!Array.isArray(p.aud)||!p.aud.some(a=>auds.includes(a))||p.exp<=now()||!Number.isInteger(p.iat)||p.iat>now()+60||p.email?.toLowerCase()!==env.ADMIN_EMAIL.toLowerCase())fail('Accès refusé.',403);
+ let keys=jwksCache.get(team);if(!keys||keys.until<now()||!keys.keys.some(k=>k.kid===h.kid)){
+  const r=await fetch(`${team}/cdn-cgi/access/certs`);if(!r.ok)fail('Authentification indisponible.',503);const j=await r.json();keys={keys:j.keys,until:now()+3600};jwksCache.set(team,keys);
+ }
+ const jwk=keys.keys.find(k=>k.kid===h.kid);if(!jwk)fail('Session non vérifiée.',401);
+ const k=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
+ if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',k,un64(parts[2]),enc.encode(`${parts[0]}.${parts[1]}`)))fail('Session non vérifiée.',401);
+ if(!['GET','HEAD'].includes(req.method)&&(req.headers.get('Origin')!==env.PUBLIC_ORIGIN||req.headers.get('X-Lapi-Admin')!=='1'))fail('Origine incorrecte.',403);
+ return p.email;
+}
+function key(){return 'LG-'+Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,'0')).join('').match(/.{1,8}/g).join('-').toUpperCase();}
+export function normalizeKey(v){return String(v||'').toUpperCase().replace(/[-\s]/g,'');}
+async function issue(env,row,device){
+ if(!env.SIGNING_PRIVATE_JWK)fail('Clé de signature du service absente.',503);
+ const payload={iss:'lapigestion',aud:AUD,id:row.id,tier:row.tier,revision:row.revision,device,iat:now(),exp:row.tier==='owner'?null:now()+7*86400};
+ const data=b64(enc.encode(JSON.stringify(payload)));
+ const k=await crypto.subtle.importKey('jwk',JSON.parse(env.SIGNING_PRIVATE_JWK),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+ return {payload:data,signature:b64(await crypto.subtle.sign('RSASSA-PKCS1-v1_5',k,enc.encode(data)))};
+}
+export async function authorize(req,env){
+ await rate(req,env,'authorize',10);const b=await body(req);
+ if(!['activate','refresh'].includes(b.action)||typeof b.spki!=='string'||b.spki.length>2048||typeof b.credential!=='string'||b.credential.length>128)fail('Demande incorrecte.');
+ const taken=await statement(env,'DELETE FROM challenges WHERE nonce=? AND expires>? RETURNING nonce',b.nonce,now()).first();if(!taken)fail('Demande expirée. Recommence.',409);
+ let deviceKey;try{deviceKey=await crypto.subtle.importKey('spki',un64(b.spki),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);}catch{fail('Installation incorrecte.');}
+ if(deviceKey.algorithm.modulusLength<2048)fail('Installation incorrecte.');
+ const message=`${b.nonce}\n${b.action}\n${b.credential}\n${b.spki}`;
+ if(!await crypto.subtle.verify('RSASSA-PKCS1-v1_5',deviceKey,un64(b.proof||''),enc.encode(message)))fail('Preuve d’installation incorrecte.',403);
+ const device=await sha(un64(b.spki));
+ const row=b.action==='activate'?await statement(env,'SELECT * FROM licences WHERE key_hash=?',await sha(normalizeKey(b.credential))).first():await statement(env,'SELECT * FROM licences WHERE id=?',b.credential).first();
+ if(!row)fail('Clé inexistante ou incorrecte.',404);if(row.status!=='active')fail('Licence révoquée.',403);
+ if(b.action==='refresh'&&!row.device_hash)fail('Activation requise.',409);
+ if(row.device_hash&&row.device_hash!==device)fail('Licence déjà liée à une autre installation. Contacte Les Lapibreizh.',409);
+ const linked=await statement(env,"UPDATE licences SET device_hash=?,updated_at=? WHERE id=? AND status='active' AND (device_hash IS NULL OR device_hash=?) RETURNING *",device,now(),row.id,device).first();
+ if(!linked)fail('Licence indisponible. Recommence.',409);
+ // A final read avoids issuing a stale level after a concurrent administrative change.
+ const current=await statement(env,'SELECT * FROM licences WHERE id=?',row.id).first();
+ if(current.status!=='active'||current.device_hash!==device)fail('Licence indisponible.',403);
+ return json(await issue(env,current,device));
+}
+async function adminApi(req,env,actor,path){
+ if(req.method==='GET'&&path==='/api/admin/licences')return json((await statement(env,'SELECT id,recipient,tier,status,revision,device_hash,created_at,updated_at FROM licences ORDER BY created_at DESC').all()).results);
+ if(req.method==='GET'&&path==='/api/admin/backup')return json({format:'lapigestion_licences_v1',createdAt:new Date().toISOString(),licences:(await statement(env,'SELECT * FROM licences').all()).results,audit:(await statement(env,'SELECT * FROM audit').all()).results});
+ if(req.method==='POST'&&(path==='/api/admin/licences'||path==='/api/admin/owner')){
+  const b=await body(req);const tier=path.endsWith('/owner')?'owner':String(b.tier);const recipient=String(b.recipient||'').trim();
+  if(!recipient||recipient.length>160||!tiers.includes(tier)||(path.endsWith('/licences')&&tier==='owner'))fail('Nom ou niveau incorrect.');
+  if(tier==='owner'&&b.confirm!=='PROPRIETAIRE')fail('Confirmation propriétaire requise.');
+  if(tier==='owner'&&await statement(env,"SELECT id FROM licences WHERE tier='owner'").first())fail('Un profil propriétaire existe déjà. Utilise la récupération.',409);
+  const activationKey=key(),id=crypto.randomUUID();await statement(env,'INSERT INTO licences(id,key_hash,recipient,tier,created_at,updated_at) VALUES(?,?,?,?,?,?)',id,await sha(normalizeKey(activationKey)),recipient,tier,now(),now()).run();await log(env,actor,'create',id);return json({id,key:activationKey},201);
+ }
+ const match=path.match(/^\/api\/admin\/licences\/([a-f0-9-]{36})$/);
+ if(req.method==='PATCH'&&match){
+  const row=await statement(env,'SELECT * FROM licences WHERE id=?',match[1]).first();if(!row)fail('Licence introuvable.',404);const b=await body(req);let activationKey=null;
+  if(b.action==='recover'||b.action==='rotate'){
+   activationKey=key();await statement(env,'UPDATE licences SET key_hash=?,device_hash=?,revision=revision+1,updated_at=? WHERE id=?',await sha(normalizeKey(activationKey)),b.action==='recover'?null:row.device_hash,now(),row.id).run();
+  }else if(b.action==='level'){
+   if(row.tier==='owner'||!['1','2','3','4'].includes(String(b.tier)))fail('Le profil propriétaire est séparé des niveaux utilisateurs.');
+   await statement(env,'UPDATE licences SET tier=?,revision=revision+1,updated_at=? WHERE id=?',String(b.tier),now(),row.id).run();
+  }else if(['revoke','reactivate'].includes(b.action)){
+   if(row.tier==='owner')fail('Le profil propriétaire permanent ne peut pas être révoqué.');
+   await statement(env,'UPDATE licences SET status=?,revision=revision+1,updated_at=? WHERE id=?',b.action==='revoke'?'revoked':'active',now(),row.id).run();
+  }else fail('Commande inconnue.');await log(env,actor,b.action,row.id);return json({ok:true,...(activationKey?{key:activationKey}:{})});
+ }
+ fail('Commande inconnue.',404);
+}
+async function handle(req,env){
+ const url=new URL(req.url),path=url.pathname;
+ if(path==='/')return Response.redirect(`${env.PUBLIC_ORIGIN}/admin/`,302);
+ if(path.startsWith('/api/admin/')||path.startsWith('/admin/')){
+  const actor=await admin(req,env);
+  if(path.startsWith('/api/admin/'))return adminApi(req,env,actor,path);
+  const asset=embedded[path==='/admin/'?'/admin/index.html':path];const response=asset?new Response(asset.body,{headers:{'Content-Type':asset.type+';charset=utf-8'}}):new Response('Introuvable',{status:404});const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");return new Response(response.body,{status:response.status,headers:h});
+ }
+ if(path==='/api/challenge'&&req.method==='POST'){await rate(req,env,'challenge',30);const nonce=random(32);await statement(env,'INSERT INTO challenges(nonce,expires) VALUES(?,?)',nonce,now()+120).run();return json({nonce});}
+ if(path==='/api/authorize'&&req.method==='POST')return authorize(req,env);
+ fail('Introuvable.',404);
+}
+export default {
+ async fetch(req,env){try{return await handle(req,env);}catch(e){return json({error:e.status?e.message:'Service indisponible. Réessaie ou contacte Les Lapibreizh.'},e.status||503);}},
+ async scheduled(_,env){await env.DB.batch([statement(env,'DELETE FROM challenges WHERE expires<?',now()),statement(env,'DELETE FROM rate_limits WHERE expires<?',now())]);}
+};

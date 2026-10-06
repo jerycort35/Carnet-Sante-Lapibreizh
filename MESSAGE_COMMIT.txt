@@ -1,1 +1,1 @@
-Afficher tous les croisements correspondants avec leurs restrictions en rouge - LapiGestion V3.1.46
+LapiGestion V3.1.47 — Licences, accès propriétaire permanent et console Cloudflare séparée

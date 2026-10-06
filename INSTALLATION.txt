@@ -1,9 +1,3 @@
-LapiGestion V3.1.46 — Flutter 1.0.0+46
+LapiGestion V3.1.47 — Flutter 1.0.0+47
 
-ZIP source unique cumulatif : toutes les corrections précédentes sont incluses. Remplacer les fichiers correspondants dans ton dépôt local, puis compiler avec ton workflow Android habituel. Message de commit inclus. Aucun APK construit ici ni changement effectué sur GitHub. Sauvegarder les données avant installation et conserver la même signature, sans désinstaller.
-
-Recherche une couleur : tous les croisements correspondant à la race sélectionnée ET à la couleur recherchée dans les portées enregistrées restent affichés, sans limite de nombre. Les résultats historiques et leur classement restent conservés.
-
-Un encadré rouge très visible indique NE PAS RÉALISER CE CROISEMENT POUR LE MOMENT et tous les motifs applicables : traitement médical actif chez la femelle ; quota de portées atteint sur les 12 derniers mois ; repos minimum non terminé avec nombre de jours restants. Plusieurs motifs peuvent apparaître ensemble. Aucun critère de protection supprimé. Un croisement ne devient pas disponible parce qu’il est visible.
-
-Les critères de race et couleur ne sont pas élargis. Les données historiques ne sont pas modifiées. Un traitement terminé ou une restriction levée fait disparaître son avertissement lors du rechargement normal des données ou du changement des réglages. Les résultats observés ne garantissent pas la couleur d’une prochaine portée.
+Lire LIRE_AVANT_INSTALLATION.md AVANT de pousser les fichiers ou générer une APK. Configurer d’abord Cloudflare, télécharger le fichier public licence_config.dart et créer l’accès propriétaire. Le service et la console sont dans lapigestion-admin/. Le workflow et la signature existants doivent rester inchangés. Aucun APK final signé dans cette archive.

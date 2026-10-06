@@ -1,0 +1,3 @@
+import {mkdir,writeFile} from 'node:fs/promises';import {webcrypto} from 'node:crypto';
+const dir=new URL('../private/',import.meta.url);await mkdir(dir,{mode:0o700});const k=await webcrypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:3072,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
+await writeFile(new URL('signing-private.json',dir),JSON.stringify(await webcrypto.subtle.exportKey('jwk',k.privateKey)),{mode:0o600});await writeFile(new URL('signing-public.txt',dir),Buffer.from(await webcrypto.subtle.exportKey('spki',k.publicKey)).toString('base64url'));console.log('Paramètres générés dans private/. La clé privée ne doit jamais entrer dans GitHub ou dans l’APK.');

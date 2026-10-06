@@ -1,0 +1,7 @@
+{
+ "name":"lapigestion-admin", "main":"src/worker.mjs", "compatibility_date":"2026-10-05",
+ "assets":{"directory":"public","binding":"ASSETS","run_worker_first":true},
+ "d1_databases":[{"binding":"DB","database_name":"lapigestion-licences","database_id":"A_REMPLACER","migrations_dir":"migrations"}],
+ "vars":{"PUBLIC_ORIGIN":"https://A_REMPLACER.workers.dev","ACCESS_TEAM":"https://A_REMPLACER.cloudflareaccess.com","ACCESS_AUD":"A_REMPLACER","ADMIN_EMAIL":"A_REMPLACER"},
+ "triggers":{"crons":["17 * * * *"]}
+}
